@@ -6,163 +6,145 @@
 <title>Trellis Enrich</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
-  :root {
-    --ink: #1a1a18;
-    --ink-soft: #4a4a44;
-    --ink-muted: #8a8a80;
-    --cream: #f8f5ef;
-    --cream-deep: #efe9dc;
-    --gold: #b8924a;
-    --gold-light: #d4ae72;
-    --gold-pale: #f5eddb;
-    --green: #2d4a35;
-    --green-light: #e8f0e9;
-    --border: rgba(26,26,24,0.1);
-    --red: #c0392b;
-    --red-light: #fdf0ef;
-    --blue: #1a4a8a;
-    --blue-light: #eef3fb;
-    --amber: #b8924a;
-    --amber-light: #fdf6e8;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--cream); color: var(--ink); font-family: 'DM Sans', sans-serif; font-weight: 300; min-height: 100vh; }
-
-  /* Layout */
-  .shell { display: flex; min-height: 100vh; }
-  .sidebar { width: 220px; background: var(--ink); flex-shrink: 0; display: flex; flex-direction: column; padding: 28px 0; position: fixed; height: 100vh; }
-  .main { margin-left: 220px; flex: 1; padding: 40px 48px; max-width: 1000px; }
-  .logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 300; letter-spacing: 0.12em; color: white; text-transform: uppercase; padding: 0 24px 28px; border-bottom: 0.5px solid rgba(255,255,255,0.1); }
-  .logo span { color: var(--gold); }
-  .nav { padding: 20px 0; flex: 1; }
-  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 24px; font-size: 13px; color: rgba(255,255,255,0.5); cursor: pointer; transition: all .15s; border-left: 2px solid transparent; }
-  .nav-item:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.05); }
-  .nav-item.active { color: white; border-left-color: var(--gold); background: rgba(255,255,255,0.07); }
-  .nav-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.5; flex-shrink: 0; }
-  .nav-item.active .nav-dot { opacity: 1; background: var(--gold); }
-  .fub-section { padding: 20px 24px; border-top: 0.5px solid rgba(255,255,255,0.1); }
-  .fub-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 8px; }
-  .fub-input { width: 100%; background: rgba(255,255,255,0.08); border: 0.5px solid rgba(255,255,255,0.15); border-radius: 4px; padding: 8px 10px; font-size: 12px; color: white; font-family: 'DM Sans', sans-serif; }
-  .fub-input::placeholder { color: rgba(255,255,255,0.3); }
-  .fub-status { font-size: 11px; margin-top: 6px; color: rgba(255,255,255,0.3); }
-  .fub-status.on { color: #7bc67e; }
-
-  /* Panels */
-  .panel { display: none; }
-  .panel.active { display: block; }
-  .page-title { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 300; color: var(--ink); margin-bottom: 4px; }
-  .page-sub { font-size: 13px; color: var(--ink-muted); margin-bottom: 32px; }
-
-  /* Cards */
-  .card { background: white; border: 0.5px solid var(--border); border-radius: 6px; padding: 24px; margin-bottom: 16px; }
-  .card-title { font-size: 13px; font-weight: 500; color: var(--ink); margin-bottom: 16px; }
-
-  /* Forms */
-  .input-row { display: flex; gap: 10px; margin-bottom: 12px; }
-  .input-row input { flex: 1; padding: 10px 12px; font-size: 13px; border: 0.5px solid var(--border); border-radius: 4px; background: var(--cream); color: var(--ink); font-family: 'DM Sans', sans-serif; }
-  .input-row input:focus { outline: none; border-color: var(--gold); }
-  textarea.notes { width: 100%; min-height: 72px; padding: 10px 12px; font-size: 13px; border: 0.5px solid var(--border); border-radius: 4px; background: var(--cream); color: var(--ink); font-family: 'DM Sans', sans-serif; resize: vertical; margin-bottom: 12px; }
-  .btn { padding: 10px 20px; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity .15s; border: none; font-family: 'DM Sans', sans-serif; }
-  .btn-primary { background: var(--ink); color: white; }
-  .btn-primary:hover { opacity: .8; }
-  .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
-  .btn-gold { background: var(--gold); color: white; }
-  .btn-gold:hover { opacity: .85; }
-  .btn-outline { background: transparent; border: 0.5px solid var(--border); color: var(--ink); }
-  .btn-outline:hover { background: var(--cream); }
-  .btn-green { background: var(--green); color: white; }
-  .btn-green:hover { opacity: .85; }
-  .btn-sm { padding: 6px 14px; font-size: 12px; }
-
-  /* Tags */
-  .tags-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
-  .tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 4px 10px; border-radius: 20px; cursor: pointer; border: 0.5px solid transparent; transition: all .15s; }
-  .tag.pending { background: var(--blue-light); color: var(--blue); border-color: rgba(26,74,138,0.2); }
-  .tag.approved { background: var(--green-light); color: var(--green); border-color: rgba(45,74,53,0.2); }
-  .tag.rejected { background: #f5f5f5; color: #aaa; text-decoration: line-through; opacity: .5; }
-  .conf-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
-  .conf-high { background: var(--green); }
-  .conf-med { background: var(--amber); }
-  .conf-low { background: var(--red); }
-
-  /* Result card */
-  .result-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
-  .avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--gold-pale); display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 16px; color: var(--gold); flex-shrink: 0; font-family: 'DM Sans', sans-serif; }
-  .result-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; }
-  .result-sub { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
-  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-  .field { background: var(--cream); border-radius: 4px; padding: 10px 12px; }
-  .field-key { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 3px; }
-  .field-val { font-size: 13px; color: var(--ink); font-weight: 400; }
-  .field-val.empty { color: var(--ink-muted); font-style: italic; font-size: 12px; }
-  .section-label { font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 8px; margin-top: 16px; }
-  .divider { border: none; border-top: 0.5px solid var(--border); margin: 16px 0; }
-  .action-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .push-msg { font-size: 12px; margin-left: auto; }
-  .push-msg.ok { color: var(--green); }
-  .push-msg.err { color: var(--red); }
-  .warning-box { background: var(--amber-light); border: 0.5px solid rgba(184,146,74,0.3); border-radius: 4px; padding: 10px 14px; font-size: 12px; color: var(--amber); margin-bottom: 14px; }
-
-  /* Queue */
-  .queue-header { display: grid; grid-template-columns: 2fr 1.5fr 1fr 90px; gap: 8px; padding: 8px 16px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-muted); border-bottom: 0.5px solid var(--border); }
-  .queue-row { display: grid; grid-template-columns: 2fr 1.5fr 1fr 90px; gap: 8px; padding: 14px 16px; border-bottom: 0.5px solid var(--border); align-items: center; cursor: pointer; transition: background .12s; }
-  .queue-row:hover { background: var(--cream); }
-  .queue-row:last-child { border-bottom: none; }
-  .pill { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 400; display: inline-block; }
-  .pill-pending { background: #f0f0ee; color: var(--ink-muted); }
-  .pill-running { background: var(--blue-light); color: var(--blue); }
-  .pill-done { background: var(--green-light); color: var(--green); }
-  .pill-review { background: var(--amber-light); color: var(--amber); }
-  .pill-error { background: var(--red-light); color: var(--red); }
-  .expand-panel { display: none; background: var(--cream); padding: 16px; border-bottom: 0.5px solid var(--border); }
-  .expand-panel.open { display: block; }
-
-  /* Voice */
-  .record-btn { display: flex; align-items: center; gap: 10px; padding: 14px 20px; background: var(--ink); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 400; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .15s; width: 100%; justify-content: center; }
-  .record-btn.recording { background: var(--red); animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
-  .record-dot { width: 10px; height: 10px; border-radius: 50%; background: white; flex-shrink: 0; }
-  .transcript-box { background: var(--cream); border: 0.5px solid var(--border); border-radius: 4px; padding: 14px; font-size: 13px; color: var(--ink-soft); line-height: 1.7; min-height: 80px; margin: 12px 0; font-style: italic; }
-
-  /* Stats */
-  .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px; }
-  .stat { background: white; border: 0.5px solid var(--border); border-radius: 6px; padding: 18px 20px; }
-  .stat-n { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; color: var(--ink); line-height: 1; }
-  .stat-l { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
-
-  /* Progress */
-  .progress-wrap { height: 2px; background: var(--border); border-radius: 2px; margin-bottom: 20px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--gold); transition: width .4s ease; }
-
-  /* Tabs */
-  .tab-row { display: flex; gap: 0; border: 0.5px solid var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 20px; width: fit-content; }
-  .tab { padding: 9px 20px; font-size: 13px; cursor: pointer; background: white; color: var(--ink-muted); border: none; font-family: 'DM Sans', sans-serif; transition: all .12s; }
-  .tab.active { background: var(--ink); color: white; }
-  .tab:not(:last-child) { border-right: 0.5px solid var(--border); }
-
-  /* Upload zone */
-  .drop-zone { border: 1px dashed var(--border); border-radius: 6px; padding: 32px; text-align: center; cursor: pointer; transition: background .15s; margin-bottom: 16px; }
-  .drop-zone:hover { background: white; }
-  .drop-zone p { font-size: 14px; color: var(--ink-muted); margin-top: 8px; }
-  .drop-zone small { font-size: 12px; color: var(--ink-muted); opacity: .7; }
-  .col-map { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .col-map label { font-size: 12px; color: var(--ink-soft); display: block; margin-bottom: 4px; }
-  .col-map select { width: 100%; padding: 8px 10px; font-size: 13px; border: 0.5px solid var(--border); border-radius: 4px; background: var(--cream); font-family: 'DM Sans', sans-serif; }
-
-  .empty-state { text-align: center; padding: 48px 24px; color: var(--ink-muted); font-size: 14px; }
-  .empty-state .big { font-family: 'Cormorant Garamond', serif; font-size: 28px; color: var(--ink-muted); margin-bottom: 8px; font-weight: 300; }
+:root{--ink:#1a1a18;--ink-soft:#4a4a44;--ink-muted:#8a8a80;--cream:#f8f5ef;--cream-deep:#efe9dc;--gold:#b8924a;--gold-light:#d4ae72;--gold-pale:#f5eddb;--green:#2d4a35;--green-light:#e8f0e9;--border:rgba(26,26,24,0.1);--red:#c0392b;--red-light:#fdf0ef;--blue:#1a4a8a;--blue-light:#eef3fb;--amber:#b8924a;--amber-light:#fdf6e8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh}
+.shell{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--ink);flex-shrink:0;display:flex;flex-direction:column;padding:28px 0;position:fixed;height:100vh;overflow-y:auto}
+.main{margin-left:220px;flex:1;padding:40px 48px;max-width:1000px}
+.logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.12em;color:white;text-transform:uppercase;padding:0 24px 20px;border-bottom:.5px solid rgba(255,255,255,.1)}
+.logo span{color:var(--gold)}
+.agent-switcher{padding:16px 24px;border-bottom:.5px solid rgba(255,255,255,.1)}
+.agent-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:6px}
+.agent-select{width:100%;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:4px;padding:7px 10px;font-size:12px;color:white;font-family:'DM Sans',sans-serif;cursor:pointer}
+.agent-select option{background:#1a1a18;color:white}
+.btn-add-agent{width:100%;margin-top:6px;background:rgba(184,146,74,.2);border:.5px solid rgba(184,146,74,.3);color:var(--gold-light);font-size:11px;padding:6px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.nav{padding:16px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;font-size:13px;color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05)}
+.nav-item.active{color:white;border-left-color:var(--gold);background:rgba(255,255,255,.07)}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0}
+.nav-item.active .nav-dot{opacity:1;background:var(--gold)}
+.fub-section{padding:16px 24px;border-top:.5px solid rgba(255,255,255,.1)}
+.fub-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:6px}
+.fub-input{width:100%;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:4px;padding:8px 10px;font-size:12px;color:white;font-family:'DM Sans',sans-serif}
+.fub-input::placeholder{color:rgba(255,255,255,.3)}
+.fub-status{font-size:11px;margin-top:5px;color:rgba(255,255,255,.3)}
+.fub-status.on{color:#7bc67e}
+.panel{display:none}
+.panel.active{display:block}
+.page-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;color:var(--ink);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--ink-muted);margin-bottom:28px}
+.card{background:white;border:.5px solid var(--border);border-radius:6px;padding:24px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:14px}
+.input-row{display:flex;gap:10px;margin-bottom:12px}
+.input-row input{flex:1;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.input-row input:focus{outline:none;border-color:var(--gold)}
+textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;resize:vertical;margin-bottom:12px}
+.btn{padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s;border:none;font-family:'DM Sans',sans-serif}
+.btn-primary{background:var(--ink);color:white}
+.btn-primary:hover{opacity:.8}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:white}
+.btn-gold:hover{opacity:.85}
+.btn-outline{background:transparent;border:.5px solid var(--border);color:var(--ink)}
+.btn-outline:hover{background:var(--cream)}
+.btn-green{background:var(--green);color:white}
+.btn-green:hover{opacity:.85}
+.btn-sm{padding:6px 14px;font-size:12px}
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border-radius:20px;cursor:pointer;border:.5px solid transparent;transition:all .15s}
+.tag.pending{background:var(--blue-light);color:var(--blue);border-color:rgba(26,74,138,.2)}
+.tag.approved{background:var(--green-light);color:var(--green);border-color:rgba(45,74,53,.2)}
+.tag.rejected{background:#f5f5f5;color:#aaa;text-decoration:line-through;opacity:.5}
+.conf-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.conf-high{background:var(--green)}
+.conf-med{background:var(--amber)}
+.conf-low{background:var(--red)}
+.result-header{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-weight:500;font-size:16px;color:var(--gold);flex-shrink:0}
+.result-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400}
+.result-sub{font-size:12px;color:var(--ink-muted);margin-top:2px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.field{background:var(--cream);border-radius:4px;padding:10px 12px}
+.field-key{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:3px}
+.field-val{font-size:13px;color:var(--ink)}
+.field-val.empty{color:var(--ink-muted);font-style:italic;font-size:12px}
+.section-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:8px;margin-top:16px}
+.divider{border:none;border-top:.5px solid var(--border);margin:16px 0}
+.action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.push-msg{font-size:12px;margin-left:auto}
+.push-msg.ok{color:var(--green)}
+.push-msg.err{color:var(--red)}
+.warning-box{background:var(--amber-light);border:.5px solid rgba(184,146,74,.3);border-radius:4px;padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:14px}
+.tab-row{display:flex;gap:0;border:.5px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px;width:fit-content}
+.tab{padding:9px 20px;font-size:13px;cursor:pointer;background:white;color:var(--ink-muted);border:none;font-family:'DM Sans',sans-serif;transition:all .12s}
+.tab.active{background:var(--ink);color:white}
+.tab:not(:last-child){border-right:.5px solid var(--border)}
+.drop-zone{border:1px dashed var(--border);border-radius:6px;padding:28px;text-align:center;cursor:pointer;transition:background .15s;margin-bottom:16px}
+.drop-zone:hover{background:white}
+.drop-zone p{font-size:14px;color:var(--ink-muted);margin-top:8px}
+.drop-zone small{font-size:12px;color:var(--ink-muted);opacity:.7}
+.col-map{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.col-map label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
+.col-map select{width:100%;padding:8px 10px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);font-family:'DM Sans',sans-serif}
+.queue-header{display:grid;grid-template-columns:2fr 1.5fr 1fr 90px;gap:8px;padding:8px 16px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);border-bottom:.5px solid var(--border)}
+.queue-row{display:grid;grid-template-columns:2fr 1.5fr 1fr 90px;gap:8px;padding:14px 16px;border-bottom:.5px solid var(--border);align-items:center;cursor:pointer;transition:background .12s}
+.queue-row:hover{background:var(--cream)}
+.queue-row:last-child{border-bottom:none}
+.pill{font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block}
+.pill-pending{background:#f0f0ee;color:var(--ink-muted)}
+.pill-running{background:var(--blue-light);color:var(--blue)}
+.pill-done{background:var(--green-light);color:var(--green)}
+.pill-review{background:var(--amber-light);color:var(--amber)}
+.pill-error{background:var(--red-light);color:var(--red)}
+.pill-pushed{background:var(--green-light);color:var(--green)}
+.expand-panel{display:none;background:var(--cream);padding:16px;border-bottom:.5px solid var(--border)}
+.expand-panel.open{display:block}
+.record-btn{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--ink);color:white;border:none;border-radius:6px;font-size:14px;font-weight:400;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;width:100%;justify-content:center}
+.record-btn.recording{background:var(--red);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.record-dot{width:10px;height:10px;border-radius:50%;background:white;flex-shrink:0}
+.transcript-box{background:var(--cream);border:.5px solid var(--border);border-radius:4px;padding:14px;font-size:13px;color:var(--ink-soft);line-height:1.7;min-height:80px;margin:12px 0;font-style:italic}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+.stat{background:white;border:.5px solid var(--border);border-radius:6px;padding:18px 20px}
+.stat-n{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;color:var(--ink);line-height:1}
+.stat-l{font-size:12px;color:var(--ink-muted);margin-top:4px}
+.progress-wrap{height:2px;background:var(--border);border-radius:2px;margin-bottom:20px;overflow:hidden}
+.progress-fill{height:100%;background:var(--gold);transition:width .4s ease}
+.empty-state{text-align:center;padding:48px 24px;color:var(--ink-muted);font-size:14px}
+.empty-state .big{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--ink-muted);margin-bottom:8px;font-weight:300}
+.history-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .12s}
+.history-item:hover{background:var(--cream)}
+.history-avatar{width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--gold);flex-shrink:0}
+.history-name{font-size:13px;font-weight:500;color:var(--ink)}
+.history-meta{font-size:11px;color:var(--ink-muted);margin-top:2px}
+.history-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.history-tag{font-size:10px;background:var(--green-light);color:var(--green);padding:2px 7px;border-radius:10px}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:white;border-radius:8px;padding:32px;width:400px;max-width:90vw}
+.modal h3{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;margin-bottom:20px}
+.modal input{width:100%;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;margin-bottom:12px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 </style>
 </head>
 <body>
 <div class="shell">
-
-  <!-- Sidebar -->
   <div class="sidebar">
     <div class="logo">Trellis<span>.</span></div>
+    <div class="agent-switcher">
+      <div class="agent-label">Agent</div>
+      <select class="agent-select" id="agent-select" onchange="switchAgent(this.value)">
+        <option value="default">My Workspace</option>
+      </select>
+      <button class="btn-add-agent" onclick="openAddAgent()">+ Add agent</button>
+    </div>
     <nav class="nav">
-      <div class="nav-item active" onclick="showPanel('enrich')"><span class="nav-dot"></span>Enrich</div>
-      <div class="nav-item" onclick="showPanel('voice')"><span class="nav-dot"></span>Voice memos</div>
-      <div class="nav-item" onclick="showPanel('queue')"><span class="nav-dot"></span>Queue <span id="queue-badge" style="margin-left:auto;background:rgba(184,146,74,0.3);color:var(--gold-light);font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
+      <div class="nav-item active" onclick="showPanel('enrich',this)"><span class="nav-dot"></span>Enrich</div>
+      <div class="nav-item" onclick="showPanel('voice',this)"><span class="nav-dot"></span>Voice memos</div>
+      <div class="nav-item" onclick="showPanel('queue',this)"><span class="nav-dot"></span>Queue <span id="queue-badge" style="margin-left:auto;background:rgba(184,146,74,.3);color:var(--gold-light);font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
+      <div class="nav-item" onclick="showPanel('history',this)"><span class="nav-dot"></span>History</div>
     </nav>
     <div class="fub-section">
       <div class="fub-label">Follow Up Boss</div>
@@ -171,21 +153,17 @@
     </div>
   </div>
 
-  <!-- Main -->
   <div class="main">
 
-    <!-- Enrich Panel -->
+    <!-- Enrich -->
     <div class="panel active" id="panel-enrich">
       <div class="page-title">Enrich contacts</div>
       <div class="page-sub">Search, enrich, tag — then push directly to Follow Up Boss.</div>
-
       <div class="tab-row">
         <div class="tab active" id="etab-single" onclick="switchEnrichTab('single')">Single</div>
         <div class="tab" id="etab-batch" onclick="switchEnrichTab('batch')">Batch</div>
         <div class="tab" id="etab-excel" onclick="switchEnrichTab('excel')">From Excel / FUB export</div>
       </div>
-
-      <!-- Single -->
       <div id="epanel-single">
         <div class="card">
           <div class="input-row">
@@ -196,17 +174,13 @@
         </div>
         <div id="single-result"></div>
       </div>
-
-      <!-- Batch -->
       <div id="epanel-batch" style="display:none">
         <div class="card">
-          <div class="card-title">Paste names — one per line. Add comma + city for better results.</div>
+          <div class="card-title">One name per line. Add comma + city for better results.</div>
           <textarea class="notes" id="batch-names" placeholder="Sarah Chen, Toronto&#10;Michael Thompson&#10;Priya Sharma, Markham"></textarea>
-          <button class="btn btn-primary" id="b-btn" onclick="runBatch()">Enrich all</button>
+          <button class="btn btn-primary" onclick="runBatch()">Enrich all</button>
         </div>
       </div>
-
-      <!-- Excel -->
       <div id="epanel-excel" style="display:none">
         <div class="card">
           <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()">
@@ -216,10 +190,10 @@
           </div>
           <div id="col-mapper" style="display:none">
             <div class="col-map">
-              <div><label>First name column</label><select id="col-first"></select></div>
-              <div><label>Last name column</label><select id="col-last"></select></div>
-              <div><label>City column (optional)</label><select id="col-city"></select></div>
-              <div><label>Email column (optional)</label><select id="col-email"></select></div>
+              <div><label>First name</label><select id="col-first"></select></div>
+              <div><label>Last name</label><select id="col-last"></select></div>
+              <div><label>City (optional)</label><select id="col-city"></select></div>
+              <div><label>Email (optional)</label><select id="col-email"></select></div>
             </div>
             <div style="display:flex;gap:10px;align-items:center">
               <button class="btn btn-primary" onclick="loadFromExcel()">Load contacts</button>
@@ -230,23 +204,21 @@
       </div>
     </div>
 
-    <!-- Voice Panel -->
+    <!-- Voice -->
     <div class="panel" id="panel-voice">
       <div class="page-title">Voice memos</div>
       <div class="page-sub">Record yourself talking about a contact. We'll transcribe it and extract the tags automatically.</div>
-
       <div class="card">
         <div class="card-title">Who is this memo about?</div>
         <div class="input-row" style="margin-bottom:0">
           <input type="text" id="v-name" placeholder="Contact name"/>
         </div>
       </div>
-
       <div class="card">
-        <div class="card-title">Record or upload a voice memo</div>
+        <div class="card-title">Record or upload</div>
         <button class="record-btn" id="record-btn" onclick="toggleRecord()">
           <span class="record-dot"></span>
-          <span id="record-label">Hold to record</span>
+          <span id="record-label">Tap to record</span>
         </button>
         <div style="text-align:center;margin:12px 0;font-size:12px;color:var(--ink-muted)">or</div>
         <div class="drop-zone" onclick="document.getElementById('audio-inp').click()" style="padding:16px">
@@ -254,7 +226,7 @@
           <p style="font-size:13px">Upload audio file</p>
           <small>mp3, m4a, wav, webm supported</small>
         </div>
-        <div class="transcript-box" id="transcript-box">Your transcript will appear here after recording...</div>
+        <div class="transcript-box" id="transcript-box">Your transcript will appear here...</div>
         <div id="voice-tags-area" style="display:none">
           <div class="section-label">Extracted tags — click to approve</div>
           <div class="tags-wrap" id="voice-tags"></div>
@@ -269,55 +241,135 @@
       </div>
     </div>
 
-    <!-- Queue Panel -->
+    <!-- Queue -->
     <div class="panel" id="panel-queue">
       <div class="page-title">Queue</div>
       <div class="page-sub">All enriched contacts ready to review and push to Follow Up Boss.</div>
-
       <div class="stats-grid">
         <div class="stat"><div class="stat-n" id="st-total">0</div><div class="stat-l">Total</div></div>
         <div class="stat"><div class="stat-n" id="st-enriched">0</div><div class="stat-l">Enriched</div></div>
         <div class="stat"><div class="stat-n" id="st-review">0</div><div class="stat-l">Needs review</div></div>
         <div class="stat"><div class="stat-n" id="st-pushed">0</div><div class="stat-l">Pushed to FUB</div></div>
       </div>
-
       <div class="progress-wrap"><div class="progress-fill" id="q-progress" style="width:0%"></div></div>
-
       <div style="display:flex;gap:8px;margin-bottom:16px">
         <button class="btn btn-green btn-sm" id="push-all-btn" onclick="pushAll()" style="display:none">Push all approved to FUB</button>
         <button class="btn btn-outline btn-sm" onclick="clearQueue()">Clear queue</button>
         <span style="font-size:12px;color:var(--ink-muted);margin-left:auto" id="q-status"></span>
       </div>
-
       <div class="card" style="padding:0;overflow:hidden">
-        <div class="queue-header">
-          <span>Contact</span><span>Top tags</span><span>Confidence</span><span>Status</span>
-        </div>
-        <div id="queue-list">
-          <div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div>
-        </div>
+        <div class="queue-header"><span>Contact</span><span>Top tags</span><span>Confidence</span><span>Status</span></div>
+        <div id="queue-list"><div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div></div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="panel" id="panel-history">
+      <div class="page-title">History</div>
+      <div class="page-sub">All contacts enriched and pushed — persisted across sessions.</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
+        <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="history-list"><div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div></div>
       </div>
     </div>
 
   </div>
 </div>
 
+<!-- Add Agent Modal -->
+<div class="modal-overlay" id="add-agent-modal">
+  <div class="modal">
+    <h3>Add agent workspace</h3>
+    <input type="text" id="new-agent-name" placeholder="Agent name (e.g. Sarah Jones)"/>
+    <input type="text" id="new-agent-id" placeholder="Agent ID (e.g. sarah-jones — no spaces)"/>
+    <input type="password" id="new-agent-fub" placeholder="Their FUB API key"/>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeAddAgent()">Cancel</button>
+      <button class="btn btn-primary" onclick="addAgent()">Create workspace</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const API = '';
-let queue = [];
-let tagStates = {};
-let pushedCount = 0;
+let queue = [], tagStates = {}, pushedCount = 0;
 let excelRows = [], excelHeaders = [];
 let mediaRecorder, audioChunks = [], isRecording = false;
 let currentVoiceTags = [], voiceTagStates = {};
+let currentAgentId = localStorage.getItem('trellis_agent_id') || 'default';
+let currentAgentName = localStorage.getItem('trellis_agent_name') || 'My Workspace';
 
-// ── Navigation ───────────────────────────────────────────────────────────
-function showPanel(id) {
+// ── Init ──────────────────────────────────────────────────────────────
+window.onload = async () => {
+  loadAgents();
+  const savedFUB = localStorage.getItem('fub_key_' + currentAgentId);
+  if (savedFUB) { document.getElementById('fub-key').value = savedFUB; checkFUB(); }
+  loadHistory();
+};
+
+// ── Agent management ──────────────────────────────────────────────────
+async function loadAgents() {
+  try {
+    const res = await fetch(API + '/api/save-agent');
+    const data = await res.json();
+    const sel = document.getElementById('agent-select');
+    sel.innerHTML = '<option value="default">My Workspace</option>';
+    (data.agents || []).forEach(a => {
+      if (a.agentId !== 'default') {
+        const opt = document.createElement('option');
+        opt.value = a.agentId; opt.textContent = a.name;
+        sel.appendChild(opt);
+      }
+    });
+    sel.value = currentAgentId;
+  } catch(e) {}
+}
+
+function switchAgent(agentId) {
+  currentAgentId = agentId;
+  localStorage.setItem('trellis_agent_id', agentId);
+  const sel = document.getElementById('agent-select');
+  currentAgentName = sel.options[sel.selectedIndex].text;
+  localStorage.setItem('trellis_agent_name', currentAgentName);
+  const savedFUB = localStorage.getItem('fub_key_' + agentId);
+  document.getElementById('fub-key').value = savedFUB || '';
+  checkFUB();
+  clearQueue();
+  loadHistory();
+}
+
+function openAddAgent() { document.getElementById('add-agent-modal').classList.add('open'); }
+function closeAddAgent() { document.getElementById('add-agent-modal').classList.remove('open'); }
+
+async function addAgent() {
+  const name = document.getElementById('new-agent-name').value.trim();
+  const id = document.getElementById('new-agent-id').value.trim().replace(/\s+/g,'-').toLowerCase();
+  const fub = document.getElementById('new-agent-fub').value.trim();
+  if (!name || !id) { alert('Name and ID required'); return; }
+  try {
+    await fetch(API + '/api/save-agent', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ agentId: id, name, fubApiKey: fub }) });
+    if (fub) localStorage.setItem('fub_key_' + id, fub);
+    closeAddAgent();
+    await loadAgents();
+    document.getElementById('agent-select').value = id;
+    switchAgent(id);
+    document.getElementById('new-agent-name').value = '';
+    document.getElementById('new-agent-id').value = '';
+    document.getElementById('new-agent-fub').value = '';
+  } catch(e) { alert('Failed to create agent: ' + e.message); }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────
+function showPanel(id, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
-  event.currentTarget.classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'history') loadHistory();
 }
 
 function switchEnrichTab(t) {
@@ -327,257 +379,275 @@ function switchEnrichTab(t) {
   });
 }
 
-// ── FUB ──────────────────────────────────────────────────────────────────
+// ── FUB ──────────────────────────────────────────────────────────────
 function checkFUB() {
   const v = document.getElementById('fub-key').value.trim();
   const s = document.getElementById('fub-status');
   s.textContent = v.length > 10 ? 'Key entered — ready to push' : 'Not connected';
   s.className = 'fub-status' + (v.length > 10 ? ' on' : '');
+  if (v.length > 10) localStorage.setItem('fub_key_' + currentAgentId, v);
 }
-
 function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
 
-// ── Single enrichment ────────────────────────────────────────────────────
+// ── History ───────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const res = await fetch(API + '/api/get-contacts?agentId=' + currentAgentId);
+    const data = await res.json();
+    const contacts = data.contacts || [];
+    document.getElementById('history-count').textContent = contacts.length + ' contacts saved';
+    if (!contacts.length) {
+      document.getElementById('history-list').innerHTML = '<div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div>';
+      return;
+    }
+    document.getElementById('history-list').innerHTML = contacts.map(c => {
+      const approvedTags = (c.approved_tags || c.suggested_tags?.filter((_,i) => c.tagStates?.[i] === 'approved').map(t => t.tag) || []);
+      const initials = (c.full_name || c.name || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+      const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
+      return `<div class="history-item">
+        <div class="history-avatar">${initials}</div>
+        <div style="flex:1">
+          <div class="history-name">${c.full_name || c.name || 'Unknown'}</div>
+          <div class="history-meta">${[c.job_title, c.location].filter(Boolean).join(' · ')} ${date ? '· ' + date : ''}</div>
+          ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
+        </div>
+        <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function saveToHistory(contact, pushed) {
+  try {
+    await fetch(API + '/api/save-contact', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ agentId: currentAgentId, contact: { ...contact, pushed: pushed || false } })
+    });
+  } catch(e) { console.error('Save to history failed:', e); }
+}
+
+// ── Single enrichment ─────────────────────────────────────────────────
 async function enrichSingle() {
   const name = document.getElementById('s-name').value.trim();
   if (!name) return;
   const city = document.getElementById('s-city').value.trim();
   const btn = document.getElementById('s-btn');
   btn.disabled = true; btn.textContent = 'Searching...';
-  document.getElementById('single-result').innerHTML = '<div class="card" style="color:var(--ink-muted);font-size:13px">Searching web and LinkedIn...</div>';
+  document.getElementById('single-result').innerHTML = '<div class="card" style="color:var(--ink-muted);font-size:13px">Searching FUB and enriching...</div>';
   try {
-    const res = await fetch(API + '/api/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, city }) });
+    const res = await fetch(API + '/api/enrich', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, city, fubApiKey: getFUBKey() }) });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     const id = 'single_' + Date.now();
     tagStates[id] = {};
-    data.suggested_tags.forEach((_, i) => tagStates[id][i] = 'pending');
+    (data.suggested_tags || []).forEach((_,i) => tagStates[id][i] = 'pending');
     renderSingleResult(data, id);
     addToQueue(data, id, 'done');
+    await saveToHistory(data, false);
   } catch(e) {
-    document.getElementById('single-result').innerHTML = `<div class="card" style="color:#c0392b;font-size:13px">Error: ${e.message}</div>`;
+    document.getElementById('single-result').innerHTML = `<div class="card" style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
   }
   btn.disabled = false; btn.textContent = 'Enrich';
 }
 
 function renderSingleResult(d, id) {
   const conf = d.confidence_overall;
-  const confColor = conf === 'high' ? 'var(--green)' : conf === 'medium' ? 'var(--amber)' : 'var(--red)';
-  const fields = [['Job title', d.job_title], ['Company', d.company], ['Location', d.location], ['Age range', d.likely_age_range !== 'unknown' ? d.likely_age_range : null], ['Family', d.family_signals], ['Interests', (d.interests||[]).join(', ')||null]];
-  document.getElementById('single-result').innerHTML = `
-    <div class="card">
-      ${d.warning ? `<div class="warning-box">${d.warning}</div>` : ''}
-      <div class="result-header">
-        <div class="avatar">${d.initials}</div>
-        <div>
-          <div class="result-name">${d.full_name}</div>
-          <div class="result-sub">${[d.job_title, d.company].filter(Boolean).join(' · ') || 'No title found'}</div>
-        </div>
-        <div style="margin-left:auto;font-size:12px;font-weight:500;color:${confColor}">${conf} confidence</div>
-      </div>
-      <div class="field-grid">
-        ${fields.map(([k,v]) => `<div class="field"><div class="field-key">${k}</div><div class="field-val ${!v?'empty':''}">${v||'Not found'}</div></div>`).join('')}
-      </div>
-      <hr class="divider"/>
-      <div class="section-label">Suggested tags — click to approve / reject</div>
-      <div class="tags-wrap" id="tags-${id}"></div>
-      <textarea class="notes" id="notes-${id}" placeholder="Add notes before pushing to FUB...">${d.notes||''}</textarea>
-      <div class="action-row">
-        <button class="btn btn-green" onclick="pushSingle('${id}', ${JSON.stringify(d).replace(/"/g,'&quot;')})">Push to FUB</button>
-        <button class="btn btn-outline" onclick="document.getElementById('single-result').innerHTML=''">Clear</button>
-        <span class="push-msg" id="pmsg-${id}"></span>
-      </div>
-    </div>`;
-  renderTagsFor(id, d.suggested_tags);
+  const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':'var(--red)';
+  const fields = [['Job title',d.job_title],['Company',d.company],['Location',d.location],['Age range',d.likely_age_range!=='unknown'?d.likely_age_range:null],['Family',d.family_signals],['Interests',(d.interests||[]).join(', ')||null]];
+  const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB — updating existing contact</div>` : '';
+  document.getElementById('single-result').innerHTML = `<div class="card">
+    ${d.warning?`<div class="warning-box">${d.warning}</div>`:''}
+    ${fubInfo}
+    <div class="result-header">
+      <div class="avatar">${d.initials||'?'}</div>
+      <div><div class="result-name">${d.full_name}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' · ')||'No title found'}</div></div>
+      <div style="margin-left:auto;font-size:12px;font-weight:500;color:${confColor}">${conf} confidence</div>
+    </div>
+    <div class="field-grid">${fields.map(([k,v])=>`<div class="field"><div class="field-key">${k}</div><div class="field-val ${!v?'empty':''}">${v||'Not found'}</div></div>`).join('')}</div>
+    <hr class="divider"/>
+    <div class="section-label">Suggested tags — click to approve / reject</div>
+    <div class="tags-wrap" id="tags-${id}"></div>
+    <textarea class="notes" id="notes-${id}" placeholder="Add notes before pushing to FUB...">${d.notes||''}</textarea>
+    <div class="action-row">
+      <button class="btn btn-green" onclick="pushSingleContact('${id}')">Push to FUB</button>
+      <button class="btn btn-outline" onclick="document.getElementById('single-result').innerHTML=''">Clear</button>
+      <span class="push-msg" id="pmsg-${id}"></span>
+    </div>
+  </div>`;
+  renderTagsFor(id, d.suggested_tags || []);
 }
 
 function renderTagsFor(id, tags) {
-  const wrap = document.getElementById('tags-' + id);
-  if (!wrap) return;
-  wrap.innerHTML = tags.map((t, i) => {
+  const wrap = document.getElementById('tags-' + id); if (!wrap) return;
+  wrap.innerHTML = tags.map((t,i) => {
     const state = tagStates[id]?.[i] || 'pending';
-    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+    const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
     return `<span class="tag ${state}" onclick="toggleTag('${id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
-function toggleTag(id, i) {
+function toggleTag(id,i) {
+  if (!tagStates[id]) return;
   const s = tagStates[id][i];
-  tagStates[id][i] = s === 'pending' ? 'approved' : s === 'approved' ? 'rejected' : 'pending';
-  const item = queue.find(q => q.id === id);
-  if (item) renderTagsFor(id, item.result.suggested_tags);
-  else {
-    const singleResult = document.querySelector('#single-result .tags-wrap');
-    if (singleResult) {
-      const tags = Array.from(singleResult.querySelectorAll('.tag'));
-      tags[i].className = `tag ${tagStates[id][i]}`;
-    }
-  }
+  tagStates[id][i] = s==='pending'?'approved':s==='approved'?'rejected':'pending';
+  const item = queue.find(q=>q.id===id);
+  if (item) renderTagsFor(id, item.result.suggested_tags||[]);
+  else renderTagsFor(id, Array.from(document.querySelectorAll(`#tags-${id} .tag`)).map((_,i2)=>({tag:document.querySelectorAll(`#tags-${id} .tag`)[i2].textContent.trim(),confidence:'high',reason:''})));
 }
 
-// ── Push to FUB ──────────────────────────────────────────────────────────
-async function pushSingle(id, data) {
+// ── Push ─────────────────────────────────────────────────────────────
+async function pushSingleContact(id) {
   const fubKey = getFUBKey();
-  if (!fubKey) { setMsg(id, 'Add FUB API key in sidebar', 'err'); return; }
-  const approved = (data.suggested_tags || []).filter((_, i) => tagStates[id]?.[i] === 'approved').map(t => t.tag);
-  const notes = document.getElementById('notes-' + id)?.value || data.notes || '';
-  setMsg(id, 'Pushing...', '');
+  if (!fubKey) { setMsg(id,'Add FUB API key in sidebar','err'); return; }
+  const item = queue.find(q=>q.id===id);
+  const data = item?.result;
+  if (!data) return;
+  const approved = (data.suggested_tags||[]).filter((_,i)=>tagStates[id]?.[i]==='approved').map(t=>t.tag);
+  const notes = document.getElementById('notes-'+id)?.value || data.notes || '';
+  setMsg(id,'Pushing...','');
   try {
-    const res = await fetch(API + '/api/push-to-fub', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fubApiKey: fubKey, contact: { ...data, approved_tags: approved, notes } })
-    });
+    const res = await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:{...data,approved_tags:approved,notes}})});
     const result = await res.json();
-    if (result.error) throw new Error(result.error);
-    setMsg(id, `Pushed with ${approved.length} tags`, 'ok');
-    pushedCount++;
-    updateQueueItem(id, 'pushed');
-    updateStats();
-  } catch(e) {
-    setMsg(id, 'Failed: ' + e.message, 'err');
-  }
+    if(result.error) throw new Error(result.error);
+    setMsg(id,`Pushed — ${approved.length} tags applied`,'ok');
+    pushedCount++; updateQueueItem(id,'pushed'); updateStats();
+    await saveToHistory({...data, approved_tags: approved, notes, pushed: true}, true);
+    loadHistory();
+  } catch(e) { setMsg(id,'Failed: '+e.message,'err'); }
 }
 
-function setMsg(id, text, type) {
-  const el = document.getElementById('pmsg-' + id);
-  if (el) { el.textContent = text; el.className = 'push-msg' + (type ? ' ' + type : ''); }
+function setMsg(id,text,type) {
+  const el = document.getElementById('pmsg-'+id);
+  if(el){el.textContent=text;el.className='push-msg'+(type?' '+type:'');}
 }
 
-// ── Batch ────────────────────────────────────────────────────────────────
+// ── Batch & Excel ─────────────────────────────────────────────────────
 async function runBatch() {
-  const raw = document.getElementById('batch-names').value.trim();
-  if (!raw) return;
-  const contacts = raw.split('\n').map(l => { const p = l.split(','); return { name: p[0].trim(), city: (p[1]||'').trim() }; }).filter(c => c.name);
+  const raw = document.getElementById('batch-names').value.trim(); if(!raw) return;
+  const contacts = raw.split('\n').map(l=>{const p=l.split(',');return{name:p[0].trim(),city:(p[1]||'').trim()};}).filter(c=>c.name);
   startBatchQueue(contacts);
-  showPanel('queue');
-  document.querySelectorAll('.nav-item')[2].classList.add('active');
-  document.querySelectorAll('.nav-item')[0].classList.remove('active');
+  showPanel('queue'); document.querySelectorAll('.nav-item')[2].classList.add('active'); document.querySelectorAll('.nav-item')[0].classList.remove('active');
 }
 
-// ── Excel ────────────────────────────────────────────────────────────────
 function handleFile(e) {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
     try {
-      const wb = XLSX.read(ev.target.result, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-      if (data.length < 2) return;
-      excelHeaders = data[0].map(String);
-      excelRows = data.slice(1).filter(r => r.some(c => String(c).trim()));
-      populateCols();
-      document.getElementById('col-mapper').style.display = 'block';
-      document.getElementById('row-count').textContent = excelRows.length + ' contacts found';
-    } catch(err) { alert('Could not read file. Try saving as CSV first.'); }
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(data.length<2) return;
+      excelHeaders=data[0].map(String); excelRows=data.slice(1).filter(r=>r.some(c=>String(c).trim()));
+      populateCols(); document.getElementById('col-mapper').style.display='block';
+      document.getElementById('row-count').textContent=excelRows.length+' contacts found';
+    }catch(err){alert('Could not read file.');}
   };
   reader.readAsBinaryString(file);
 }
 
 function populateCols() {
-  const ids = ['col-first','col-last','col-city','col-email'];
-  const hints = [['first','fname'],['last','lname','surname'],['city','area','location'],['email','mail']];
-  ids.forEach((id, i) => {
-    const sel = document.getElementById(id);
-    sel.innerHTML = '<option value="">— none —</option>' + excelHeaders.map((h,j) => `<option value="${j}">${h}</option>`).join('');
-    const match = excelHeaders.findIndex(h => hints[i].some(hint => h.toLowerCase().includes(hint)));
-    if (match >= 0) sel.value = match;
+  const ids=['col-first','col-last','col-city','col-email'];
+  const hints=[['first','fname'],['last','lname','surname'],['city','area','location'],['email','mail']];
+  ids.forEach((id,i)=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='<option value="">— none —</option>'+excelHeaders.map((h,j)=>`<option value="${j}">${h}</option>`).join('');
+    const match=excelHeaders.findIndex(h=>hints[i].some(hint=>h.toLowerCase().includes(hint)));
+    if(match>=0) sel.value=match;
   });
 }
 
 function loadFromExcel() {
-  const ci = id => { const v = document.getElementById(id).value; return v !== '' ? parseInt(v) : null; };
-  const fc = ci('col-first'), lc = ci('col-last'), cc = ci('col-city'), ec = ci('col-email');
-  if (fc === null && lc === null) { alert('Select at least a first or last name column.'); return; }
-  const contacts = excelRows.map(r => ({
-    name: [fc !== null ? String(r[fc]||'') : '', lc !== null ? String(r[lc]||'') : ''].filter(Boolean).join(' ').trim(),
-    city: cc !== null ? String(r[cc]||'').trim() : '',
-    email: ec !== null ? String(r[ec]||'').trim() : ''
-  })).filter(c => c.name);
-  if (!contacts.length) { alert('No contacts found.'); return; }
+  const ci=id=>{const v=document.getElementById(id).value;return v!==''?parseInt(v):null;};
+  const fc=ci('col-first'),lc=ci('col-last'),cc=ci('col-city'),ec=ci('col-email');
+  if(fc===null&&lc===null){alert('Select at least a first or last name column.');return;}
+  const contacts=excelRows.map(r=>({
+    name:[fc!==null?String(r[fc]||''):'',lc!==null?String(r[lc]||''):''].filter(Boolean).join(' ').trim(),
+    city:cc!==null?String(r[cc]||'').trim():'',email:ec!==null?String(r[ec]||'').trim():''
+  })).filter(c=>c.name);
+  if(!contacts.length){alert('No contacts found.');return;}
   startBatchQueue(contacts);
 }
 
-// ── Queue processing ──────────────────────────────────────────────────────
+// ── Queue ─────────────────────────────────────────────────────────────
 function startBatchQueue(contacts) {
-  contacts.forEach(c => {
-    const id = 'q' + Date.now() + Math.random().toString(36).slice(2);
-    queue.push({ id, name: c.name, city: c.city || '', email: c.email || '', status: 'pending', result: null, expanded: false });
-    tagStates[id] = {};
+  contacts.forEach(c=>{
+    const id='q'+Date.now()+Math.random().toString(36).slice(2);
+    queue.push({id,name:c.name,city:c.city||'',email:c.email||'',status:'pending',result:null,expanded:false});
+    tagStates[id]={};
   });
+  updateStats(); renderQueue(); updateBadge(); processNext();
+}
+
+function addToQueue(result,id,status) {
+  const existing=queue.find(q=>q.id===id);
+  if(!existing) queue.push({id,name:result.full_name,city:'',email:'',status,result,expanded:false});
+  else{existing.result=result;existing.status=status;}
   updateStats(); renderQueue(); updateBadge();
-  processNext();
 }
 
-function addToQueue(result, id, status) {
-  const existing = queue.find(q => q.id === id);
-  if (!existing) queue.push({ id, name: result.full_name, city: '', email: '', status, result, expanded: false });
-  else { existing.result = result; existing.status = status; }
-  updateStats(); renderQueue(); updateBadge();
+function updateQueueItem(id,status) {
+  const item=queue.find(q=>q.id===id); if(item){item.status=status;renderQueue();updateStats();}
 }
 
-function updateQueueItem(id, status) {
-  const item = queue.find(q => q.id === id);
-  if (item) { item.status = status; renderQueue(); updateStats(); }
-}
-
-let processing = false;
+let processing=false;
 async function processNext() {
-  if (processing) return;
-  const next = queue.find(q => q.status === 'pending');
-  if (!next) { if (queue.some(q => q.status === 'done' || q.status === 'review')) document.getElementById('push-all-btn').style.display = 'inline-block'; return; }
-  processing = true; next.status = 'running'; renderQueue();
+  if(processing) return;
+  const next=queue.find(q=>q.status==='pending'); if(!next) {
+    if(queue.some(q=>q.status==='done'||q.status==='review')) document.getElementById('push-all-btn').style.display='inline-block';
+    return;
+  }
+  processing=true; next.status='running'; renderQueue();
   try {
-    const res = await fetch(API + '/api/enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: next.name, city: next.city }) });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    next.result = data;
-    data.suggested_tags.forEach((_, i) => tagStates[next.id][i] = 'pending');
-    next.status = data.confidence_overall === 'low' ? 'review' : 'done';
-  } catch(e) { next.status = 'error'; next.error = e.message; }
-  processing = false; updateStats(); renderQueue(); updateBadge();
-  setTimeout(processNext, 600);
+    const res=await fetch(API+'/api/enrich',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:next.name,city:next.city,fubApiKey:getFUBKey()})});
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    next.result=data;
+    (data.suggested_tags||[]).forEach((_,i)=>tagStates[next.id][i]='pending');
+    next.status=data.confidence_overall==='low'?'review':'done';
+    await saveToHistory(data, false);
+  } catch(e){next.status='error';next.error=e.message;}
+  processing=false; updateStats(); renderQueue(); updateBadge();
+  setTimeout(processNext,600);
 }
 
 function renderQueue() {
-  const total = queue.length, done = queue.filter(q => q.status === 'done' || q.status === 'review' || q.status === 'pushed').length;
-  document.getElementById('q-progress').style.width = total ? Math.round(done / total * 100) + '%' : '0%';
-  document.getElementById('q-status').textContent = done + ' of ' + total + ' enriched';
-  if (!queue.length) { document.getElementById('queue-list').innerHTML = '<div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div>'; return; }
-  document.getElementById('queue-list').innerHTML = queue.map(item => {
-    const pillClass = { pending: 'pill-pending', running: 'pill-running', done: 'pill-done', review: 'pill-review', error: 'pill-error', pushed: 'pill-done' }[item.status] || 'pill-pending';
-    const pillText = item.status === 'review' ? 'needs review' : item.status;
-    const topTags = item.result ? item.result.suggested_tags.slice(0,2).map(t => `<span style="font-size:11px;color:var(--ink-muted)">${t.tag.split(':')[0]}</span>`).join(' · ') : '—';
-    const conf = item.result ? item.result.confidence_overall : '—';
-    const confColor = conf === 'high' ? 'var(--green)' : conf === 'medium' ? 'var(--amber)' : conf === 'low' ? 'var(--red)' : 'var(--ink-muted)';
-    const expandContent = item.expanded && item.result ? renderExpandContent(item) : '';
+  const total=queue.length,done=queue.filter(q=>['done','review','pushed'].includes(q.status)).length;
+  document.getElementById('q-progress').style.width=total?Math.round(done/total*100)+'%':'0%';
+  document.getElementById('q-status').textContent=done+' of '+total+' enriched';
+  if(!queue.length){document.getElementById('queue-list').innerHTML='<div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div>';return;}
+  document.getElementById('queue-list').innerHTML=queue.map(item=>{
+    const pillClass={pending:'pill-pending',running:'pill-running',done:'pill-done',review:'pill-review',error:'pill-error',pushed:'pill-pushed'}[item.status]||'pill-pending';
+    const pillText=item.status==='review'?'needs review':item.status;
+    const topTags=item.result?item.result.suggested_tags?.slice(0,2).map(t=>`<span style="font-size:11px;color:var(--ink-muted)">${t.tag.split(':')[0]}</span>`).join(' · '):'—';
+    const conf=item.result?item.result.confidence_overall:'—';
+    const confColor=conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':conf==='low'?'var(--red)':'var(--ink-muted)';
+    const expandContent=item.expanded&&item.result?renderExpandContent(item):'';
     return `<div>
       <div class="queue-row" onclick="toggleQueueExpand('${item.id}')">
-        <div><div style="font-size:13px;font-weight:500">${item.name}</div>${item.city ? `<div style="font-size:11px;color:var(--ink-muted)">${item.city}</div>` : ''}</div>
+        <div><div style="font-size:13px;font-weight:500">${item.name}</div>${item.city?`<div style="font-size:11px;color:var(--ink-muted)">${item.city}</div>`:''}</div>
         <div>${topTags}</div>
         <div style="font-size:12px;font-weight:500;color:${confColor}">${conf}</div>
         <div><span class="pill ${pillClass}">${pillText}</span></div>
       </div>
-      <div class="expand-panel ${item.expanded ? 'open' : ''}" id="exp-${item.id}">${expandContent}</div>
+      <div class="expand-panel ${item.expanded?'open':''}">${expandContent}</div>
     </div>`;
   }).join('');
 }
 
 function renderExpandContent(item) {
-  const d = item.result;
-  if (!d) return '';
-  const fields = [['Job', d.job_title], ['Company', d.company], ['Location', d.location], ['Age', d.likely_age_range !== 'unknown' ? d.likely_age_range : null], ['Family', d.family_signals]].filter(f => f[1]);
-  const tagsHtml = d.suggested_tags.map((t, i) => {
-    const state = tagStates[item.id]?.[i] || 'pending';
-    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+  const d=item.result; if(!d) return '';
+  const fields=[['Job',d.job_title],['Company',d.company],['Location',d.location],['Age',d.likely_age_range!=='unknown'?d.likely_age_range:null],['Family',d.family_signals]].filter(f=>f[1]);
+  const tagsHtml=(d.suggested_tags||[]).map((t,i)=>{
+    const state=tagStates[item.id]?.[i]||'pending';
+    const conf=t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
     return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
-  return `
-    ${d.warning ? `<div class="warning-box" style="margin-bottom:12px">${d.warning}</div>` : ''}
-    <div class="field-grid" style="margin-bottom:12px">${fields.map(([k,v]) => `<div class="field"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`).join('')}</div>
+  return `${d.warning?`<div class="warning-box" style="margin-bottom:12px">${d.warning}</div>`:''}
+    <div class="field-grid" style="margin-bottom:12px">${fields.map(([k,v])=>`<div class="field"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`).join('')}</div>
     <div class="section-label">Tags — click to approve</div>
     <div class="tags-wrap">${tagsHtml}</div>
-    ${d.notes ? `<div style="font-size:12px;color:var(--ink-soft);margin-top:10px;font-style:italic">${d.notes}</div>` : ''}
+    ${d.notes?`<div style="font-size:12px;color:var(--ink-soft);margin-top:10px;font-style:italic">${d.notes}</div>`:''}
     <div class="action-row" style="margin-top:14px">
       <button class="btn btn-green btn-sm" onclick="pushQueueItem('${item.id}')">Push to FUB</button>
       <span class="push-msg" id="pmsg-${item.id}"></span>
@@ -585,160 +655,144 @@ function renderExpandContent(item) {
 }
 
 function toggleQueueExpand(id) {
-  const item = queue.find(q => q.id === id); if (!item || !item.result) return;
-  item.expanded = !item.expanded; renderQueue();
+  const item=queue.find(q=>q.id===id); if(!item||!item.result) return;
+  item.expanded=!item.expanded; renderQueue();
 }
 
-function toggleQueueTag(id, i) {
-  if (!tagStates[id]) return;
-  const s = tagStates[id][i];
-  tagStates[id][i] = s === 'pending' ? 'approved' : s === 'approved' ? 'rejected' : 'pending';
+function toggleQueueTag(id,i) {
+  if(!tagStates[id]) return;
+  const s=tagStates[id][i];
+  tagStates[id][i]=s==='pending'?'approved':s==='approved'?'rejected':'pending';
   renderQueue();
 }
 
 async function pushQueueItem(id) {
-  const fubKey = getFUBKey();
-  if (!fubKey) { setMsg(id, 'Add FUB API key', 'err'); return; }
-  const item = queue.find(q => q.id === id); if (!item?.result) return;
-  const approved = item.result.suggested_tags.filter((_, i) => tagStates[id]?.[i] === 'approved').map(t => t.tag);
-  setMsg(id, 'Pushing...', '');
+  const fubKey=getFUBKey(); if(!fubKey){setMsg(id,'Add FUB API key','err');return;}
+  const item=queue.find(q=>q.id===id); if(!item?.result) return;
+  const approved=(item.result.suggested_tags||[]).filter((_,i)=>tagStates[id]?.[i]==='approved').map(t=>t.tag);
+  setMsg(id,'Pushing...','');
   try {
-    const res = await fetch(API + '/api/push-to-fub', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fubApiKey: fubKey, contact: { ...item.result, approved_tags: approved, email: item.email } }) });
-    const result = await res.json();
-    if (result.error) throw new Error(result.error);
-    setMsg(id, `Pushed — ${approved.length} tags`, 'ok');
-    item.status = 'pushed'; pushedCount++; updateStats(); renderQueue(); updateBadge();
-  } catch(e) { setMsg(id, 'Failed: ' + e.message, 'err'); }
+    const res=await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:{...item.result,approved_tags:approved,email:item.email}})});
+    const result=await res.json();
+    if(result.error) throw new Error(result.error);
+    setMsg(id,`Pushed — ${approved.length} tags`,'ok');
+    item.status='pushed'; pushedCount++; updateStats(); renderQueue(); updateBadge();
+    await saveToHistory({...item.result, approved_tags: approved, pushed: true}, true);
+    loadHistory();
+  } catch(e){setMsg(id,'Failed: '+e.message,'err');}
 }
 
 async function pushAll() {
-  for (const item of queue.filter(q => (q.status === 'done' || q.status === 'review') && q.result)) {
-    Object.keys(tagStates[item.id] || {}).forEach(i => { if (tagStates[item.id][i] === 'pending') tagStates[item.id][i] = 'approved'; });
+  for(const item of queue.filter(q=>(q.status==='done'||q.status==='review')&&q.result)){
+    Object.keys(tagStates[item.id]||{}).forEach(i=>{if(tagStates[item.id][i]==='pending')tagStates[item.id][i]='approved';});
     await pushQueueItem(item.id);
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise(r=>setTimeout(r,500));
   }
 }
 
-function clearQueue() { queue = []; tagStates = {}; pushedCount = 0; document.getElementById('push-all-btn').style.display = 'none'; updateStats(); renderQueue(); updateBadge(); }
+function clearQueue(){queue=[];tagStates={};pushedCount=0;document.getElementById('push-all-btn').style.display='none';updateStats();renderQueue();updateBadge();}
 
-function updateStats() {
-  document.getElementById('st-total').textContent = queue.length;
-  document.getElementById('st-enriched').textContent = queue.filter(q => ['done','review','pushed'].includes(q.status)).length;
-  document.getElementById('st-review').textContent = queue.filter(q => q.status === 'review').length;
-  document.getElementById('st-pushed').textContent = pushedCount;
+function updateStats(){
+  document.getElementById('st-total').textContent=queue.length;
+  document.getElementById('st-enriched').textContent=queue.filter(q=>['done','review','pushed'].includes(q.status)).length;
+  document.getElementById('st-review').textContent=queue.filter(q=>q.status==='review').length;
+  document.getElementById('st-pushed').textContent=pushedCount;
 }
 
-function updateBadge() {
-  const pending = queue.filter(q => q.status === 'pending' || q.status === 'running').length;
-  const badge = document.getElementById('queue-badge');
-  badge.textContent = queue.length; badge.style.display = queue.length ? 'inline' : 'none';
+function updateBadge(){
+  const b=document.getElementById('queue-badge');
+  b.textContent=queue.length; b.style.display=queue.length?'inline':'none';
 }
 
-// ── Voice recording ───────────────────────────────────────────────────────
-async function toggleRecord() {
-  if (!isRecording) {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioChunks = [];
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(audioChunks, { type: 'audio/webm' });
-        await transcribeAudio(blob);
-      };
-      mediaRecorder.start();
-      isRecording = true;
+// ── Voice ─────────────────────────────────────────────────────────────
+async function toggleRecord(){
+  if(!isRecording){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      audioChunks=[];
+      mediaRecorder=new MediaRecorder(stream);
+      mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+      mediaRecorder.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());const blob=new Blob(audioChunks,{type:'audio/webm'});await transcribeAudio(blob);};
+      mediaRecorder.start(); isRecording=true;
       document.getElementById('record-btn').classList.add('recording');
-      document.getElementById('record-label').textContent = 'Recording... tap to stop';
-    } catch(e) { alert('Microphone access denied. Please allow microphone access and try again.'); }
+      document.getElementById('record-label').textContent='Recording... tap to stop';
+    }catch(e){alert('Microphone access denied.');}
   } else {
-    mediaRecorder.stop(); isRecording = false;
+    mediaRecorder.stop(); isRecording=false;
     document.getElementById('record-btn').classList.remove('recording');
-    document.getElementById('record-label').textContent = 'Hold to record';
+    document.getElementById('record-label').textContent='Tap to record';
   }
 }
 
-async function handleAudio(e) {
-  const file = e.target.files[0]; if (!file) return;
-  await transcribeAudio(file);
-}
+async function handleAudio(e){const file=e.target.files[0];if(!file) return;await transcribeAudio(file);}
 
-async function transcribeAudio(blob) {
-  document.getElementById('transcript-box').textContent = 'Transcribing...';
-  try {
-    const formData = new FormData();
-    formData.append('audio', blob, 'memo.webm');
-    const res = await fetch(API + '/api/transcribe', { method: 'POST', body: formData });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    document.getElementById('transcript-box').textContent = data.transcript;
+async function transcribeAudio(blob){
+  document.getElementById('transcript-box').textContent='Transcribing...';
+  try{
+    const fd=new FormData(); fd.append('audio',blob,'memo.webm');
+    const res=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    document.getElementById('transcript-box').textContent=data.transcript;
     await extractVoiceTags(data.transcript);
-  } catch(e) {
-    document.getElementById('transcript-box').textContent = 'Transcription failed: ' + e.message;
-  }
+  }catch(e){document.getElementById('transcript-box').textContent='Transcription failed: '+e.message;}
 }
 
-async function extractVoiceTags(transcript) {
-  const name = document.getElementById('v-name').value.trim();
-  try {
-    const res = await fetch(API + '/api/extract-tags', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ transcript, contactName: name }) });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    currentVoiceTags = data.suggested_tags || [];
-    voiceTagStates = {};
-    currentVoiceTags.forEach((_, i) => voiceTagStates[i] = 'pending');
-    renderVoiceTags();
-    renderVoiceDetails(data.extracted_details);
-    document.getElementById('voice-tags-area').style.display = 'block';
-  } catch(e) { console.error('Tag extraction error:', e); }
+async function extractVoiceTags(transcript){
+  const name=document.getElementById('v-name').value.trim();
+  try{
+    const res=await fetch(API+'/api/extract-tags',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript,contactName:name})});
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    currentVoiceTags=data.suggested_tags||[]; voiceTagStates={};
+    currentVoiceTags.forEach((_,i)=>voiceTagStates[i]='pending');
+    renderVoiceTags(); renderVoiceDetails(data.extracted_details);
+    document.getElementById('voice-tags-area').style.display='block';
+  }catch(e){console.error(e);}
 }
 
-function renderVoiceTags() {
-  document.getElementById('voice-tags').innerHTML = currentVoiceTags.map((t, i) => {
-    const state = voiceTagStates[i];
-    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+function renderVoiceTags(){
+  document.getElementById('voice-tags').innerHTML=currentVoiceTags.map((t,i)=>{
+    const state=voiceTagStates[i];
+    const conf=t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
     return `<span class="tag ${state}" onclick="toggleVoiceTag(${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
-function toggleVoiceTag(i) {
-  const s = voiceTagStates[i];
-  voiceTagStates[i] = s === 'pending' ? 'approved' : s === 'approved' ? 'rejected' : 'pending';
-  renderVoiceTags();
+function toggleVoiceTag(i){const s=voiceTagStates[i];voiceTagStates[i]=s==='pending'?'approved':s==='approved'?'rejected':'pending';renderVoiceTags();}
+
+function renderVoiceDetails(details){
+  if(!details) return;
+  const fields=[['Job title',details.job_title],['Company',details.company],['Birthday',details.birthday],['Address',details.address],['Family',details.family_notes],['Interests',(details.interests||[]).join(', ')||null]].filter(f=>f[1]);
+  document.getElementById('voice-details').innerHTML=fields.map(([k,v])=>`<div class="field"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`).join('');
 }
 
-function renderVoiceDetails(details) {
-  if (!details) return;
-  const fields = [['Job title', details.job_title], ['Company', details.company], ['Birthday', details.birthday], ['Address', details.address], ['Family', details.family_notes], ['Interests', (details.interests||[]).join(', ')||null]].filter(f => f[1]);
-  document.getElementById('voice-details').innerHTML = fields.map(([k,v]) => `<div class="field"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`).join('');
+async function saveVoiceMemo(){
+  const name=document.getElementById('v-name').value.trim()||'Unknown contact';
+  const approved=currentVoiceTags.filter((_,i)=>voiceTagStates[i]==='approved').map(t=>t.tag);
+  const id='v'+Date.now();
+  const fakeResult={full_name:name,initials:name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),suggested_tags:currentVoiceTags.map(t=>({...t})),notes:document.getElementById('transcript-box').textContent,confidence_overall:'high',warning:null,approved_tags:approved};
+  tagStates[id]={};
+  currentVoiceTags.forEach((_,i)=>tagStates[id][i]=voiceTagStates[i]);
+  addToQueue(fakeResult,id,'done');
+  await saveToHistory(fakeResult, false);
+  document.getElementById('voice-msg').textContent='Saved to queue';
+  document.getElementById('voice-msg').className='push-msg ok';
+  loadHistory();
 }
 
-function saveVoiceMemo() {
-  const name = document.getElementById('v-name').value.trim() || 'Unknown contact';
-  const approved = currentVoiceTags.filter((_, i) => voiceTagStates[i] === 'approved').map(t => t.tag);
-  const id = 'v' + Date.now();
-  tagStates[id] = {};
-  const fakeResult = { full_name: name, initials: name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(), suggested_tags: currentVoiceTags.map(t => ({...t})), notes: document.getElementById('transcript-box').textContent, confidence_overall: 'high', warning: null };
-  currentVoiceTags.forEach((_, i) => tagStates[id][i] = voiceTagStates[i]);
-  addToQueue(fakeResult, id, 'done');
-  document.getElementById('voice-msg').textContent = 'Saved to queue'; document.getElementById('voice-msg').className = 'push-msg ok';
+function clearVoice(){
+  document.getElementById('transcript-box').textContent='Your transcript will appear here...';
+  document.getElementById('voice-tags-area').style.display='none';
+  document.getElementById('v-name').value='';
+  currentVoiceTags=[]; voiceTagStates={};
 }
 
-function clearVoice() {
-  document.getElementById('transcript-box').textContent = 'Your transcript will appear here after recording...';
-  document.getElementById('voice-tags-area').style.display = 'none';
-  document.getElementById('v-name').value = '';
-  currentVoiceTags = []; voiceTagStates = {};
-}
-
-// drag/drop
-const dz = document.getElementById('drop-zone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.background = 'white'; });
-dz.addEventListener('dragleave', () => { dz.style.background = ''; });
-dz.addEventListener('drop', e => { e.preventDefault(); dz.style.background = ''; const f = e.dataTransfer.files[0]; if (f) handleFile({ target: { files: [f] } }); });
-
-document.getElementById('s-name').addEventListener('keydown', e => { if (e.key === 'Enter') enrichSingle(); });
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='white';});
+dz.addEventListener('dragleave',()=>{dz.style.background='';});
+dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';const f=e.dataTransfer.files[0];if(f)handleFile({target:{files:[f]}});});
+document.getElementById('s-name').addEventListener('keydown',e=>{if(e.key==='Enter')enrichSingle();});
 </script>
 </body>
 </html>
