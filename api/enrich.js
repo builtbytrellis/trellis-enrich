@@ -18,6 +18,24 @@ async function searchFUB(name, fubApiKey) {
   }
 }
 
+async function webSearchContact(openai, name, city) {
+  const locationHint = city ? ` in ${city}` : ' in Toronto or GTA';
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-search-preview',
+      max_tokens: 600,
+      messages: [{
+        role: 'user',
+        content: `Search for information about "${name}"${locationHint}. I need: their job title, employer/company, neighbourhood, approximate age, family situation, and any notable interests or community involvement. Focus on LinkedIn, company websites, news, or social media. Be concise — just the facts you find.`
+      }]
+    });
+    return response.choices[0].message.content?.trim() || null;
+  } catch(e) {
+    console.warn('Web search failed (non-fatal):', e.message);
+    return null;
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -30,9 +48,9 @@ module.exports = async (req, res) => {
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const fubKey = fubApiKey || process.env.FUB_API_KEY;
 
     // Step 1 — pull existing FUB data
-    const fubKey = fubApiKey || process.env.FUB_API_KEY;
     const fubContact = await searchFUB(name, fubKey);
 
     // Build FUB context string
@@ -56,22 +74,42 @@ EXISTING FUB DATA:
 `;
     }
 
+    // Step 2 — web search when FUB data is missing or sparse
+    const fubHasUsefulData = fubContact && (
+      fubContact.jobTitle ||
+      fubContact.company ||
+      (fubContact.addresses || []).length > 0 ||
+      (fubContact.tags || []).length > 2
+    );
+
+    let webContext = '';
+    if (!fubHasUsefulData) {
+      const searchResult = await webSearchContact(openai, name, city);
+      if (searchResult) {
+        webContext = `\nWEB SEARCH RESULTS:\n${searchResult}\n`;
+      }
+    }
+
+    // Step 3 — GPT-4o tag generation using all available context
+    const dataAvailable = (fubContext || webContext)
+      ? `${fubContext}${webContext}`
+      : 'No FUB data and web search returned no results — work from name and city only, use low confidence.';
+
     const prompt = `You are a real estate CRM enrichment agent for Toronto/GTA. Analyze this contact and suggest the best FUB tags.
 
 Contact name: "${name}"${city ? `\nCity context: ${city}` : ''}
-${fubContext || 'No existing FUB data found — work from name and city only.'}
+${dataAvailable}
 
-Use the email domain, job title, address neighbourhood, and any other signals to infer:
-- Life stage, profession, property ownership, interests, opportunity signals
-- If email domain is a company, look up that company type to infer profession
-- If address is known, infer neighbourhood tag
-- If job title mentions real estate, mortgage, law, medicine etc — tag profession
+Use all available signals to infer life stage, profession, property ownership, interests, and opportunity signals.
+- If email domain is a company, infer profession from company type
+- If address is known, infer neighbourhood context
+- If job title mentions real estate, mortgage, law, medicine, tech etc — tag profession accordingly
 
 Return ONLY a JSON object:
-{"full_name":"string","initials":"2 chars","job_title":"from FUB or inferred","company":"from FUB or inferred","location":"from address or city","likely_age_range":"20s|30s|40s|50s|60+|unknown","family_signals":null,"interests":[],"community_involvement":[],"linkedin_url":null,"suggested_tags":[{"tag":"exact tag","reason":"one sentence citing the signal","confidence":"high|medium|low"}],"notes":null,"confidence_overall":"high|medium|low","warning":null}
+{"full_name":"string","initials":"2 chars","job_title":"from data or inferred","company":"from data or inferred","location":"from address or city","likely_age_range":"20s|30s|40s|50s|60+|unknown","family_signals":null,"interests":[],"community_involvement":[],"linkedin_url":null,"suggested_tags":[{"tag":"exact tag from list","reason":"one sentence citing the signal","confidence":"high|medium|low"}],"notes":"1-2 sentences useful for a real estate agent","confidence_overall":"high|medium|low","warning":null}
 
 Available tags: ${FUB_TAGS.join(', ')}
-Max 8 tags. Only suggest tags with real signal from the data above.`;
+Max 8 tags. Only use tags from the available list. Only include tags with real signal from the data.`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -81,11 +119,14 @@ Max 8 tags. Only suggest tags with real signal from the data above.`;
     });
 
     const result = JSON.parse(response.choices[0].message.content);
-    // attach raw FUB data so frontend can display it
+
+    // Attach raw FUB data for frontend use
     result.fub_data = fubContact ? {
       email: (fubContact.emails || [])[0]?.value || null,
       phone: (fubContact.phones || [])[0]?.value || null,
-      address: (fubContact.addresses || [])[0] ? [fubContact.addresses[0].street, fubContact.addresses[0].city].filter(Boolean).join(', ') : null,
+      address: (fubContact.addresses || [])[0]
+        ? [fubContact.addresses[0].street, fubContact.addresses[0].city].filter(Boolean).join(', ')
+        : null,
       existing_tags: fubContact.tags || [],
       fub_id: fubContact.id
     } : null;
