@@ -5,20 +5,40 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Trellis Enrich</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script>
+  // Clerk publishable key
+  window.__clerk_publishable_key = 'pk_test_ZGVsaWNhdGUtbW9uaXRvci02Mi5jbGVyay5hY2NvdW50cy5kZXYk';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js" crossorigin="anonymous"></script>
 <style>
 :root{--ink:#1a1a18;--ink-soft:#4a4a44;--ink-muted:#8a8a80;--cream:#f8f5ef;--cream-deep:#efe9dc;--gold:#b8924a;--gold-light:#d4ae72;--gold-pale:#f5eddb;--green:#2d4a35;--green-light:#e8f0e9;--border:rgba(26,26,24,0.1);--red:#c0392b;--red-light:#fdf0ef;--blue:#1a4a8a;--blue-light:#eef3fb;--amber:#b8924a;--amber-light:#fdf6e8}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh}
-.shell{display:flex;min-height:100vh}
+
+/* ── Auth screen ── */
+#auth-screen{display:none;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:24px}
+#auth-screen.visible{display:flex}
+.auth-logo{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;letter-spacing:.15em;text-transform:uppercase}
+.auth-logo span{color:var(--gold)}
+.auth-sub{font-size:13px;color:var(--ink-muted)}
+#clerk-mount{width:100%;max-width:420px}
+
+/* ── App shell ── */
+#app-shell{display:none;min-height:100vh}
+#app-shell.visible{display:flex}
 .sidebar{width:220px;background:var(--ink);flex-shrink:0;display:flex;flex-direction:column;padding:28px 0;position:fixed;height:100vh;overflow-y:auto}
 .main{margin-left:220px;flex:1;padding:40px 48px;max-width:1000px}
 .logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.12em;color:white;text-transform:uppercase;padding:0 24px 20px;border-bottom:.5px solid rgba(255,255,255,.1)}
 .logo span{color:var(--gold)}
-.agent-switcher{padding:16px 24px;border-bottom:.5px solid rgba(255,255,255,.1)}
-.agent-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:6px}
-.agent-select{width:100%;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:4px;padding:7px 10px;font-size:12px;color:white;font-family:'DM Sans',sans-serif;cursor:pointer}
-.agent-select option{background:#1a1a18;color:white}
-.btn-add-agent{width:100%;margin-top:6px;background:rgba(184,146,74,.2);border:.5px solid rgba(184,146,74,.3);color:var(--gold-light);font-size:11px;padding:6px;border-radius:4px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* ── User profile in sidebar ── */
+.user-section{padding:16px 24px;border-bottom:.5px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:white;flex-shrink:0;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+.user-name{font-size:12px;color:rgba(255,255,255,.8);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-signout{background:none;border:none;color:rgba(255,255,255,.3);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0}
+.btn-signout:hover{color:rgba(255,255,255,.7)}
+
 .nav{padding:16px 0;flex:1}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;font-size:13px;color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;border-left:2px solid transparent}
 .nav-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05)}
@@ -70,6 +90,20 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
 .field-key{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:3px}
 .field-val{font-size:13px;color:var(--ink)}
 .field-val.empty{color:var(--ink-muted);font-style:italic;font-size:12px}
+
+/* ── Editable fields ── */
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.edit-field label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);display:block;margin-bottom:4px}
+.edit-field input,.edit-field select,.edit-field textarea{width:100%;padding:8px 10px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.edit-field input:focus,.edit-field select:focus,.edit-field textarea:focus{outline:none;border-color:var(--gold)}
+.edit-field textarea{min-height:60px;resize:vertical}
+.edit-field.full{grid-column:1/-1}
+
+/* ── Tag dropdown adder ── */
+.tag-adder{display:flex;gap:8px;align-items:center;margin-top:8px}
+.tag-adder select{flex:1;padding:7px 10px;font-size:12px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.tag-adder select:focus{outline:none;border-color:var(--gold)}
+
 .section-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:8px;margin-top:16px}
 .divider{border:none;border-top:.5px solid var(--border);margin:16px 0}
 .action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -121,24 +155,25 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
 .history-meta{font-size:11px;color:var(--ink-muted);margin-top:2px}
 .history-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .history-tag{font-size:10px;background:var(--green-light);color:var(--green);padding:2px 7px;border-radius:10px}
-.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
-.modal{background:white;border-radius:8px;padding:32px;width:400px;max-width:90vw}
-.modal h3{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400;margin-bottom:20px}
-.modal input{width:100%;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;margin-bottom:12px}
-.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
 </style>
 </head>
 <body>
-<div class="shell">
+
+<!-- Auth screen -->
+<div id="auth-screen">
+  <div class="auth-logo">Trellis<span>.</span></div>
+  <div class="auth-sub">Sign in to access your workspace</div>
+  <div id="clerk-mount"></div>
+</div>
+
+<!-- App shell (shown after auth) -->
+<div id="app-shell">
   <div class="sidebar">
     <div class="logo">Trellis<span>.</span></div>
-    <div class="agent-switcher">
-      <div class="agent-label">Agent</div>
-      <select class="agent-select" id="agent-select" onchange="switchAgent(this.value)">
-        <option value="default">My Workspace</option>
-      </select>
-      <button class="btn-add-agent" onclick="openAddAgent()">+ Add agent</button>
+    <div class="user-section">
+      <div class="user-avatar" id="user-avatar"></div>
+      <div class="user-name" id="user-name"></div>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
     </div>
     <nav class="nav">
       <div class="nav-item active" onclick="showPanel('enrich',this)"><span class="nav-dot"></span>Enrich</div>
@@ -279,88 +314,74 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
   </div>
 </div>
 
-<!-- Add Agent Modal -->
-<div class="modal-overlay" id="add-agent-modal">
-  <div class="modal">
-    <h3>Add agent workspace</h3>
-    <input type="text" id="new-agent-name" placeholder="Agent name (e.g. Sarah Jones)"/>
-    <input type="text" id="new-agent-id" placeholder="Agent ID (e.g. sarah-jones — no spaces)"/>
-    <input type="password" id="new-agent-fub" placeholder="Their FUB API key"/>
-    <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeAddAgent()">Cancel</button>
-      <button class="btn btn-primary" onclick="addAgent()">Create workspace</button>
-    </div>
-  </div>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const API = '';
+const FUB_TAGS = ["Relationship: A++","Relationship: A+","Relationship: A","Relationship: B","Relationship: C","Relationship: Past Client","Relationship: Referral Source","Relationship: Super Referrer","Relationship: VIP","Relationship: Sphere","Client: Buyer","Client: Seller","Client: Investor","Client: Landlord","Client: Tenant","Life Stage: Young Professional","Life Stage: Young Family","Life Stage: Growing Family","Life Stage: Established Family","Life Stage: Empty Nester","Life Stage: Investor Profile","Timeline: Now","Timeline: 3-6 Months","Timeline: 6-12 Months","Timeline: 12+ Months","Engagement: Active","Engagement: Nurture","Engagement: Cold","Engagement: Do Not Contact","Comms: Text","Comms: Email","Comms: Call","Source: Open House","Source: Referral","Source: Social","Source: Past Client","Source: Cold","Type: Past Client","Type: Referral Source","Type: Super Referrer","Type: VIP","Type: Sphere","Buyer: Inquiry","Buyer: Pre-Approved","Buyer: Active","Buyer: Offer Stage","Buyer: Under Contract","Buyer: Closed","Seller: Thinking","Seller: Preparing","Seller: Interviewing","Seller: Ready","Seller: Listed","Seller: Sold","Opportunity: Upsizer","Opportunity: Downsizer","Opportunity: First-Time Buyer","Opportunity: Relocation","Opportunity: Mortgage Renewal","Opportunity: Likely Seller","Opportunity: Likely Buyer","Owner: Primary Residence","Owner: Investment Property","Owner: Rental Property","Owner: Multiple Properties","Property: Detached","Property: Semi-Detached","Property: Condo","Property: Townhouse","Property: Freehold","Property: Bungalow","Property: 3 Storey","Family: No Kids","Family: Kids Under 5","Family: Kids 5-10","Family: Kids Teens","Family: Expecting","Family: Empty Nester","Owned Since: Pre-2010","Owned Since: 2010-2015","Owned Since: 2016-2020","Owned Since: 2021-2023","Owned Since: 2024+","Signal: High Equity","Signal: Would Sell If Right Price","Signal: Would Sell Exclusive","Signal: Street Turnover","Lifestyle: Golfer","Lifestyle: Cottage Owner","Lifestyle: Foodie","Lifestyle: Loves Travel","Lifestyle: Fitness Focused","Lifestyle: Design Oriented","Profession: Finance","Profession: Healthcare","Profession: Legal","Profession: Tech","Profession: Education","Profession: Trades","Profession: Business Owner","Profession: Real Estate Agent","Profession: Mortgage Broker","Age: 20s","Age: 30s","Age: 40s","Age: 50s","Age: 60+"];
+
 let queue = [], tagStates = {}, pushedCount = 0;
 let excelRows = [], excelHeaders = [];
 let mediaRecorder, audioChunks = [], isRecording = false;
 let currentVoiceTags = [], voiceTagStates = {};
-let currentAgentId = localStorage.getItem('trellis_agent_id') || 'default';
-let currentAgentName = localStorage.getItem('trellis_agent_name') || 'My Workspace';
+let currentUserId = null;
+let clerkInstance = null;
 
-// ── Init ──────────────────────────────────────────────────────────────
-window.onload = async () => {
-  loadAgents();
-  const savedFUB = localStorage.getItem('fub_key_' + currentAgentId);
-  if (savedFUB) { document.getElementById('fub-key').value = savedFUB; checkFUB(); }
-  loadHistory();
-};
+// ── Clerk Auth ────────────────────────────────────────────────────────
+async function initClerk() {
+  const clerk = new Clerk(window.__clerk_publishable_key);
+  await clerk.load();
+  clerkInstance = clerk;
 
-// ── Agent management ──────────────────────────────────────────────────
-async function loadAgents() {
-  try {
-    const res = await fetch(API + '/api/save-agent');
-    const data = await res.json();
-    const sel = document.getElementById('agent-select');
-    sel.innerHTML = '<option value="default">My Workspace</option>';
-    (data.agents || []).forEach(a => {
-      if (a.agentId !== 'default') {
-        const opt = document.createElement('option');
-        opt.value = a.agentId; opt.textContent = a.name;
-        sel.appendChild(opt);
+  if (clerk.user) {
+    showApp(clerk.user);
+  } else {
+    document.getElementById('auth-screen').classList.add('visible');
+    clerk.mountSignIn(document.getElementById('clerk-mount'), {
+      appearance: {
+        elements: {
+          rootBox: { fontFamily: "'DM Sans', sans-serif" },
+          card: { boxShadow: 'none', border: '0.5px solid rgba(26,26,24,0.1)', borderRadius: '6px', background: 'white' }
+        }
       }
     });
-    sel.value = currentAgentId;
-  } catch(e) {}
+    // Poll until signed in
+    const poll = setInterval(() => {
+      if (clerk.user) {
+        clearInterval(poll);
+        document.getElementById('auth-screen').classList.remove('visible');
+        showApp(clerk.user);
+      }
+    }, 500);
+  }
 }
 
-function switchAgent(agentId) {
-  currentAgentId = agentId;
-  localStorage.setItem('trellis_agent_id', agentId);
-  const sel = document.getElementById('agent-select');
-  currentAgentName = sel.options[sel.selectedIndex].text;
-  localStorage.setItem('trellis_agent_name', currentAgentName);
-  const savedFUB = localStorage.getItem('fub_key_' + agentId);
-  document.getElementById('fub-key').value = savedFUB || '';
-  checkFUB();
-  clearQueue();
+function showApp(user) {
+  currentUserId = user.id;
+  document.getElementById('app-shell').classList.add('visible');
+
+  // Set user info in sidebar
+  const name = user.firstName || user.emailAddresses?.[0]?.emailAddress || 'Agent';
+  document.getElementById('user-name').textContent = name;
+  const avatar = document.getElementById('user-avatar');
+  if (user.imageUrl) {
+    avatar.innerHTML = `<img src="${user.imageUrl}" alt="${name}"/>`;
+  } else {
+    avatar.textContent = name[0].toUpperCase();
+  }
+
+  // Load saved FUB key for this user
+  const savedFUB = localStorage.getItem('fub_key_' + currentUserId);
+  if (savedFUB) { document.getElementById('fub-key').value = savedFUB; checkFUB(); }
+
   loadHistory();
 }
 
-function openAddAgent() { document.getElementById('add-agent-modal').classList.add('open'); }
-function closeAddAgent() { document.getElementById('add-agent-modal').classList.remove('open'); }
-
-async function addAgent() {
-  const name = document.getElementById('new-agent-name').value.trim();
-  const id = document.getElementById('new-agent-id').value.trim().replace(/\s+/g,'-').toLowerCase();
-  const fub = document.getElementById('new-agent-fub').value.trim();
-  if (!name || !id) { alert('Name and ID required'); return; }
-  try {
-    await fetch(API + '/api/save-agent', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ agentId: id, name, fubApiKey: fub }) });
-    if (fub) localStorage.setItem('fub_key_' + id, fub);
-    closeAddAgent();
-    await loadAgents();
-    document.getElementById('agent-select').value = id;
-    switchAgent(id);
-    document.getElementById('new-agent-name').value = '';
-    document.getElementById('new-agent-id').value = '';
-    document.getElementById('new-agent-fub').value = '';
-  } catch(e) { alert('Failed to create agent: ' + e.message); }
+async function signOut() {
+  if (clerkInstance) await clerkInstance.signOut();
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('auth-screen').classList.add('visible');
+  currentUserId = null;
+  clerkInstance.mountSignIn(document.getElementById('clerk-mount'));
 }
 
 // ── Navigation ────────────────────────────────────────────────────────
@@ -385,14 +406,16 @@ function checkFUB() {
   const s = document.getElementById('fub-status');
   s.textContent = v.length > 10 ? 'Key entered — ready to push' : 'Not connected';
   s.className = 'fub-status' + (v.length > 10 ? ' on' : '');
-  if (v.length > 10) localStorage.setItem('fub_key_' + currentAgentId, v);
+  if (v.length > 10 && currentUserId) localStorage.setItem('fub_key_' + currentUserId, v);
 }
+
 function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
 
 // ── History ───────────────────────────────────────────────────────────
 async function loadHistory() {
+  if (!currentUserId) return;
   try {
-    const res = await fetch(API + '/api/get-contacts?agentId=' + currentAgentId);
+    const res = await fetch(API + '/api/get-contacts?agentId=' + currentUserId);
     const data = await res.json();
     const contacts = data.contacts || [];
     document.getElementById('history-count').textContent = contacts.length + ' contacts saved';
@@ -401,7 +424,7 @@ async function loadHistory() {
       return;
     }
     document.getElementById('history-list').innerHTML = contacts.map(c => {
-      const approvedTags = (c.approved_tags || c.suggested_tags?.filter((_,i) => c.tagStates?.[i] === 'approved').map(t => t.tag) || []);
+      const approvedTags = (c.approved_tags || []);
       const initials = (c.full_name || c.name || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
       const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
       return `<div class="history-item">
@@ -418,10 +441,11 @@ async function loadHistory() {
 }
 
 async function saveToHistory(contact, pushed) {
+  if (!currentUserId) return;
   try {
     await fetch(API + '/api/save-contact', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ agentId: currentAgentId, contact: { ...contact, pushed: pushed || false } })
+      body: JSON.stringify({ agentId: currentUserId, contact: { ...contact, pushed: pushed || false } })
     });
   } catch(e) { console.error('Save to history failed:', e); }
 }
@@ -453,8 +477,10 @@ async function enrichSingle() {
 function renderSingleResult(d, id) {
   const conf = d.confidence_overall;
   const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':'var(--red)';
-  const fields = [['Job title',d.job_title],['Company',d.company],['Location',d.location],['Age range',d.likely_age_range!=='unknown'?d.likely_age_range:null],['Family',d.family_signals],['Interests',(d.interests||[]).join(', ')||null]];
-  const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB — updating existing contact</div>` : '';
+  const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB — editing will update existing contact</div>` : '';
+
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+
   document.getElementById('single-result').innerHTML = `<div class="card">
     ${d.warning?`<div class="warning-box">${d.warning}</div>`:''}
     ${fubInfo}
@@ -463,18 +489,64 @@ function renderSingleResult(d, id) {
       <div><div class="result-name">${d.full_name}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' · ')||'No title found'}</div></div>
       <div style="margin-left:auto;font-size:12px;font-weight:500;color:${confColor}">${conf} confidence</div>
     </div>
-    <div class="field-grid">${fields.map(([k,v])=>`<div class="field"><div class="field-key">${k}</div><div class="field-val ${!v?'empty':''}">${v||'Not found'}</div></div>`).join('')}</div>
+
+    <div class="section-label">Contact details — edit before pushing</div>
+    <div class="edit-grid">
+      <div class="edit-field"><label>First name</label><input id="ef-first-${id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="ef-last-${id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+      <div class="edit-field"><label>Email</label><input id="ef-email-${id}" value="${d.fub_data?.email||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="ef-phone-${id}" value="${d.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>City / Area</label><input id="ef-city-${id}" value="${d.location||''}"/></div>
+      <div class="edit-field"><label>Birthday</label><input id="ef-birthday-${id}" type="text" placeholder="e.g. 1985-06-15" value=""/></div>
+      <div class="edit-field"><label>Spouse name</label><input id="ef-spouse-${id}" value=""/></div>
+      <div class="edit-field"><label>Stage</label>
+        <select id="ef-stage-${id}">
+          <option value="">— select —</option>
+          ${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}">${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="edit-field full"><label>Background / Notes</label><textarea id="ef-notes-${id}">${d.fub_data ? '' : (d.notes||'')}</textarea></div>
+    </div>
+
     <hr class="divider"/>
     <div class="section-label">Suggested tags — click to approve / reject</div>
     <div class="tags-wrap" id="tags-${id}"></div>
-    <textarea class="notes" id="notes-${id}" placeholder="Add notes before pushing to FUB...">${d.notes||''}</textarea>
-    <div class="action-row">
+
+    <div class="section-label">Add a tag manually</div>
+    <div class="tag-adder">
+      <select id="tag-select-${id}">
+        <option value="">— choose a tag —</option>
+        ${tagOptions}
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="addManualTag('${id}')">Add</button>
+    </div>
+
+    <div class="action-row" style="margin-top:16px">
       <button class="btn btn-green" onclick="pushSingleContact('${id}')">Push to FUB</button>
       <button class="btn btn-outline" onclick="document.getElementById('single-result').innerHTML=''">Clear</button>
       <span class="push-msg" id="pmsg-${id}"></span>
     </div>
   </div>`;
+
   renderTagsFor(id, d.suggested_tags || []);
+}
+
+function addManualTag(id) {
+  const sel = document.getElementById('tag-select-' + id);
+  const tag = sel.value;
+  if (!tag) return;
+  const item = queue.find(q => q.id === id);
+  if (item && item.result) {
+    const existing = item.result.suggested_tags || [];
+    if (!existing.find(t => t.tag === tag)) {
+      existing.push({ tag, confidence: 'high', reason: 'Manually added' });
+      const i = existing.length - 1;
+      tagStates[id][i] = 'approved';
+      item.result.suggested_tags = existing;
+    }
+    renderTagsFor(id, item.result.suggested_tags);
+  }
+  sel.value = '';
 }
 
 function renderTagsFor(id, tags) {
@@ -492,7 +564,6 @@ function toggleTag(id,i) {
   tagStates[id][i] = s==='pending'?'approved':s==='approved'?'rejected':'pending';
   const item = queue.find(q=>q.id===id);
   if (item) renderTagsFor(id, item.result.suggested_tags||[]);
-  else renderTagsFor(id, Array.from(document.querySelectorAll(`#tags-${id} .tag`)).map((_,i2)=>({tag:document.querySelectorAll(`#tags-${id} .tag`)[i2].textContent.trim(),confidence:'high',reason:''})));
 }
 
 // ── Push ─────────────────────────────────────────────────────────────
@@ -502,16 +573,34 @@ async function pushSingleContact(id) {
   const item = queue.find(q=>q.id===id);
   const data = item?.result;
   if (!data) return;
+
   const approved = (data.suggested_tags||[]).filter((_,i)=>tagStates[id]?.[i]==='approved').map(t=>t.tag);
-  const notes = document.getElementById('notes-'+id)?.value || data.notes || '';
+
+  // Collect edited fields
+  const editedContact = {
+    ...data,
+    full_name: [
+      document.getElementById('ef-first-'+id)?.value || '',
+      document.getElementById('ef-last-'+id)?.value || ''
+    ].filter(Boolean).join(' ') || data.full_name,
+    email: document.getElementById('ef-email-'+id)?.value || data.fub_data?.email || '',
+    phone: document.getElementById('ef-phone-'+id)?.value || data.fub_data?.phone || '',
+    location: document.getElementById('ef-city-'+id)?.value || data.location || '',
+    birthday: document.getElementById('ef-birthday-'+id)?.value || '',
+    spouse_name: document.getElementById('ef-spouse-'+id)?.value || '',
+    stage: document.getElementById('ef-stage-'+id)?.value || '',
+    notes: document.getElementById('ef-notes-'+id)?.value || data.notes || '',
+    approved_tags: approved
+  };
+
   setMsg(id,'Pushing...','');
   try {
-    const res = await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:{...data,approved_tags:approved,notes}})});
+    const res = await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:editedContact})});
     const result = await res.json();
     if(result.error) throw new Error(result.error);
     setMsg(id,`Pushed — ${approved.length} tags applied`,'ok');
     pushedCount++; updateQueueItem(id,'pushed'); updateStats();
-    await saveToHistory({...data, approved_tags: approved, notes, pushed: true}, true);
+    await saveToHistory({...editedContact, pushed: true}, true);
     loadHistory();
   } catch(e) { setMsg(id,'Failed: '+e.message,'err'); }
 }
@@ -604,7 +693,8 @@ async function processNext() {
     if(data.error) throw new Error(data.error);
     next.result=data;
     (data.suggested_tags||[]).forEach((_,i)=>tagStates[next.id][i]='pending');
-    next.status=data.confidence_overall==='low'?'review':'done';
+    // Flag for review: low confidence OR no tags found
+    next.status=(data.confidence_overall==='low'||!(data.suggested_tags||[]).length)?'review':'done';
     await saveToHistory(data, false);
   } catch(e){next.status='error';next.error=e.message;}
   processing=false; updateStats(); renderQueue(); updateBadge();
@@ -637,21 +727,59 @@ function renderQueue() {
 
 function renderExpandContent(item) {
   const d=item.result; if(!d) return '';
-  const fields=[['Job',d.job_title],['Company',d.company],['Location',d.location],['Age',d.likely_age_range!=='unknown'?d.likely_age_range:null],['Family',d.family_signals]].filter(f=>f[1]);
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
   const tagsHtml=(d.suggested_tags||[]).map((t,i)=>{
     const state=tagStates[item.id]?.[i]||'pending';
     const conf=t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
     return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
+
   return `${d.warning?`<div class="warning-box" style="margin-bottom:12px">${d.warning}</div>`:''}
-    <div class="field-grid" style="margin-bottom:12px">${fields.map(([k,v])=>`<div class="field"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`).join('')}</div>
-    <div class="section-label">Tags — click to approve</div>
-    <div class="tags-wrap">${tagsHtml}</div>
-    ${d.notes?`<div style="font-size:12px;color:var(--ink-soft);margin-top:10px;font-style:italic">${d.notes}</div>`:''}
-    <div class="action-row" style="margin-top:14px">
-      <button class="btn btn-green btn-sm" onclick="pushQueueItem('${item.id}')">Push to FUB</button>
-      <span class="push-msg" id="pmsg-${item.id}"></span>
-    </div>`;
+  <div class="edit-grid" style="margin-bottom:12px">
+    <div class="edit-field"><label>First name</label><input id="qf-first-${item.id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
+    <div class="edit-field"><label>Last name</label><input id="qf-last-${item.id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+    <div class="edit-field"><label>Email</label><input id="qf-email-${item.id}" value="${item.email||d.fub_data?.email||''}"/></div>
+    <div class="edit-field"><label>Phone</label><input id="qf-phone-${item.id}" value="${d.fub_data?.phone||''}"/></div>
+    <div class="edit-field"><label>City</label><input id="qf-city-${item.id}" value="${d.location||item.city||''}"/></div>
+    <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value=""/></div>
+    <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value=""/></div>
+    <div class="edit-field"><label>Stage</label>
+      <select id="qf-stage-${item.id}">
+        <option value="">— select —</option>
+        ${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}">${d.notes||''}</textarea></div>
+  </div>
+  <div class="section-label">Tags — click to approve</div>
+  <div class="tags-wrap">${tagsHtml}</div>
+  <div class="tag-adder" style="margin-bottom:12px">
+    <select id="qtag-select-${item.id}">
+      <option value="">— add a tag —</option>
+      ${tagOptions}
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="addQueueManualTag('${item.id}')">Add</button>
+  </div>
+  <div class="action-row" style="margin-top:14px">
+    <button class="btn btn-green btn-sm" onclick="pushQueueItem('${item.id}')">Push to FUB</button>
+    <span class="push-msg" id="pmsg-${item.id}"></span>
+  </div>`;
+}
+
+function addQueueManualTag(id) {
+  const sel = document.getElementById('qtag-select-' + id);
+  const tag = sel.value; if (!tag) return;
+  const item = queue.find(q => q.id === id);
+  if (item && item.result) {
+    const existing = item.result.suggested_tags || [];
+    if (!existing.find(t => t.tag === tag)) {
+      existing.push({ tag, confidence: 'high', reason: 'Manually added' });
+      tagStates[id][existing.length - 1] = 'approved';
+      item.result.suggested_tags = existing;
+    }
+  }
+  sel.value = '';
+  renderQueue();
 }
 
 function toggleQueueExpand(id) {
@@ -670,14 +798,28 @@ async function pushQueueItem(id) {
   const fubKey=getFUBKey(); if(!fubKey){setMsg(id,'Add FUB API key','err');return;}
   const item=queue.find(q=>q.id===id); if(!item?.result) return;
   const approved=(item.result.suggested_tags||[]).filter((_,i)=>tagStates[id]?.[i]==='approved').map(t=>t.tag);
+
+  const editedContact = {
+    ...item.result,
+    full_name: [document.getElementById('qf-first-'+id)?.value||'', document.getElementById('qf-last-'+id)?.value||''].filter(Boolean).join(' ') || item.result.full_name,
+    email: document.getElementById('qf-email-'+id)?.value || item.email || item.result.fub_data?.email || '',
+    phone: document.getElementById('qf-phone-'+id)?.value || item.result.fub_data?.phone || '',
+    location: document.getElementById('qf-city-'+id)?.value || item.result.location || '',
+    birthday: document.getElementById('qf-birthday-'+id)?.value || '',
+    spouse_name: document.getElementById('qf-spouse-'+id)?.value || '',
+    stage: document.getElementById('qf-stage-'+id)?.value || '',
+    notes: document.getElementById('qf-notes-'+id)?.value || item.result.notes || '',
+    approved_tags: approved
+  };
+
   setMsg(id,'Pushing...','');
   try {
-    const res=await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:{...item.result,approved_tags:approved,email:item.email}})});
+    const res=await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:editedContact})});
     const result=await res.json();
     if(result.error) throw new Error(result.error);
     setMsg(id,`Pushed — ${approved.length} tags`,'ok');
     item.status='pushed'; pushedCount++; updateStats(); renderQueue(); updateBadge();
-    await saveToHistory({...item.result, approved_tags: approved, pushed: true}, true);
+    await saveToHistory({...editedContact, pushed: true}, true);
     loadHistory();
   } catch(e){setMsg(id,'Failed: '+e.message,'err');}
 }
@@ -789,10 +931,16 @@ function clearVoice(){
 }
 
 const dz=document.getElementById('drop-zone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='white';});
-dz.addEventListener('dragleave',()=>{dz.style.background='';});
-dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';const f=e.dataTransfer.files[0];if(f)handleFile({target:{files:[f]}});});
+if(dz){
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='white';});
+  dz.addEventListener('dragleave',()=>{dz.style.background='';});
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';const f=e.dataTransfer.files[0];if(f)handleFile({target:{files:[f]}});});
+}
+
 document.getElementById('s-name').addEventListener('keydown',e=>{if(e.key==='Enter')enrichSingle();});
+
+// ── Boot ──────────────────────────────────────────────────────────────
+window.onload = () => initClerk();
 </script>
 </body>
 </html>
