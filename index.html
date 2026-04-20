@@ -6,18 +6,27 @@
 <title>Trellis Enrich</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 <script>
-  // Clerk publishable key
   window.__clerk_publishable_key = 'pk_test_ZGVsaWNhdGUtbW9uaXRvci02Mi5jbGVyay5hY2NvdW50cy5kZXYk';
+  window.addEventListener('load', function() {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+    s.crossOrigin = 'anonymous';
+    s.onload = function() { initClerk(); };
+    s.onerror = function() { 
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('clerk-mount').innerHTML = '<p style="color:red;font-size:13px">Failed to load authentication. Please refresh.</p>';
+    };
+    document.head.appendChild(s);
+  });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js" crossorigin="anonymous"></script>
 <style>
 :root{--ink:#1a1a18;--ink-soft:#4a4a44;--ink-muted:#8a8a80;--cream:#f8f5ef;--cream-deep:#efe9dc;--gold:#b8924a;--gold-light:#d4ae72;--gold-pale:#f5eddb;--green:#2d4a35;--green-light:#e8f0e9;--border:rgba(26,26,24,0.1);--red:#c0392b;--red-light:#fdf0ef;--blue:#1a4a8a;--blue-light:#eef3fb;--amber:#b8924a;--amber-light:#fdf6e8}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh}
 
 /* ── Auth screen ── */
-#auth-screen{display:none;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:24px}
-#auth-screen.visible{display:flex}
+#auth-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:24px}
+#auth-screen.hidden{display:none}
 .auth-logo{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;letter-spacing:.15em;text-transform:uppercase}
 .auth-logo span{color:var(--gold)}
 .auth-sub{font-size:13px;color:var(--ink-muted)}
@@ -335,7 +344,7 @@ async function initClerk() {
   if (clerk.user) {
     showApp(clerk.user);
   } else {
-    document.getElementById('auth-screen').classList.add('visible');
+    document.getElementById('auth-screen').classList.remove('hidden');
     clerk.mountSignIn(document.getElementById('clerk-mount'), {
       appearance: {
         elements: {
@@ -348,7 +357,7 @@ async function initClerk() {
     const poll = setInterval(() => {
       if (clerk.user) {
         clearInterval(poll);
-        document.getElementById('auth-screen').classList.remove('visible');
+        document.getElementById('auth-screen').classList.add('hidden');
         showApp(clerk.user);
       }
     }, 500);
@@ -356,6 +365,7 @@ async function initClerk() {
 }
 
 function showApp(user) {
+  document.getElementById('auth-screen').classList.add('hidden');
   currentUserId = user.id;
   document.getElementById('app-shell').classList.add('visible');
 
@@ -379,7 +389,7 @@ function showApp(user) {
 async function signOut() {
   if (clerkInstance) await clerkInstance.signOut();
   document.getElementById('app-shell').classList.remove('visible');
-  document.getElementById('auth-screen').classList.add('visible');
+  document.getElementById('auth-screen').classList.remove('hidden');
   currentUserId = null;
   clerkInstance.mountSignIn(document.getElementById('clerk-mount'));
 }
@@ -940,7 +950,7 @@ if(dz){
 document.getElementById('s-name').addEventListener('keydown',e=>{if(e.key==='Enter')enrichSingle();});
 
 // ── Boot ──────────────────────────────────────────────────────────────
-window.onload = () => initClerk();
+// Clerk init is triggered by script onload above
 </script>
 </body>
 </html>
