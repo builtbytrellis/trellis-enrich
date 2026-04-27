@@ -1316,7 +1316,9 @@ function disconnectDocuSign() {
 async function checkDocuSignAuth() {
   // Check URL for ds_key param after OAuth callback
   const urlParams = new URLSearchParams(window.location.search);
-  const dsKey = urlParams.get('ds_key');
+  // Also check sessionStorage for key stored before login
+  const dsKey = urlParams.get('ds_key') || sessionStorage.getItem('pending_ds_key');
+  sessionStorage.removeItem('pending_ds_key');
   const dsError = urlParams.get('docusign_error');
   
   if (dsError) {
@@ -1513,7 +1515,17 @@ function exportTransactions() {
 
 // Check DocuSign auth on page load / after login
 const _origShowApp = showApp;
-window.addEventListener("load", checkExistingSession);
+window.addEventListener("load", async function() {
+  // If returning from DocuSign OAuth, wait for session then process
+  const urlParams = new URLSearchParams(window.location.search);
+  const dsKey = urlParams.get('ds_key');
+  if (dsKey) {
+    // Store key for after login
+    sessionStorage.setItem('pending_ds_key', dsKey);
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+  await checkExistingSession();
+});
 </script>
 </body>
 </html>
