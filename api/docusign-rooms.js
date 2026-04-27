@@ -33,32 +33,13 @@ async function downloadDocument(accessToken, accountId, baseUri, roomId, docId) 
 }
 
 async function extractFintracData(pdfBase64, contactName) {
-  const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY;
-  if (!ANTHROPIC_KEY) return null;
+  const OPENAI_KEY = process.env.OPENAI_API_KEY;
+  if (!OPENAI_KEY) return null;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-opus-4-5',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'document',
-              source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 }
-            },
-            {
-              type: 'text',
-              text: `This is a FINTRAC (Financial Transactions and Reports Analysis Centre of Canada) identity verification form from a real estate transaction${contactName ? ` for ${contactName}` : ''}.
+    const prompt = `This is a FINTRAC (Financial Transactions and Reports Analysis Centre of Canada) identity verification form from a real estate transaction${contactName ? ` for ${contactName}` : ''}.
 
-Extract the following information and return ONLY valid JSON:
+Extract the following information and return ONLY valid JSON with no markdown:
 {
   "full_name": "string or null",
   "date_of_birth": "YYYY-MM-DD format or null",
@@ -66,16 +47,39 @@ Extract the following information and return ONLY valid JSON:
   "employer": "string or null",
   "address": "string or null",
   "city": "string or null",
-  "id_type": "string (e.g. Passport, Driver's License) or null",
+  "id_type": "string (e.g. Passport, Driver License) or null",
   "id_number": "string or null",
   "id_expiry": "string or null",
   "phone": "string or null",
   "email": "string or null",
-  "is_buyer": true/false/null,
-  "is_seller": true/false/null
+  "is_buyer": true,
+  "is_seller": false
 }
 
-If this is not a FINTRAC form or contains no personal information, return {"not_fintrac": true}.`
+If this is not a FINTRAC form or contains no personal information, return {"not_fintrac": true}.`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: prompt
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:application/pdf;base64,${pdfBase64}`,
+                detail: 'high'
+              }
             }
           ]
         }]
@@ -83,8 +87,11 @@ If this is not a FINTRAC form or contains no personal information, return {"not_
     });
 
     const data = await response.json();
-    if (data.error) return null;
-    const text = (data.content || []).map(b => b.text || '').join('');
+    if (data.error) {
+      console.error('OpenAI error:', data.error);
+      return null;
+    }
+    const text = data.choices?.[0]?.message?.content || '';
     const clean = text.replace(/```json\n?|```/g, '').trim();
     return JSON.parse(clean);
   } catch (e) {
