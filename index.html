@@ -192,6 +192,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="nav-item" onclick="showPanel('voice',this)"><span class="nav-dot"></span>Voice memos</div>
       <div class="nav-item" onclick="showPanel('queue',this)"><span class="nav-dot"></span>Queue <span id="queue-badge" style="margin-left:auto;background:rgba(184,146,74,.3);color:var(--gold-light);font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
       <div class="nav-item" onclick="showPanel('history',this)"><span class="nav-dot"></span>History</div>
+      <div class="nav-item" onclick="showPanel('transactions',this)"><span class="nav-dot"></span>Transactions</div>
     </nav>
     <div class="fub-section">
       <div class="fub-label">Follow Up Boss</div>
@@ -310,6 +311,53 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       </div>
     </div>
 
+    <!-- Transactions -->
+    <div class="panel" id="panel-transactions">
+      <div class="page-title">Transactions</div>
+      <div class="page-sub">Connect DocuSign to pull transaction data and extract FINTRAC information automatically.</div>
+
+      <div id="ds-connect-section">
+        <div class="card" id="ds-not-connected">
+          <div class="card-title">Connect DocuSign</div>
+          <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Connect your DocuSign account to pull all your transaction rooms, extract client details from FINTRAC forms, and auto-populate contact profiles.</p>
+          <button class="btn btn-primary" onclick="connectDocuSign()">Connect DocuSign Account</button>
+        </div>
+        <div class="card" id="ds-connected" style="display:none">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:16px">✓</div>
+            <div>
+              <div style="font-size:13px;font-weight:500">DocuSign Connected</div>
+              <div style="font-size:11px;color:var(--ink-muted)" id="ds-account-info"></div>
+            </div>
+            <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="disconnectDocuSign()">Disconnect</button>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="loadRooms(false)">Load Transactions</button>
+            <button class="btn btn-gold" onclick="loadRooms(true)">Load + Extract FINTRAC</button>
+            <span style="font-size:12px;color:var(--ink-muted)">FINTRAC extraction uses AI to read PDF forms — takes longer but pulls birthdays, occupations, IDs</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="ds-loading" style="display:none" class="card">
+        <div style="font-size:13px;color:var(--ink-muted)">Loading transactions from DocuSign...</div>
+      </div>
+
+      <div id="ds-results" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <span style="font-size:13px;color:var(--ink-muted)" id="ds-count"></span>
+          <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="exportTransactions()">Export to Excel</button>
+          <button class="btn btn-green btn-sm" onclick="matchToContacts()">Match to Contacts</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 80px;gap:8px;padding:10px 16px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);border-bottom:.5px solid var(--border)">
+            <span>Property</span><span>Clients</span><span>Close Date</span><span>Status</span><span>FINTRAC</span>
+          </div>
+          <div id="transactions-list"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Admin -->
     <div class="panel" id="panel-admin">
       <div class="empty-state"><div class="big">Loading...</div></div>
@@ -417,6 +465,7 @@ function showApp(agent) {
     }
   }
 
+  checkDocuSignAuth();
   const savedFUB = localStorage.getItem('fub_key_' + currentUserId);
   if (savedFUB) { document.getElementById('fub-key').value = savedFUB; checkFUB(); }
   // Also try to load FUB key from server
@@ -909,33 +958,51 @@ function loadFromExcel() {
   const fc=ci('col-first'),lc=ci('col-last'),cc=ci('col-city'),ec=ci('col-email');
   if(fc===null&&lc===null){alert('Select at least a first or last name column.');return;}
   const rawContacts=excelRows.map(r=>({
-    name:[fc!==null?String(r[fc]||''):'',lc!==null?String(r[lc]||''):''].filter(Boolean).join(' ').trim(),
-    city:cc!==null?String(r[cc]||'').trim():'',email:ec!==null?String(r[ec]||'').trim():''
-  })).filter(c=>c.name);
+    firstName: fc!==null?String(r[fc]||'').trim():'',
+    lastName: lc!==null?String(r[lc]||'').trim():'',
+    city:cc!==null?String(r[cc]||'').trim():'',
+    email:ec!==null?String(r[ec]||'').trim():''
+  })).filter(c=>c.firstName||c.lastName);
   
   // Split couples into individual contacts
   const contacts = [];
   rawContacts.forEach(c => {
-    const name = c.name;
-    const lastName = name.split(' ').pop();
-    // Detect couple patterns: "John & Jane Smith", "John and Jane Smith", "John / Jane"
-    const coupleMatch = name.match(/^(.+?)\s*(?:&|and|\/)\s*(.+)$/i);
-    if (coupleMatch) {
-      const part1 = coupleMatch[1].trim();
-      const part2 = coupleMatch[2].trim();
-      // If part2 has no last name, append the shared last name
+    const firstName = c.firstName;
+    const lastName = c.lastName;
+    const fullName = [firstName, lastName].filter(Boolean).join(' ');
+    
+    // Pattern 1: Last name starts with & or and (e.g. first="Suresh", last="& Anjali Agarwal")
+    const lastNameCouple = lastName.match(/^(?:&|and)\s+(.+)/i);
+    if (lastNameCouple) {
+      const person2Full = lastNameCouple[1].trim();
+      // Get shared last name from person2 or use last word of person2
+      const p2parts = person2Full.split(' ');
+      const sharedLast = p2parts.length > 1 ? p2parts[p2parts.length-1] : p2parts[0];
+      contacts.push({ name: firstName + ' ' + sharedLast, city: c.city, email: c.email });
+      contacts.push({ name: person2Full, city: c.city, email: '' });
+      return;
+    }
+    
+    // Pattern 2: Full name contains & or and (e.g. "John & Jane Smith")
+    const fullCouple = fullName.match(/^(.+?)\s*(?:&|and|\/)\s*(.+)$/i);
+    if (fullCouple) {
+      const part1 = fullCouple[1].trim();
+      const part2 = fullCouple[2].trim();
+      const sharedLast = lastName.split(' ').pop() || part1.split(' ').pop();
       const p1HasLast = part1.split(' ').length > 1;
       const p2HasLast = part2.split(' ').length > 1;
-      const sharedLast = p1HasLast ? part1.split(' ').pop() : lastName;
-      contacts.push({ name: p1HasLast ? part1 : part1 + ' ' + sharedLast, city: c.city, email: c.email });
-      contacts.push({ name: p2HasLast ? part2 : part2 + ' ' + sharedLast, city: c.city, email: '' });
-    } else {
-      contacts.push(c);
+      contacts.push({ name: p1HasLast ? part1 : part1+' '+sharedLast, city: c.city, email: c.email });
+      contacts.push({ name: p2HasLast ? part2 : part2+' '+sharedLast, city: c.city, email: '' });
+      return;
     }
+    
+    // Single contact
+    contacts.push({ name: fullName, city: c.city, email: c.email });
   });
   
   if(!contacts.length){alert('No contacts found.');return;}
-  document.getElementById('row-count').textContent = rawContacts.length + ' rows → ' + contacts.length + ' contacts (couples split)';
+  const splitCount = contacts.length - rawContacts.length;
+  document.getElementById('row-count').textContent = rawContacts.length + ' rows → ' + contacts.length + ' contacts' + (splitCount > 0 ? ' (' + splitCount + ' couples split)' : '');
   startBatchQueue(contacts);
 }
 
@@ -1221,6 +1288,212 @@ if(dz){
 document.getElementById('s-name').addEventListener('keydown',e=>{if(e.key==='Enter')enrichSingle();});
 
 // ── Boot ──────────────────────────────────────────────────────────────
+
+// ── DocuSign ──────────────────────────────────────────────────────────
+let dsAccessToken = null;
+let dsAccountId = null;
+let dsBaseUri = null;
+let dsTransactions = [];
+
+function connectDocuSign() {
+  const integrationKey = 'pk_test_ZGVsaWNhdGUtbW9uaXRvci02Mi5jbGVyay5hY2NvdW50cy5kZXYk';
+  // Use env var from server
+  const clientId = '2a98ce6b-99e2-4e4e-8f6a-6e9f4d141d7c';
+  const redirectUri = encodeURIComponent(window.location.origin + '/api/docusign-callback');
+  const scopes = encodeURIComponent('signature rooms_read rooms_write');
+  const authUrl = `https://account-d.docusign.com/oauth/auth?response_type=code&scope=${scopes}&client_id=${clientId}&redirect_uri=${redirectUri}`;
+  window.location.href = authUrl;
+}
+
+function disconnectDocuSign() {
+  dsAccessToken = null; dsAccountId = null; dsBaseUri = null;
+  localStorage.removeItem('ds_token_' + currentUserId);
+  document.getElementById('ds-connected').style.display = 'none';
+  document.getElementById('ds-not-connected').style.display = 'block';
+  document.getElementById('ds-results').style.display = 'none';
+}
+
+function checkDocuSignAuth() {
+  // Check URL hash for token after OAuth callback
+  const hash = window.location.hash;
+  if (hash && hash.includes('ds_access_token')) {
+    const params = new URLSearchParams(hash.slice(1));
+    dsAccessToken = params.get('ds_access_token');
+    dsAccountId = params.get('ds_account_id');
+    dsBaseUri = params.get('ds_base_uri');
+    if (dsAccessToken && currentUserId) {
+      localStorage.setItem('ds_token_' + currentUserId, JSON.stringify({ dsAccessToken, dsAccountId, dsBaseUri }));
+    }
+    window.history.replaceState(null, '', window.location.pathname);
+    showDocuSignConnected();
+    return;
+  }
+  // Check localStorage
+  if (currentUserId) {
+    const saved = localStorage.getItem('ds_token_' + currentUserId);
+    if (saved) {
+      const d = JSON.parse(saved);
+      dsAccessToken = d.dsAccessToken; dsAccountId = d.dsAccountId; dsBaseUri = d.dsBaseUri;
+      showDocuSignConnected();
+    }
+  }
+}
+
+function showDocuSignConnected() {
+  document.getElementById('ds-not-connected').style.display = 'none';
+  document.getElementById('ds-connected').style.display = 'block';
+  document.getElementById('ds-account-info').textContent = 'Account ID: ' + dsAccountId;
+}
+
+async function loadRooms(extractFintrac) {
+  if (!dsAccessToken) { alert('Please connect DocuSign first'); return; }
+  document.getElementById('ds-loading').style.display = 'block';
+  document.getElementById('ds-results').style.display = 'none';
+  try {
+    const res = await fetch('/api/docusign-rooms', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ accessToken: dsAccessToken, accountId: dsAccountId, baseUri: dsBaseUri, extractFintrac })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    dsTransactions = data.transactions || [];
+    renderTransactions();
+  } catch(e) {
+    alert('Failed to load transactions: ' + e.message);
+    // If 401, token expired
+    if (e.message.includes('401')) disconnectDocuSign();
+  }
+  document.getElementById('ds-loading').style.display = 'none';
+}
+
+function renderTransactions() {
+  const list = document.getElementById('transactions-list');
+  document.getElementById('ds-count').textContent = dsTransactions.length + ' transactions found';
+  document.getElementById('ds-results').style.display = 'block';
+
+  if (!dsTransactions.length) {
+    list.innerHTML = '<div class="empty-state">No transactions found.</div>';
+    return;
+  }
+
+  list.innerHTML = dsTransactions.map((t, idx) => {
+    const fintracCount = (t.fintracData || []).length;
+    const address = t.address || t.name || 'Unknown address';
+    const clients = (t.fintracData || []).map(f => f.full_name).filter(Boolean).join(', ') || '—';
+    return `<div>
+      <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 80px;gap:8px;padding:14px 16px;border-bottom:.5px solid var(--border);align-items:center;cursor:pointer" onclick="toggleTransactionExpand(${idx})">
+        <div>
+          <div style="font-size:13px;font-weight:500">${address}</div>
+          ${t.city ? `<div style="font-size:11px;color:var(--ink-muted)">${t.city}</div>` : ''}
+        </div>
+        <div style="font-size:12px;color:var(--ink-muted)">${clients}</div>
+        <div style="font-size:12px">${t.closingDate ? new Date(t.closingDate).toLocaleDateString('en-CA') : '—'}</div>
+        <div><span class="pill ${t.status === 'Active' ? 'pill-done' : 'pill-pending'}">${t.status || '—'}</span></div>
+        <div><span class="pill ${fintracCount > 0 ? 'pill-pushed' : 'pill-pending'}">${fintracCount > 0 ? fintracCount + ' found' : 'none'}</span></div>
+      </div>
+      <div class="expand-panel" id="texp-${idx}"></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTransactionExpand(idx) {
+  const panel = document.getElementById('texp-' + idx);
+  if (!panel) return;
+  if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.innerHTML = ''; return; }
+  const t = dsTransactions[idx];
+  const fintrac = t.fintracData || [];
+
+  panel.innerHTML = `
+    <div style="padding:16px">
+      ${fintrac.length === 0 ? '<p style="font-size:13px;color:var(--ink-muted)">No FINTRAC data extracted. Click "Load + Extract FINTRAC" to extract client details from documents.</p>' : ''}
+      ${fintrac.map((f, fi) => `
+        <div style="background:var(--cream);border-radius:6px;padding:14px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:500;margin-bottom:10px;color:var(--ink-muted)">${f.documentName || 'FINTRAC Document ' + (fi+1)}</div>
+          <div class="field-grid">
+            ${f.full_name ? `<div class="field"><div class="field-key">Name</div><div class="field-val">${f.full_name}</div></div>` : ''}
+            ${f.date_of_birth ? `<div class="field"><div class="field-key">Date of Birth</div><div class="field-val">${f.date_of_birth}</div></div>` : ''}
+            ${f.occupation ? `<div class="field"><div class="field-key">Occupation</div><div class="field-val">${f.occupation}</div></div>` : ''}
+            ${f.employer ? `<div class="field"><div class="field-key">Employer</div><div class="field-val">${f.employer}</div></div>` : ''}
+            ${f.address ? `<div class="field"><div class="field-key">Address</div><div class="field-val">${f.address}</div></div>` : ''}
+            ${f.phone ? `<div class="field"><div class="field-key">Phone</div><div class="field-val">${f.phone}</div></div>` : ''}
+            ${f.id_type ? `<div class="field"><div class="field-key">ID Type</div><div class="field-val">${f.id_type}</div></div>` : ''}
+          </div>
+          <button class="btn btn-green btn-sm" style="margin-top:8px" onclick="pushFintracToContact(${idx}, ${fi})">Add to Contact Profile</button>
+        </div>
+      `).join('')}
+      <div style="margin-top:12px;font-size:12px;color:var(--ink-muted)">
+        ${t.salePrice ? `Sale price: $${Number(t.salePrice).toLocaleString()} · ` : ''}
+        Room ID: ${t.roomId}
+      </div>
+    </div>`;
+  panel.classList.add('open');
+}
+
+async function pushFintracToContact(tIdx, fIdx) {
+  const fintrac = dsTransactions[tIdx]?.fintracData?.[fIdx];
+  if (!fintrac || !fintrac.full_name) { alert('No name found in FINTRAC data'); return; }
+  
+  // Enrich this contact using FINTRAC data
+  const name = fintrac.full_name;
+  const id = 'fintrac_' + Date.now();
+  const result = {
+    full_name: name,
+    initials: name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+    job_title: fintrac.occupation || null,
+    company: fintrac.employer || null,
+    location: fintrac.city || null,
+    birthday: fintrac.date_of_birth || null,
+    phone: fintrac.phone || null,
+    notes: `FINTRAC verified contact from transaction: ${dsTransactions[tIdx].address || dsTransactions[tIdx].name}`,
+    confidence_overall: 'high',
+    suggested_tags: [
+      fintrac.is_buyer ? { tag: 'Client: Buyer', confidence: 'high', reason: 'Listed as buyer in FINTRAC' } : null,
+      fintrac.is_seller ? { tag: 'Client: Seller', confidence: 'high', reason: 'Listed as seller in FINTRAC' } : null,
+      fintrac.occupation ? { tag: 'Relationship: Past Client', confidence: 'high', reason: 'Verified via FINTRAC' } : null
+    ].filter(Boolean),
+    fintrac_verified: true
+  };
+  tagStates[id] = {};
+  result.suggested_tags.forEach((_, i) => tagStates[id][i] = 'approved');
+  addToQueue(result, id, 'done');
+  await saveToHistory(result, false);
+  showPanel('queue', document.querySelectorAll('.nav-item')[2]);
+  alert(`${name} added to queue with FINTRAC data. Go to Queue to review and push to FUB.`);
+}
+
+function matchToContacts() {
+  if (!dsTransactions.length) return;
+  let matched = 0;
+  dsTransactions.forEach((t, tIdx) => {
+    (t.fintracData || []).forEach((f, fIdx) => {
+      if (f.full_name) { pushFintracToContact(tIdx, fIdx); matched++; }
+    });
+  });
+  if (matched > 0) alert(`${matched} FINTRAC contacts added to queue`);
+  else alert('No FINTRAC data found. Run "Load + Extract FINTRAC" first.');
+}
+
+function exportTransactions() {
+  if (!dsTransactions.length) return;
+  const rows = [['Address', 'City', 'Status', 'Close Date', 'Sale Price', 'Client Name', 'DOB', 'Occupation', 'Phone', 'ID Type']];
+  dsTransactions.forEach(t => {
+    if (t.fintracData && t.fintracData.length) {
+      t.fintracData.forEach(f => {
+        rows.push([t.address||t.name||'', t.city||'', t.status||'', t.closingDate||'', t.salePrice||'', f.full_name||'', f.date_of_birth||'', f.occupation||'', f.phone||'', f.id_type||'']);
+      });
+    } else {
+      rows.push([t.address||t.name||'', t.city||'', t.status||'', t.closingDate||'', t.salePrice||'', '', '', '', '', '']);
+    }
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+  XLSX.writeFile(wb, 'trellis-transactions.xlsx');
+}
+
+// Check DocuSign auth on page load / after login
+const _origShowApp = showApp;
 window.addEventListener("load", checkExistingSession);
 </script>
 </body>
