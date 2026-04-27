@@ -20,7 +20,7 @@ body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;f
 .auth-logo{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;letter-spacing:.15em;text-transform:uppercase}
 .auth-logo span{color:var(--gold)}
 .auth-sub{font-size:13px;color:var(--ink-muted)}
-#clerk-mount{width:100%;max-width:420px}
+#clerk-mount{width:100%;max-width:420px;min-height:400px}
 
 /* ── App shell ── */
 #app-shell{display:none;min-height:100vh}
@@ -327,30 +327,30 @@ let clerkInstance = null;
 
 // ── Clerk Auth ────────────────────────────────────────────────────────
 async function initClerk() {
-  const clerk = new Clerk(window.__clerk_publishable_key);
-  await clerk.load();
-  clerkInstance = clerk;
+  try {
+    const clerk = new window.Clerk(window.__clerk_publishable_key);
+    await clerk.load();
+    clerkInstance = clerk;
 
-  if (clerk.user) {
-    showApp(clerk.user);
-  } else {
-    document.getElementById('auth-screen').classList.remove('hidden');
-    clerk.mountSignIn(document.getElementById('clerk-mount'), {
-      appearance: {
-        elements: {
-          rootBox: { fontFamily: "'DM Sans', sans-serif" },
-          card: { boxShadow: 'none', border: '0.5px solid rgba(26,26,24,0.1)', borderRadius: '6px', background: 'white' }
+    if (clerk.user) {
+      showApp(clerk.user);
+    } else {
+      // Mount sign in form
+      const mountEl = document.getElementById('clerk-mount');
+      clerk.mountSignIn(mountEl);
+      
+      // Poll until signed in
+      const poll = setInterval(() => {
+        if (clerk.user) {
+          clearInterval(poll);
+          document.getElementById('auth-screen').classList.add('hidden');
+          showApp(clerk.user);
         }
-      }
-    });
-    // Poll until signed in
-    const poll = setInterval(() => {
-      if (clerk.user) {
-        clearInterval(poll);
-        document.getElementById('auth-screen').classList.add('hidden');
-        showApp(clerk.user);
-      }
-    }, 500);
+      }, 300);
+    }
+  } catch(e) {
+    console.error('Clerk init error:', e);
+    document.getElementById('clerk-mount').innerHTML = '<div style="text-align:center;padding:20px"><p style="color:#c0392b;font-size:13px;margin-bottom:12px">Sign-in failed to load.</p><button onclick="location.reload()" style="padding:8px 16px;background:#1a1a18;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px">Retry</button></div>';
   }
 }
 
