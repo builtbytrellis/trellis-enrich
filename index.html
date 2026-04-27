@@ -372,10 +372,23 @@ async function checkExistingSession() {
   if (!token) return false;
   try {
     const res = await fetch('/api/get-contacts?limit=0', { headers: authHeaders() });
-    if (res.status === 401) { localStorage.removeItem('trellis_token'); return false; }
-    // Token is valid — restore session from localStorage
+    if (res.status === 401) { 
+      localStorage.removeItem('trellis_token'); 
+      localStorage.removeItem('trellis_session');
+      return false; 
+    }
+    // Token is valid — restore session from server via get-contacts headers
     const saved = localStorage.getItem('trellis_session');
-    if (saved) { currentSession = JSON.parse(saved); showApp(currentSession); return true; }
+    if (saved) { 
+      currentSession = JSON.parse(saved); 
+      // Remove stale admin nav if this user is not admin
+      if (currentSession.role !== 'admin') {
+        const adminNav = document.getElementById('nav-admin');
+        if (adminNav) adminNav.remove();
+      }
+      showApp(currentSession); 
+      return true; 
+    }
     return false;
   } catch(e) { return false; }
 }
@@ -388,7 +401,10 @@ function showApp(agent) {
   document.getElementById('user-name').textContent = agent.name;
   document.getElementById('user-avatar').textContent = agent.name[0].toUpperCase();
 
-  // Show admin nav item if admin
+  // Remove any stale admin nav first
+  const staleAdmin = document.getElementById('nav-admin');
+  if (staleAdmin) staleAdmin.remove();
+  
   if (agent.role === 'admin') {
     const nav = document.querySelector('.nav');
     if (!document.getElementById('nav-admin')) {
@@ -437,7 +453,7 @@ async function loadAdminPanel() {
         <div class="edit-grid">
           <div class="edit-field"><label>Full name</label><input id="new-agent-name" placeholder="Claire Speedie"/></div>
           <div class="edit-field"><label>Email</label><input id="new-agent-email" type="email" placeholder="claire@example.com"/></div>
-          <div class="edit-field"><label>Password</label><input id="new-agent-pass" type="password" placeholder="Temporary password"/></div><div class="edit-field full"><label>Follow Up Boss API Key</label><input id="new-agent-fub" type="password" placeholder="Paste their FUB API key..."/></div>
+          <div class="edit-field"><label>Password</label><input id="new-agent-pass" type="password" placeholder="Temporary password"/></div>
           <div class="edit-field"><label>Role</label>
             <select id="new-agent-role">
               <option value="agent">Agent</option>
@@ -501,7 +517,7 @@ function showPanel(id, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('panel-' + id).classList.add('active');
   if (el) el.classList.add('active');
-  if (id === 'history') loadHistory();
+  if (id === 'history') loadHistory(); if (id === 'admin' && currentSession?.role !== 'admin') return;
 }
 
 function switchEnrichTab(t) {
