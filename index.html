@@ -5,10 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Trellis Enrich</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
-<script>
-  window.__clerk_publishable_key = 'pk_test_ZGVsaWNhdGUtbW9uaXRvci02Mi5jbGVyay5hY2NvdW50cy5kZXYk';
-</script>
-<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@4/dist/clerk.browser.js" type="text/javascript"></script>
+
 <style>
 :root{--ink:#1a1a18;--ink-soft:#4a4a44;--ink-muted:#8a8a80;--cream:#f8f5ef;--cream-deep:#efe9dc;--gold:#b8924a;--gold-light:#d4ae72;--gold-pale:#f5eddb;--green:#2d4a35;--green-light:#e8f0e9;--border:rgba(26,26,24,0.1);--red:#c0392b;--red-light:#fdf0ef;--blue:#1a4a8a;--blue-light:#eef3fb;--amber:#b8924a;--amber-light:#fdf6e8}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -162,7 +159,23 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
 <div id="auth-screen">
   <div class="auth-logo">Trellis<span>.</span></div>
   <div class="auth-sub">Sign in to access your workspace</div>
-  <div id="clerk-mount"></div>
+  <div style="width:100%;max-width:380px;background:white;border:.5px solid rgba(26,26,24,0.1);border-radius:8px;padding:32px">
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8a8a80;display:block;margin-bottom:6px">Email</label>
+      <input type="email" id="login-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()"
+        style="width:100%;padding:10px 12px;font-size:14px;border:.5px solid rgba(26,26,24,0.15);border-radius:4px;background:#f8f5ef;color:#1a1a18;font-family:'DM Sans',sans-serif;outline:none"/>
+    </div>
+    <div style="margin-bottom:24px">
+      <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8a8a80;display:block;margin-bottom:6px">Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
+        style="width:100%;padding:10px 12px;font-size:14px;border:.5px solid rgba(26,26,24,0.15);border-radius:4px;background:#f8f5ef;color:#1a1a18;font-family:'DM Sans',sans-serif;outline:none"/>
+    </div>
+    <button onclick="doLogin()" id="login-btn"
+      style="width:100%;padding:12px;background:#1a1a18;color:white;border:none;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">
+      Sign in
+    </button>
+    <div id="login-error" style="color:#c0392b;font-size:12px;margin-top:12px;text-align:center;display:none"></div>
+  </div>
 </div>
 
 <!-- App shell (shown after auth) -->
@@ -297,6 +310,11 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       </div>
     </div>
 
+    <!-- Admin -->
+    <div class="panel" id="panel-admin" style="display:none">
+      <div class="empty-state"><div class="big">Loading...</div></div>
+    </div>
+
     <!-- History -->
     <div class="panel" id="panel-history">
       <div class="page-title">History</div>
@@ -323,65 +341,152 @@ let excelRows = [], excelHeaders = [];
 let mediaRecorder, audioChunks = [], isRecording = false;
 let currentVoiceTags = [], voiceTagStates = {};
 let currentUserId = null;
-let clerkInstance = null;
+let currentSession = null;
 
-// ── Clerk Auth ────────────────────────────────────────────────────────
-async function initClerk() {
+// ── Auth ──────────────────────────────────────────────────────────────
+function getToken() { return localStorage.getItem('trellis_token'); }
+function authHeaders() { return { 'Content-Type': 'application/json', 'x-session-token': getToken() }; }
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  errEl.style.display = 'none';
+  btn.textContent = 'Signing in...'; btn.disabled = true;
   try {
-    const clerk = new window.Clerk(window.__clerk_publishable_key);
-    await clerk.load();
-    clerkInstance = clerk;
-
-    if (clerk.user) {
-      showApp(clerk.user);
-    } else {
-      // Mount sign in form
-      const mountEl = document.getElementById('clerk-mount');
-      clerk.mountSignIn(mountEl);
-      
-      // Poll until signed in
-      const poll = setInterval(() => {
-        if (clerk.user) {
-          clearInterval(poll);
-          document.getElementById('auth-screen').classList.add('hidden');
-          showApp(clerk.user);
-        }
-      }, 300);
-    }
+    const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    localStorage.setItem('trellis_token', data.token);
+    currentSession = data.agent;
+    showApp(data.agent);
   } catch(e) {
-    console.error('Clerk init error:', e);
-    document.getElementById('clerk-mount').innerHTML = '<div style="text-align:center;padding:20px"><p style="color:#c0392b;font-size:13px;margin-bottom:12px">Sign-in failed to load.</p><button onclick="location.reload()" style="padding:8px 16px;background:#1a1a18;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px">Retry</button></div>';
+    errEl.textContent = e.message; errEl.style.display = 'block';
   }
+  btn.textContent = 'Sign in'; btn.disabled = false;
 }
 
-function showApp(user) {
-  document.getElementById('auth-screen').classList.add('hidden');
-  currentUserId = user.id;
-  document.getElementById('app-shell').classList.add('visible');
+async function checkExistingSession() {
+  const token = getToken();
+  if (!token) return false;
+  try {
+    const res = await fetch('/api/get-contacts?limit=0', { headers: authHeaders() });
+    if (res.status === 401) { localStorage.removeItem('trellis_token'); return false; }
+    // Token is valid — restore session from localStorage
+    const saved = localStorage.getItem('trellis_session');
+    if (saved) { currentSession = JSON.parse(saved); showApp(currentSession); return true; }
+    return false;
+  } catch(e) { return false; }
+}
 
-  // Set user info in sidebar
-  const name = user.firstName || user.emailAddresses?.[0]?.emailAddress || 'Agent';
-  document.getElementById('user-name').textContent = name;
-  const avatar = document.getElementById('user-avatar');
-  if (user.imageUrl) {
-    avatar.innerHTML = `<img src="${user.imageUrl}" alt="${name}"/>`;
-  } else {
-    avatar.textContent = name[0].toUpperCase();
+function showApp(agent) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  currentUserId = agent.agentId;
+  localStorage.setItem('trellis_session', JSON.stringify(agent));
+  document.getElementById('app-shell').classList.add('visible');
+  document.getElementById('user-name').textContent = agent.name;
+  document.getElementById('user-avatar').textContent = agent.name[0].toUpperCase();
+
+  // Show admin nav item if admin
+  if (agent.role === 'admin') {
+    const nav = document.querySelector('.nav');
+    if (!document.getElementById('nav-admin')) {
+      const adminItem = document.createElement('div');
+      adminItem.className = 'nav-item';
+      adminItem.id = 'nav-admin';
+      adminItem.innerHTML = '<span class="nav-dot"></span>Admin';
+      adminItem.onclick = function() { showPanel('admin', adminItem); loadAdminPanel(); };
+      nav.appendChild(adminItem);
+    }
   }
 
-  // Load saved FUB key for this user
   const savedFUB = localStorage.getItem('fub_key_' + currentUserId);
   if (savedFUB) { document.getElementById('fub-key').value = savedFUB; checkFUB(); }
-
   loadHistory();
 }
 
 async function signOut() {
-  if (clerkInstance) await clerkInstance.signOut();
+  localStorage.removeItem('trellis_token');
+  localStorage.removeItem('trellis_session');
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('auth-screen').classList.remove('hidden');
-  currentUserId = null;
-  clerkInstance.mountSignIn(document.getElementById('clerk-mount'));
+  document.getElementById('login-password').value = '';
+  currentUserId = null; currentSession = null;
+}
+
+// ── Admin Panel ───────────────────────────────────────────────────────
+async function loadAdminPanel() {
+  const panel = document.getElementById('panel-admin');
+  if (!panel) return;
+  panel.innerHTML = '<div style="color:var(--ink-muted);font-size:13px">Loading...</div>';
+  try {
+    const res = await fetch('/api/create-agent', { headers: authHeaders() });
+    const data = await res.json();
+    const agents = data.agents || [];
+    panel.innerHTML = `
+      <div class="page-title">Admin</div>
+      <div class="page-sub">Manage agent accounts.</div>
+      <div class="card">
+        <div class="card-title">Create new agent</div>
+        <div class="edit-grid">
+          <div class="edit-field"><label>Full name</label><input id="new-agent-name" placeholder="Claire Speedie"/></div>
+          <div class="edit-field"><label>Email</label><input id="new-agent-email" type="email" placeholder="claire@example.com"/></div>
+          <div class="edit-field"><label>Password</label><input id="new-agent-pass" type="password" placeholder="Temporary password"/></div>
+          <div class="edit-field"><label>Role</label>
+            <select id="new-agent-role">
+              <option value="agent">Agent</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="createAgent()">Create agent</button>
+          <span id="create-agent-msg" class="push-msg"></span>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">Active agents (${agents.length})</div>
+        ${agents.map(a => `
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:.5px solid var(--border)">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--gold)">${a.name[0].toUpperCase()}</div>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:500">${a.name}</div>
+              <div style="font-size:11px;color:var(--ink-muted)">${a.email} · ${a.role}</div>
+            </div>
+            <span class="pill ${a.role === 'admin' ? 'pill-review' : 'pill-done'}">${a.role}</span>
+            ${a.agentId !== 'admin_trellis' ? `<button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>` : ''}
+          </div>
+        `).join('')}
+      </div>`;
+  } catch(e) { panel.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
+}
+
+async function createAgent() {
+  const name = document.getElementById('new-agent-name').value.trim();
+  const email = document.getElementById('new-agent-email').value.trim();
+  const password = document.getElementById('new-agent-pass').value;
+  const role = document.getElementById('new-agent-role').value;
+  const msg = document.getElementById('create-agent-msg');
+  if (!name || !email || !password) { msg.textContent = 'All fields required'; msg.className = 'push-msg err'; return; }
+  try {
+    const res = await fetch('/api/create-agent', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, email, password, role }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    msg.textContent = `${name} created successfully`; msg.className = 'push-msg ok';
+    setTimeout(() => loadAdminPanel(), 1000);
+  } catch(e) { msg.textContent = e.message; msg.className = 'push-msg err'; }
+}
+
+async function deleteAgent(agentId, name) {
+  if (!confirm(`Remove ${name}? This cannot be undone.`)) return;
+  try {
+    const res = await fetch('/api/create-agent', { method: 'DELETE', headers: authHeaders(), body: JSON.stringify({ agentId }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    loadAdminPanel();
+  } catch(e) { alert('Failed: ' + e.message); }
+}
 }
 
 // ── Navigation ────────────────────────────────────────────────────────
@@ -417,7 +522,7 @@ let historyContacts = [];
 async function loadHistory() {
   if (!currentUserId) return;
   try {
-    const res = await fetch(API + '/api/get-contacts?agentId=' + currentUserId);
+    const res = await fetch(API + '/api/get-contacts', { headers: authHeaders() });
     const data = await res.json();
     historyContacts = data.contacts || [];
     renderHistory();
@@ -571,8 +676,8 @@ async function saveToHistory(contact, pushed) {
   if (!currentUserId) return;
   try {
     await fetch(API + '/api/save-contact', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ agentId: currentUserId, contact: { ...contact, pushed: pushed || false } })
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ contact: { ...contact, pushed: pushed || false } })
     });
   } catch(e) { console.error('Save to history failed:', e); }
 }
@@ -1067,7 +1172,7 @@ if(dz){
 document.getElementById('s-name').addEventListener('keydown',e=>{if(e.key==='Enter')enrichSingle();});
 
 // ── Boot ──────────────────────────────────────────────────────────────
-window.addEventListener("DOMContentLoaded", initClerk);
+window.addEventListener("load", checkExistingSession);
 </script>
 </body>
 </html>
