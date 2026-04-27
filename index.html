@@ -311,7 +311,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
     </div>
 
     <!-- Admin -->
-    <div class="panel" id="panel-admin" style="display:none">
+    <div class="panel" id="panel-admin">
       <div class="empty-state"><div class="big">Loading...</div></div>
     </div>
 
@@ -403,6 +403,11 @@ function showApp(agent) {
 
   const savedFUB = localStorage.getItem('fub_key_' + currentUserId);
   if (savedFUB) { document.getElementById('fub-key').value = savedFUB; checkFUB(); }
+  // Also try to load FUB key from server
+  fetch('/api/create-agent?fubKey=true', { headers: authHeaders() })
+    .then(r => r.json())
+    .then(d => { if (d.fubApiKey) { document.getElementById('fub-key').value = d.fubApiKey; checkFUB(); } })
+    .catch(() => {});
   loadHistory();
 }
 
@@ -455,6 +460,7 @@ async function loadAdminPanel() {
               <div style="font-size:11px;color:var(--ink-muted)">${a.email} · ${a.role}</div>
             </div>
             <span class="pill ${a.role === 'admin' ? 'pill-review' : 'pill-done'}">${a.role}</span>
+            <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
             ${a.agentId !== 'admin_trellis' ? `<button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>` : ''}
           </div>
         `).join('')}
@@ -467,10 +473,11 @@ async function createAgent() {
   const email = document.getElementById('new-agent-email').value.trim();
   const password = document.getElementById('new-agent-pass').value;
   const role = document.getElementById('new-agent-role').value;
+  const fubApiKey = document.getElementById('new-agent-fub').value.trim();
   const msg = document.getElementById('create-agent-msg');
   if (!name || !email || !password) { msg.textContent = 'All fields required'; msg.className = 'push-msg err'; return; }
   try {
-    const res = await fetch('/api/create-agent', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, email, password, role }) });
+    const res = await fetch('/api/create-agent', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, email, password, role, fubApiKey }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     msg.textContent = `${name} created successfully`; msg.className = 'push-msg ok';
@@ -508,9 +515,13 @@ function switchEnrichTab(t) {
 function checkFUB() {
   const v = document.getElementById('fub-key').value.trim();
   const s = document.getElementById('fub-status');
-  s.textContent = v.length > 10 ? 'Key entered — ready to push' : 'Not connected';
+  s.textContent = v.length > 10 ? 'Connected' : 'Not connected';
   s.className = 'fub-status' + (v.length > 10 ? ' on' : '');
-  if (v.length > 10 && currentUserId) localStorage.setItem('fub_key_' + currentUserId, v);
+  if (v.length > 10 && currentUserId) {
+    localStorage.setItem('fub_key_' + currentUserId, v);
+    // Save to server so it persists across devices
+    fetch('/api/create-agent', { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ fubApiKey: v }) }).catch(()=>{});
+  }
 }
 
 function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
