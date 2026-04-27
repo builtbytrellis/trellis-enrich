@@ -412,22 +412,31 @@ function checkFUB() {
 function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
 
 // ── History ───────────────────────────────────────────────────────────
+let historyContacts = [];
+
 async function loadHistory() {
   if (!currentUserId) return;
   try {
     const res = await fetch(API + '/api/get-contacts?agentId=' + currentUserId);
     const data = await res.json();
-    const contacts = data.contacts || [];
-    document.getElementById('history-count').textContent = contacts.length + ' contacts saved';
-    if (!contacts.length) {
-      document.getElementById('history-list').innerHTML = '<div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div>';
-      return;
-    }
-    document.getElementById('history-list').innerHTML = contacts.map(c => {
-      const approvedTags = (c.approved_tags || []);
-      const initials = (c.full_name || c.name || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
-      const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
-      return `<div class="history-item">
+    historyContacts = data.contacts || [];
+    renderHistory();
+  } catch(e) { console.error(e); }
+}
+
+function renderHistory() {
+  const contacts = historyContacts;
+  document.getElementById('history-count').textContent = contacts.length + ' contacts saved';
+  if (!contacts.length) {
+    document.getElementById('history-list').innerHTML = '<div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div>';
+    return;
+  }
+  document.getElementById('history-list').innerHTML = contacts.map((c, idx) => {
+    const approvedTags = (c.approved_tags || []);
+    const initials = (c.full_name || c.name || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
+    return `<div>
+      <div class="history-item" onclick="toggleHistoryExpand(${idx})">
         <div class="history-avatar">${initials}</div>
         <div style="flex:1">
           <div class="history-name">${c.full_name || c.name || 'Unknown'}</div>
@@ -435,9 +444,127 @@ async function loadHistory() {
           ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
         </div>
         <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
-      </div>`;
-    }).join('');
-  } catch(e) { console.error(e); }
+      </div>
+      <div class="expand-panel" id="hexp-${idx}"></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHistoryExpand(idx) {
+  const panel = document.getElementById('hexp-' + idx);
+  if (!panel) return;
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    panel.innerHTML = '';
+    return;
+  }
+  const c = historyContacts[idx];
+  if (!c) return;
+  const hid = 'h' + idx;
+  if (!tagStates[hid]) {
+    tagStates[hid] = {};
+    (c.suggested_tags || []).forEach((t, i) => {
+      tagStates[hid][i] = (c.approved_tags || []).includes(t.tag) ? 'approved' : 'pending';
+    });
+  }
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+  const tagsHtml = (c.suggested_tags || []).map((t, i) => {
+    const state = tagStates[hid][i] || 'pending';
+    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason || ''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="edit-grid" style="margin-bottom:12px">
+      <div class="edit-field"><label>First name</label><input id="hf-first-${hid}" value="${(c.full_name||'').split(' ')[0]}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="hf-last-${hid}" value="${(c.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+      <div class="edit-field"><label>Email</label><input id="hf-email-${hid}" value="${c.email||c.fub_data?.email||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="hf-phone-${hid}" value="${c.phone||c.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>City</label><input id="hf-city-${hid}" value="${c.location||''}"/></div>
+      <div class="edit-field"><label>Birthday</label><input id="hf-birthday-${hid}" placeholder="e.g. 1985-06-15" value="${c.birthday||''}"/></div>
+      <div class="edit-field"><label>Spouse name</label><input id="hf-spouse-${hid}" value="${c.spouse_name||''}"/></div>
+      <div class="edit-field"><label>Stage</label>
+        <select id="hf-stage-${hid}">
+          <option value="">— select —</option>
+          ${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}" ${c.stage===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="edit-field full"><label>Notes</label><textarea id="hf-notes-${hid}">${c.notes||''}</textarea></div>
+    </div>
+    <div class="section-label">Tags — click to approve / reject</div>
+    <div class="tags-wrap" id="htags-${hid}">${tagsHtml}</div>
+    <div class="tag-adder" style="margin-bottom:12px">
+      <select id="htag-select-${hid}">
+        <option value="">— add a tag —</option>
+        ${tagOptions}
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="addHistoryManualTag(${idx})">Add</button>
+    </div>
+    <div class="action-row" style="margin-top:14px">
+      <button class="btn btn-green" onclick="pushHistoryContact(${idx})">Push to FUB</button>
+      <span class="push-msg" id="hpmsg-${hid}"></span>
+    </div>
+  `;
+  panel.classList.add('open');
+}
+
+function toggleHistoryTag(idx, i) {
+  const hid = 'h' + idx;
+  if (!tagStates[hid]) return;
+  const s = tagStates[hid][i];
+  tagStates[hid][i] = s === 'pending' ? 'approved' : s === 'approved' ? 'rejected' : 'pending';
+  const c = historyContacts[idx];
+  const wrap = document.getElementById('htags-' + hid); if (!wrap) return;
+  wrap.innerHTML = (c.suggested_tags || []).map((t, i) => {
+    const state = tagStates[hid][i] || 'pending';
+    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason||''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+}
+
+function addHistoryManualTag(idx) {
+  const hid = 'h' + idx;
+  const sel = document.getElementById('htag-select-' + hid);
+  const tag = sel.value; if (!tag) return;
+  const c = historyContacts[idx]; if (!c) return;
+  if (!c.suggested_tags) c.suggested_tags = [];
+  if (!c.suggested_tags.find(t => t.tag === tag)) {
+    c.suggested_tags.push({ tag, confidence: 'high', reason: 'Manually added' });
+    tagStates[hid][c.suggested_tags.length - 1] = 'approved';
+  }
+  toggleHistoryExpand(idx); toggleHistoryExpand(idx);
+  sel.value = '';
+}
+
+async function pushHistoryContact(idx) {
+  const hid = 'h' + idx;
+  const fubKey = getFUBKey();
+  if (!fubKey) { document.getElementById('hpmsg-' + hid).textContent = 'Add FUB key in sidebar'; document.getElementById('hpmsg-' + hid).className = 'push-msg err'; return; }
+  const c = historyContacts[idx]; if (!c) return;
+  const approved = (c.suggested_tags || []).filter((_, i) => tagStates[hid]?.[i] === 'approved').map(t => t.tag);
+  const contact = {
+    ...c,
+    full_name: [document.getElementById('hf-first-'+hid)?.value||'', document.getElementById('hf-last-'+hid)?.value||''].filter(Boolean).join(' ') || c.full_name,
+    email: document.getElementById('hf-email-'+hid)?.value || c.email || '',
+    phone: document.getElementById('hf-phone-'+hid)?.value || c.phone || '',
+    location: document.getElementById('hf-city-'+hid)?.value || c.location || '',
+    birthday: document.getElementById('hf-birthday-'+hid)?.value || c.birthday || '',
+    spouse_name: document.getElementById('hf-spouse-'+hid)?.value || c.spouse_name || '',
+    stage: document.getElementById('hf-stage-'+hid)?.value || c.stage || '',
+    notes: document.getElementById('hf-notes-'+hid)?.value || c.notes || '',
+    approved_tags: approved
+  };
+  const msgEl = document.getElementById('hpmsg-' + hid);
+  msgEl.textContent = 'Pushing...'; msgEl.className = 'push-msg';
+  try {
+    const res = await fetch(API + '/api/push-to-fub', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ fubApiKey: fubKey, contact }) });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    msgEl.textContent = `Pushed — ${approved.length} tags applied`; msgEl.className = 'push-msg ok';
+    historyContacts[idx].pushed = true;
+    await saveToHistory({...contact, pushed: true}, true);
+    renderHistory();
+  } catch(e) { msgEl.textContent = 'Failed: ' + e.message; msgEl.className = 'push-msg err'; }
 }
 
 async function saveToHistory(contact, pushed) {
