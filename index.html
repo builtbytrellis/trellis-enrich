@@ -908,11 +908,34 @@ function loadFromExcel() {
   const ci=id=>{const v=document.getElementById(id).value;return v!==''?parseInt(v):null;};
   const fc=ci('col-first'),lc=ci('col-last'),cc=ci('col-city'),ec=ci('col-email');
   if(fc===null&&lc===null){alert('Select at least a first or last name column.');return;}
-  const contacts=excelRows.map(r=>({
+  const rawContacts=excelRows.map(r=>({
     name:[fc!==null?String(r[fc]||''):'',lc!==null?String(r[lc]||''):''].filter(Boolean).join(' ').trim(),
     city:cc!==null?String(r[cc]||'').trim():'',email:ec!==null?String(r[ec]||'').trim():''
   })).filter(c=>c.name);
+  
+  // Split couples into individual contacts
+  const contacts = [];
+  rawContacts.forEach(c => {
+    const name = c.name;
+    const lastName = name.split(' ').pop();
+    // Detect couple patterns: "John & Jane Smith", "John and Jane Smith", "John / Jane"
+    const coupleMatch = name.match(/^(.+?)\s*(?:&|and|\/)\s*(.+)$/i);
+    if (coupleMatch) {
+      const part1 = coupleMatch[1].trim();
+      const part2 = coupleMatch[2].trim();
+      // If part2 has no last name, append the shared last name
+      const p1HasLast = part1.split(' ').length > 1;
+      const p2HasLast = part2.split(' ').length > 1;
+      const sharedLast = p1HasLast ? part1.split(' ').pop() : lastName;
+      contacts.push({ name: p1HasLast ? part1 : part1 + ' ' + sharedLast, city: c.city, email: c.email });
+      contacts.push({ name: p2HasLast ? part2 : part2 + ' ' + sharedLast, city: c.city, email: '' });
+    } else {
+      contacts.push(c);
+    }
+  });
+  
   if(!contacts.length){alert('No contacts found.');return;}
+  document.getElementById('row-count').textContent = rawContacts.length + ' rows → ' + contacts.length + ' contacts (couples split)';
   startBatchQueue(contacts);
 }
 
