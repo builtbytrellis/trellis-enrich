@@ -1313,28 +1313,47 @@ function disconnectDocuSign() {
   document.getElementById('ds-results').style.display = 'none';
 }
 
-function checkDocuSignAuth() {
-  // Check URL hash for token after OAuth callback
-  const hash = window.location.hash;
-  if (hash && hash.includes('ds_access_token')) {
-    const params = new URLSearchParams(hash.slice(1));
-    dsAccessToken = params.get('ds_access_token');
-    dsAccountId = params.get('ds_account_id');
-    dsBaseUri = params.get('ds_base_uri');
-    if (dsAccessToken && currentUserId) {
-      localStorage.setItem('ds_token_' + currentUserId, JSON.stringify({ dsAccessToken, dsAccountId, dsBaseUri }));
-    }
+async function checkDocuSignAuth() {
+  // Check URL for ds_key param after OAuth callback
+  const urlParams = new URLSearchParams(window.location.search);
+  const dsKey = urlParams.get('ds_key');
+  const dsError = urlParams.get('docusign_error');
+  
+  if (dsError) {
+    console.error('DocuSign error:', dsError);
     window.history.replaceState(null, '', window.location.pathname);
-    showDocuSignConnected();
-    return;
   }
+  
+  if (dsKey) {
+    window.history.replaceState(null, '', window.location.pathname);
+    try {
+      // Fetch token from Redis using temp key
+      const res = await fetch('/api/docusign-token?key=' + dsKey, { headers: authHeaders() });
+      const data = await res.json();
+      if (data.accessToken) {
+        dsAccessToken = data.accessToken;
+        dsAccountId = data.accountId;
+        dsBaseUri = data.baseUri;
+        if (currentUserId) {
+          localStorage.setItem('ds_token_' + currentUserId, JSON.stringify({ dsAccessToken, dsAccountId, dsBaseUri }));
+        }
+        showDocuSignConnected();
+        // Switch to transactions tab
+        showPanel('transactions', document.querySelector('.nav-item:nth-child(6)'));
+        return;
+      }
+    } catch(e) { console.error('DS token fetch error:', e); }
+  }
+  
   // Check localStorage
   if (currentUserId) {
     const saved = localStorage.getItem('ds_token_' + currentUserId);
     if (saved) {
-      const d = JSON.parse(saved);
-      dsAccessToken = d.dsAccessToken; dsAccountId = d.dsAccountId; dsBaseUri = d.dsBaseUri;
-      showDocuSignConnected();
+      try {
+        const d = JSON.parse(saved);
+        dsAccessToken = d.dsAccessToken; dsAccountId = d.dsAccountId; dsBaseUri = d.dsBaseUri;
+        showDocuSignConnected();
+      } catch(e) {}
     }
   }
 }
