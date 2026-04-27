@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Trellis Enrich</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script>
+  window.__clerk_publishable_key = 'pk_test_ZGVsaWNhdGUtbW9uaXRvci02Mi5jbGVyay5hY2NvdW50cy5kZXYk';
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js" type="text/javascript"></script>
+<style>
+:root{--ink:#1a1a18;--ink-soft:#4a4a44;--ink-muted:#8a8a80;--cream:#f8f5ef;--cream-deep:#efe9dc;--gold:#b8924a;--gold-light:#d4ae72;--gold-pale:#f5eddb;--green:#2d4a35;--green-light:#e8f0e9;--border:rgba(26,26,24,0.1);--red:#c0392b;--red-light:#fdf0ef;--blue:#1a4a8a;--blue-light:#eef3fb;--amber:#b8924a;--amber-light:#fdf6e8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh}
+
+/* ── Auth screen ── */
+#auth-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:24px}
+#auth-screen.hidden{display:none}
+.auth-logo{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;letter-spacing:.15em;text-transform:uppercase}
+.auth-logo span{color:var(--gold)}
+.auth-sub{font-size:13px;color:var(--ink-muted)}
+#clerk-mount{width:100%;max-width:420px}
+
+/* ── App shell ── */
+#app-shell{display:none;min-height:100vh}
+#app-shell.visible{display:flex}
+.sidebar{width:220px;background:var(--ink);flex-shrink:0;display:flex;flex-direction:column;padding:28px 0;position:fixed;height:100vh;overflow-y:auto}
+.main{margin-left:220px;flex:1;padding:40px 48px;max-width:1000px}
+.logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.12em;color:white;text-transform:uppercase;padding:0 24px 20px;border-bottom:.5px solid rgba(255,255,255,.1)}
+.logo span{color:var(--gold)}
+
+/* ── User profile in sidebar ── */
+.user-section{padding:16px 24px;border-bottom:.5px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:white;flex-shrink:0;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+.user-name{font-size:12px;color:rgba(255,255,255,.8);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-signout{background:none;border:none;color:rgba(255,255,255,.3);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0}
+.btn-signout:hover{color:rgba(255,255,255,.7)}
+
+.nav{padding:16px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;font-size:13px;color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05)}
+.nav-item.active{color:white;border-left-color:var(--gold);background:rgba(255,255,255,.07)}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0}
+.nav-item.active .nav-dot{opacity:1;background:var(--gold)}
+.fub-section{padding:16px 24px;border-top:.5px solid rgba(255,255,255,.1)}
+.fub-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:6px}
+.fub-input{width:100%;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:4px;padding:8px 10px;font-size:12px;color:white;font-family:'DM Sans',sans-serif}
+.fub-input::placeholder{color:rgba(255,255,255,.3)}
+.fub-status{font-size:11px;margin-top:5px;color:rgba(255,255,255,.3)}
+.fub-status.on{color:#7bc67e}
+.panel{display:none}
+.panel.active{display:block}
+.page-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;color:var(--ink);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--ink-muted);margin-bottom:28px}
+.card{background:white;border:.5px solid var(--border);border-radius:6px;padding:24px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:14px}
+.input-row{display:flex;gap:10px;margin-bottom:12px}
+.input-row input{flex:1;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.input-row input:focus{outline:none;border-color:var(--gold)}
+textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;resize:vertical;margin-bottom:12px}
+.btn{padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s;border:none;font-family:'DM Sans',sans-serif}
+.btn-primary{background:var(--ink);color:white}
+.btn-primary:hover{opacity:.8}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:white}
+.btn-gold:hover{opacity:.85}
+.btn-outline{background:transparent;border:.5px solid var(--border);color:var(--ink)}
+.btn-outline:hover{background:var(--cream)}
+.btn-green{background:var(--green);color:white}
+.btn-green:hover{opacity:.85}
+.btn-sm{padding:6px 14px;font-size:12px}
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border-radius:20px;cursor:pointer;border:.5px solid transparent;transition:all .15s}
+.tag.pending{background:var(--blue-light);color:var(--blue);border-color:rgba(26,74,138,.2)}
+.tag.approved{background:var(--green-light);color:var(--green);border-color:rgba(45,74,53,.2)}
+.tag.rejected{background:#f5f5f5;color:#aaa;text-decoration:line-through;opacity:.5}
+.conf-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.conf-high{background:var(--green)}
+.conf-med{background:var(--amber)}
+.conf-low{background:var(--red)}
+.result-header{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-weight:500;font-size:16px;color:var(--gold);flex-shrink:0}
+.result-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400}
+.result-sub{font-size:12px;color:var(--ink-muted);margin-top:2px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.field{background:var(--cream);border-radius:4px;padding:10px 12px}
+.field-key{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:3px}
+.field-val{font-size:13px;color:var(--ink)}
+.field-val.empty{color:var(--ink-muted);font-style:italic;font-size:12px}
+
+/* ── Editable fields ── */
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.edit-field label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);display:block;margin-bottom:4px}
+.edit-field input,.edit-field select,.edit-field textarea{width:100%;padding:8px 10px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.edit-field input:focus,.edit-field select:focus,.edit-field textarea:focus{outline:none;border-color:var(--gold)}
+.edit-field textarea{min-height:60px;resize:vertical}
+.edit-field.full{grid-column:1/-1}
+
+/* ── Tag dropdown adder ── */
+.tag-adder{display:flex;gap:8px;align-items:center;margin-top:8px}
+.tag-adder select{flex:1;padding:7px 10px;font-size:12px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.tag-adder select:focus{outline:none;border-color:var(--gold)}
+
+.section-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:8px;margin-top:16px}
+.divider{border:none;border-top:.5px solid var(--border);margin:16px 0}
+.action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.push-msg{font-size:12px;margin-left:auto}
+.push-msg.ok{color:var(--green)}
+.push-msg.err{color:var(--red)}
+.warning-box{background:var(--amber-light);border:.5px solid rgba(184,146,74,.3);border-radius:4px;padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:14px}
+.tab-row{display:flex;gap:0;border:.5px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px;width:fit-content}
+.tab{padding:9px 20px;font-size:13px;cursor:pointer;background:white;color:var(--ink-muted);border:none;font-family:'DM Sans',sans-serif;transition:all .12s}
+.tab.active{background:var(--ink);color:white}
+.tab:not(:last-child){border-right:.5px solid var(--border)}
+.drop-zone{border:1px dashed var(--border);border-radius:6px;padding:28px;text-align:center;cursor:pointer;transition:background .15s;margin-bottom:16px}
+.drop-zone:hover{background:white}
+.drop-zone p{font-size:14px;color:var(--ink-muted);margin-top:8px}
+.drop-zone small{font-size:12px;color:var(--ink-muted);opacity:.7}
+.col-map{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.col-map label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
+.col-map select{width:100%;padding:8px 10px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);font-family:'DM Sans',sans-serif}
+.queue-header{display:grid;grid-template-columns:2fr 1.5fr 1fr 90px;gap:8px;padding:8px 16px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);border-bottom:.5px solid var(--border)}
+.queue-row{display:grid;grid-template-columns:2fr 1.5fr 1fr 90px;gap:8px;padding:14px 16px;border-bottom:.5px solid var(--border);align-items:center;cursor:pointer;transition:background .12s}
+.queue-row:hover{background:var(--cream)}
+.queue-row:last-child{border-bottom:none}
+.pill{font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block}
+.pill-pending{background:#f0f0ee;color:var(--ink-muted)}
+.pill-running{background:var(--blue-light);color:var(--blue)}
+.pill-done{background:var(--green-light);color:var(--green)}
+.pill-review{background:var(--amber-light);color:var(--amber)}
+.pill-error{background:var(--red-light);color:var(--red)}
+.pill-pushed{background:var(--green-light);color:var(--green)}
+.expand-panel{display:none;background:var(--cream);padding:16px;border-bottom:.5px solid var(--border)}
+.expand-panel.open{display:block}
+.record-btn{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--ink);color:white;border:none;border-radius:6px;font-size:14px;font-weight:400;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;width:100%;justify-content:center}
+.record-btn.recording{background:var(--red);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.record-dot{width:10px;height:10px;border-radius:50%;background:white;flex-shrink:0}
+.transcript-box{background:var(--cream);border:.5px solid var(--border);border-radius:4px;padding:14px;font-size:13px;color:var(--ink-soft);line-height:1.7;min-height:80px;margin:12px 0;font-style:italic}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+.stat{background:white;border:.5px solid var(--border);border-radius:6px;padding:18px 20px}
+.stat-n{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;color:var(--ink);line-height:1}
+.stat-l{font-size:12px;color:var(--ink-muted);margin-top:4px}
+.progress-wrap{height:2px;background:var(--border);border-radius:2px;margin-bottom:20px;overflow:hidden}
+.progress-fill{height:100%;background:var(--gold);transition:width .4s ease}
+.empty-state{text-align:center;padding:48px 24px;color:var(--ink-muted);font-size:14px}
+.empty-state .big{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--ink-muted);margin-bottom:8px;font-weight:300}
+.history-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .12s}
+.history-item:hover{background:var(--cream)}
+.history-avatar{width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--gold);flex-shrink:0}
+.history-name{font-size:13px;font-weight:500;color:var(--ink)}
+.history-meta{font-size:11px;color:var(--ink-muted);margin-top:2px}
+.history-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.history-tag{font-size:10px;background:var(--green-light);color:var(--green);padding:2px 7px;border-radius:10px}
+</style>
+</head>
+<body>
+
+<!-- Auth screen -->
+<div id="auth-screen">
+  <div class="auth-logo">Trellis<span>.</span></div>
+  <div class="auth-sub">Sign in to access your workspace</div>
+  <div id="clerk-mount"></div>
+</div>
+
+<!-- App shell (shown after auth) -->
+<div id="app-shell">
+  <div class="sidebar">
+    <div class="logo">Trellis<span>.</span></div>
+    <div class="user-section">
+      <div class="user-avatar" id="user-avatar"></div>
+      <div class="user-name" id="user-name"></div>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showPanel('enrich',this)"><span class="nav-dot"></span>Enrich</div>
+      <div class="nav-item" onclick="showPanel('voice',this)"><span class="nav-dot"></span>Voice memos</div>
+      <div class="nav-item" onclick="showPanel('queue',this)"><span class="nav-dot"></span>Queue <span id="queue-badge" style="margin-left:auto;background:rgba(184,146,74,.3);color:var(--gold-light);font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
+      <div class="nav-item" onclick="showPanel('history',this)"><span class="nav-dot"></span>History</div>
+    </nav>
+    <div class="fub-section">
+      <div class="fub-label">Follow Up Boss</div>
+      <input class="fub-input" type="password" id="fub-key" placeholder="Paste API key..." oninput="checkFUB()"/>
+      <div class="fub-status" id="fub-status">Not connected</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Enrich -->
+    <div class="panel active" id="panel-enrich">
+      <div class="page-title">Enrich contacts</div>
+      <div class="page-sub">Search, enrich, tag — then push directly to Follow Up Boss.</div>
+      <div class="tab-row">
+        <div class="tab active" id="etab-single" onclick="switchEnrichTab('single')">Single</div>
+        <div class="tab" id="etab-batch" onclick="switchEnrichTab('batch')">Batch</div>
+        <div class="tab" id="etab-excel" onclick="switchEnrichTab('excel')">From Excel / FUB export</div>
+      </div>
+      <div id="epanel-single">
+        <div class="card">
+          <div class="input-row">
+            <input type="text" id="s-name" placeholder="Contact name (e.g. Sarah Chen)"/>
+            <input type="text" id="s-city" placeholder="City / area (optional)" style="max-width:200px"/>
+            <button class="btn btn-primary" id="s-btn" onclick="enrichSingle()">Enrich</button>
+          </div>
+        </div>
+        <div id="single-result"></div>
+      </div>
+      <div id="epanel-batch" style="display:none">
+        <div class="card">
+          <div class="card-title">One name per line. Add comma + city for better results.</div>
+          <textarea class="notes" id="batch-names" placeholder="Sarah Chen, Toronto&#10;Michael Thompson&#10;Priya Sharma, Markham"></textarea>
+          <button class="btn btn-primary" onclick="runBatch()">Enrich all</button>
+        </div>
+      </div>
+      <div id="epanel-excel" style="display:none">
+        <div class="card">
+          <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()">
+            <input type="file" id="file-inp" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(event)"/>
+            <p>Drop your Excel or CSV file here</p>
+            <small>Works with FUB exports or any spreadsheet with contact names</small>
+          </div>
+          <div id="col-mapper" style="display:none">
+            <div class="col-map">
+              <div><label>First name</label><select id="col-first"></select></div>
+              <div><label>Last name</label><select id="col-last"></select></div>
+              <div><label>City (optional)</label><select id="col-city"></select></div>
+              <div><label>Email (optional)</label><select id="col-email"></select></div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <button class="btn btn-primary" onclick="loadFromExcel()">Load contacts</button>
+              <span style="font-size:12px;color:var(--ink-muted)" id="row-count"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice -->
+    <div class="panel" id="panel-voice">
+      <div class="page-title">Voice memos</div>
+      <div class="page-sub">Record yourself talking about a contact. We'll transcribe it and extract the tags automatically.</div>
+      <div class="card">
+        <div class="card-title">Who is this memo about?</div>
+        <div class="input-row" style="margin-bottom:0">
+          <input type="text" id="v-name" placeholder="Contact name"/>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Record or upload</div>
+        <button class="record-btn" id="record-btn" onclick="toggleRecord()">
+          <span class="record-dot"></span>
+          <span id="record-label">Tap to record</span>
+        </button>
+        <div style="text-align:center;margin:12px 0;font-size:12px;color:var(--ink-muted)">or</div>
+        <div class="drop-zone" onclick="document.getElementById('audio-inp').click()" style="padding:16px">
+          <input type="file" id="audio-inp" accept="audio/*" style="display:none" onchange="handleAudio(event)"/>
+          <p style="font-size:13px">Upload audio file</p>
+          <small>mp3, m4a, wav, webm supported</small>
+        </div>
+        <div class="transcript-box" id="transcript-box">Your transcript will appear here...</div>
+        <div id="voice-tags-area" style="display:none">
+          <div class="section-label">Extracted tags — click to approve</div>
+          <div class="tags-wrap" id="voice-tags"></div>
+          <div class="section-label" style="margin-top:12px">Extracted details</div>
+          <div id="voice-details" class="field-grid"></div>
+          <div class="action-row" style="margin-top:16px">
+            <button class="btn btn-green" onclick="saveVoiceMemo()">Save to queue</button>
+            <button class="btn btn-outline" onclick="clearVoice()">Clear</button>
+            <span class="push-msg" id="voice-msg"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Queue -->
+    <div class="panel" id="panel-queue">
+      <div class="page-title">Queue</div>
+      <div class="page-sub">All enriched contacts ready to review and push to Follow Up Boss.</div>
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-n" id="st-total">0</div><div class="stat-l">Total</div></div>
+        <div class="stat"><div class="stat-n" id="st-enriched">0</div><div class="stat-l">Enriched</div></div>
+        <div class="stat"><div class="stat-n" id="st-review">0</div><div class="stat-l">Needs review</div></div>
+        <div class="stat"><div class="stat-n" id="st-pushed">0</div><div class="stat-l">Pushed to FUB</div></div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" id="q-progress" style="width:0%"></div></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-green btn-sm" id="push-all-btn" onclick="pushAll()" style="display:none">Push all approved to FUB</button>
+        <button class="btn btn-outline btn-sm" onclick="clearQueue()">Clear queue</button>
+        <span style="font-size:12px;color:var(--ink-muted);margin-left:auto" id="q-status"></span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="queue-header"><span>Contact</span><span>Top tags</span><span>Confidence</span><span>Status</span></div>
+        <div id="queue-list"><div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div></div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="panel" id="panel-history">
+      <div class="page-title">History</div>
+      <div class="page-sub">All contacts enriched and pushed — persisted across sessions.</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
+        <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="history-list"><div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const API = '';
+const FUB_TAGS = ["Relationship: A++","Relationship: A+","Relationship: A","Relationship: B","Relationship: C","Relationship: Past Client","Relationship: Referral Source","Relationship: Super Referrer","Relationship: VIP","Relationship: Sphere","Client: Buyer","Client: Seller","Client: Investor","Client: Landlord","Client: Tenant","Life Stage: Young Professional","Life Stage: Young Family","Life Stage: Growing Family","Life Stage: Established Family","Life Stage: Empty Nester","Life Stage: Investor Profile","Timeline: Now","Timeline: 3-6 Months","Timeline: 6-12 Months","Timeline: 12+ Months","Engagement: Active","Engagement: Nurture","Engagement: Cold","Engagement: Do Not Contact","Comms: Text","Comms: Email","Comms: Call","Source: Open House","Source: Referral","Source: Social","Source: Past Client","Source: Cold","Type: Past Client","Type: Referral Source","Type: Super Referrer","Type: VIP","Type: Sphere","Buyer: Inquiry","Buyer: Pre-Approved","Buyer: Active","Buyer: Offer Stage","Buyer: Under Contract","Buyer: Closed","Seller: Thinking","Seller: Preparing","Seller: Interviewing","Seller: Ready","Seller: Listed","Seller: Sold","Opportunity: Upsizer","Opportunity: Downsizer","Opportunity: First-Time Buyer","Opportunity: Relocation","Opportunity: Mortgage Renewal","Opportunity: Likely Seller","Opportunity: Likely Buyer","Owner: Primary Residence","Owner: Investment Property","Owner: Rental Property","Owner: Multiple Properties","Property: Detached","Property: Semi-Detached","Property: Condo","Property: Townhouse","Property: Freehold","Property: Bungalow","Property: 3 Storey","Family: No Kids","Family: Kids Under 5","Family: Kids 5-10","Family: Kids Teens","Family: Expecting","Family: Empty Nester","Owned Since: Pre-2010","Owned Since: 2010-2015","Owned Since: 2016-2020","Owned Since: 2021-2023","Owned Since: 2024+","Signal: High Equity","Signal: Would Sell If Right Price","Signal: Would Sell Exclusive","Signal: Street Turnover","Lifestyle: Golfer","Lifestyle: Cottage Owner","Lifestyle: Foodie","Lifestyle: Loves Travel","Lifestyle: Fitness Focused","Lifestyle: Design Oriented","Profession: Finance","Profession: Healthcare","Profession: Legal","Profession: Tech","Profession: Education","Profession: Trades","Profession: Business Owner","Profession: Real Estate Agent","Profession: Mortgage Broker","Age: 20s","Age: 30s","Age: 40s","Age: 50s","Age: 60+"];
+
+let queue = [], tagStates = {}, pushedCount = 0;
+let excelRows = [], excelHeaders = [];
+let mediaRecorder, audioChunks = [], isRecording = false;
+let currentVoiceTags = [], voiceTagStates = {};
+let currentUserId = null;
+let clerkInstance = null;
+
+// ── Clerk Auth ────────────────────────────────────────────────────────
+async function initClerk() {
+  const clerk = new Clerk(window.__clerk_publishable_key);
+  await clerk.load();
+  clerkInstance = clerk;
+
+  if (clerk.user) {
+    showApp(clerk.user);
+  } else {
+    document.getElementById('auth-screen').classList.remove('hidden');
+    clerk.mountSignIn(document.getElementById('clerk-mount'), {
+      appearance: {
+        elements: {
+          rootBox: { fontFamily: "'DM Sans', sans-serif" },
+          card: { boxShadow: 'none', border: '0.5px solid rgba(26,26,24,0.1)', borderRadius: '6px', background: 'white' }
+        }
+      }
+    });
+    // Poll until signed in
+    const poll = setInterval(() => {
+      if (clerk.user) {
+        clearInterval(poll);
+        document.getElementById('auth-screen').classList.add('hidden');
+        showApp(clerk.user);
+      }
+    }, 500);
+  }
+}
+
+function showApp(user) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  currentUserId = user.id;
+  document.getElementById('app-shell').classList.add('visible');
+
+  // Set user info in sidebar
+  const name = user.firstName || user.emailAddresses?.[0]?.emailAddress || 'Agent';
+  document.getElementById('user-name').textContent = name;
+  const avatar = document.getElementById('user-avatar');
+  if (user.imageUrl) {
+    avatar.innerHTML = `<img src="${user.imageUrl}" alt="${name}"/>`;
+  } else {
+    avatar.textContent = name[0].toUpperCase();
+  }
+
+  // Load saved FUB key for this user
+  const savedFUB = localStorage.getItem('fub_key_' + currentUserId);
+  if (savedFUB) { document.getElementById('fub-key').value = savedFUB; checkFUB(); }
+
+  loadHistory();
+}
+
+async function signOut() {
+  if (clerkInstance) await clerkInstance.signOut();
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  currentUserId = null;
+  clerkInstance.mountSignIn(document.getElementById('clerk-mount'));
+}
+
+// ── Navigation ────────────────────────────────────────────────────────
+function showPanel(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'history') loadHistory();
+}
+
+function switchEnrichTab(t) {
+  ['single','batch','excel'].forEach(x => {
+    document.getElementById('epanel-' + x).style.display = x === t ? 'block' : 'none';
+    document.getElementById('etab-' + x).classList.toggle('active', x === t);
+  });
+}
+
+// ── FUB ──────────────────────────────────────────────────────────────
+function checkFUB() {
+  const v = document.getElementById('fub-key').value.trim();
+  const s = document.getElementById('fub-status');
+  s.textContent = v.length > 10 ? 'Key entered — ready to push' : 'Not connected';
+  s.className = 'fub-status' + (v.length > 10 ? ' on' : '');
+  if (v.length > 10 && currentUserId) localStorage.setItem('fub_key_' + currentUserId, v);
+}
+
+function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
+
+// ── History ───────────────────────────────────────────────────────────
+let historyContacts = [];
+
+async function loadHistory() {
+  if (!currentUserId) return;
+  try {
+    const res = await fetch(API + '/api/get-contacts?agentId=' + currentUserId);
+    const data = await res.json();
+    historyContacts = data.contacts || [];
+    renderHistory();
+  } catch(e) { console.error(e); }
+}
+
+function renderHistory() {
+  const contacts = historyContacts;
+  document.getElementById('history-count').textContent = contacts.length + ' contacts saved';
+  if (!contacts.length) {
+    document.getElementById('history-list').innerHTML = '<div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div>';
+    return;
+  }
+  document.getElementById('history-list').innerHTML = contacts.map((c, idx) => {
+    const approvedTags = (c.approved_tags || []);
+    const initials = (c.full_name || c.name || '?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
+    return `<div>
+      <div class="history-item" onclick="toggleHistoryExpand(${idx})">
+        <div class="history-avatar">${initials}</div>
+        <div style="flex:1">
+          <div class="history-name">${c.full_name || c.name || 'Unknown'}</div>
+          <div class="history-meta">${[c.job_title, c.location].filter(Boolean).join(' · ')} ${date ? '· ' + date : ''}</div>
+          ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
+        </div>
+        <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
+      </div>
+      <div class="expand-panel" id="hexp-${idx}"></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHistoryExpand(idx) {
+  const panel = document.getElementById('hexp-' + idx);
+  if (!panel) return;
+  if (panel.classList.contains('open')) {
+    panel.classList.remove('open');
+    panel.innerHTML = '';
+    return;
+  }
+  const c = historyContacts[idx];
+  if (!c) return;
+  const hid = 'h' + idx;
+  if (!tagStates[hid]) {
+    tagStates[hid] = {};
+    (c.suggested_tags || []).forEach((t, i) => {
+      tagStates[hid][i] = (c.approved_tags || []).includes(t.tag) ? 'approved' : 'pending';
+    });
+  }
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+  const tagsHtml = (c.suggested_tags || []).map((t, i) => {
+    const state = tagStates[hid][i] || 'pending';
+    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason || ''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="edit-grid" style="margin-bottom:12px">
+      <div class="edit-field"><label>First name</label><input id="hf-first-${hid}" value="${(c.full_name||'').split(' ')[0]}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="hf-last-${hid}" value="${(c.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+      <div class="edit-field"><label>Email</label><input id="hf-email-${hid}" value="${c.email||c.fub_data?.email||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="hf-phone-${hid}" value="${c.phone||c.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>City</label><input id="hf-city-${hid}" value="${c.location||''}"/></div>
+      <div class="edit-field"><label>Birthday</label><input id="hf-birthday-${hid}" placeholder="e.g. 1985-06-15" value="${c.birthday||''}"/></div>
+      <div class="edit-field"><label>Spouse name</label><input id="hf-spouse-${hid}" value="${c.spouse_name||''}"/></div>
+      <div class="edit-field"><label>Stage</label>
+        <select id="hf-stage-${hid}">
+          <option value="">— select —</option>
+          ${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}" ${c.stage===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="edit-field full"><label>Notes</label><textarea id="hf-notes-${hid}">${c.notes||''}</textarea></div>
+    </div>
+    <div class="section-label">Tags — click to approve / reject</div>
+    <div class="tags-wrap" id="htags-${hid}">${tagsHtml}</div>
+    <div class="tag-adder" style="margin-bottom:12px">
+      <select id="htag-select-${hid}">
+        <option value="">— add a tag —</option>
+        ${tagOptions}
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="addHistoryManualTag(${idx})">Add</button>
+    </div>
+    <div class="action-row" style="margin-top:14px">
+      <button class="btn btn-green" onclick="pushHistoryContact(${idx})">Push to FUB</button>
+      <span class="push-msg" id="hpmsg-${hid}"></span>
+    </div>
+  `;
+  panel.classList.add('open');
+}
+
+function toggleHistoryTag(idx, i) {
+  const hid = 'h' + idx;
+  if (!tagStates[hid]) return;
+  const s = tagStates[hid][i];
+  tagStates[hid][i] = s === 'pending' ? 'approved' : s === 'approved' ? 'rejected' : 'pending';
+  const c = historyContacts[idx];
+  const wrap = document.getElementById('htags-' + hid); if (!wrap) return;
+  wrap.innerHTML = (c.suggested_tags || []).map((t, i) => {
+    const state = tagStates[hid][i] || 'pending';
+    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason||''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+}
+
+function addHistoryManualTag(idx) {
+  const hid = 'h' + idx;
+  const sel = document.getElementById('htag-select-' + hid);
+  const tag = sel.value; if (!tag) return;
+  const c = historyContacts[idx]; if (!c) return;
+  if (!c.suggested_tags) c.suggested_tags = [];
+  if (!c.suggested_tags.find(t => t.tag === tag)) {
+    c.suggested_tags.push({ tag, confidence: 'high', reason: 'Manually added' });
+    tagStates[hid][c.suggested_tags.length - 1] = 'approved';
+  }
+  toggleHistoryExpand(idx); toggleHistoryExpand(idx);
+  sel.value = '';
+}
+
+async function pushHistoryContact(idx) {
+  const hid = 'h' + idx;
+  const fubKey = getFUBKey();
+  if (!fubKey) { document.getElementById('hpmsg-' + hid).textContent = 'Add FUB key in sidebar'; document.getElementById('hpmsg-' + hid).className = 'push-msg err'; return; }
+  const c = historyContacts[idx]; if (!c) return;
+  const approved = (c.suggested_tags || []).filter((_, i) => tagStates[hid]?.[i] === 'approved').map(t => t.tag);
+  const contact = {
+    ...c,
+    full_name: [document.getElementById('hf-first-'+hid)?.value||'', document.getElementById('hf-last-'+hid)?.value||''].filter(Boolean).join(' ') || c.full_name,
+    email: document.getElementById('hf-email-'+hid)?.value || c.email || '',
+    phone: document.getElementById('hf-phone-'+hid)?.value || c.phone || '',
+    location: document.getElementById('hf-city-'+hid)?.value || c.location || '',
+    birthday: document.getElementById('hf-birthday-'+hid)?.value || c.birthday || '',
+    spouse_name: document.getElementById('hf-spouse-'+hid)?.value || c.spouse_name || '',
+    stage: document.getElementById('hf-stage-'+hid)?.value || c.stage || '',
+    notes: document.getElementById('hf-notes-'+hid)?.value || c.notes || '',
+    approved_tags: approved
+  };
+  const msgEl = document.getElementById('hpmsg-' + hid);
+  msgEl.textContent = 'Pushing...'; msgEl.className = 'push-msg';
+  try {
+    const res = await fetch(API + '/api/push-to-fub', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ fubApiKey: fubKey, contact }) });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    msgEl.textContent = `Pushed — ${approved.length} tags applied`; msgEl.className = 'push-msg ok';
+    historyContacts[idx].pushed = true;
+    await saveToHistory({...contact, pushed: true}, true);
+    renderHistory();
+  } catch(e) { msgEl.textContent = 'Failed: ' + e.message; msgEl.className = 'push-msg err'; }
+}
+
+async function saveToHistory(contact, pushed) {
+  if (!currentUserId) return;
+  try {
+    await fetch(API + '/api/save-contact', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ agentId: currentUserId, contact: { ...contact, pushed: pushed || false } })
+    });
+  } catch(e) { console.error('Save to history failed:', e); }
+}
+
+// ── Single enrichment ─────────────────────────────────────────────────
+async function enrichSingle() {
+  const name = document.getElementById('s-name').value.trim();
+  if (!name) return;
+  const city = document.getElementById('s-city').value.trim();
+  const btn = document.getElementById('s-btn');
+  btn.disabled = true; btn.textContent = 'Searching...';
+  document.getElementById('single-result').innerHTML = '<div class="card" style="color:var(--ink-muted);font-size:13px">Searching FUB and enriching...</div>';
+  try {
+    const res = await fetch(API + '/api/enrich', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, city, fubApiKey: getFUBKey() }) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const id = 'single_' + Date.now();
+    tagStates[id] = {};
+    (data.suggested_tags || []).forEach((_,i) => tagStates[id][i] = 'pending');
+    renderSingleResult(data, id);
+    addToQueue(data, id, 'done');
+    await saveToHistory(data, false);
+  } catch(e) {
+    document.getElementById('single-result').innerHTML = `<div class="card" style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
+  }
+  btn.disabled = false; btn.textContent = 'Enrich';
+}
+
+function renderSingleResult(d, id) {
+  const conf = d.confidence_overall;
+  const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':'var(--red)';
+  const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB — editing will update existing contact</div>` : '';
+
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  document.getElementById('single-result').innerHTML = `<div class="card">
+    ${d.warning?`<div class="warning-box">${d.warning}</div>`:''}
+    ${fubInfo}
+    <div class="result-header">
+      <div class="avatar">${d.initials||'?'}</div>
+      <div><div class="result-name">${d.full_name}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' · ')||'No title found'}</div></div>
+      <div style="margin-left:auto;font-size:12px;font-weight:500;color:${confColor}">${conf} confidence</div>
+    </div>
+
+    <div class="section-label">Contact details — edit before pushing</div>
+    <div class="edit-grid">
+      <div class="edit-field"><label>First name</label><input id="ef-first-${id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="ef-last-${id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+      <div class="edit-field"><label>Email</label><input id="ef-email-${id}" value="${d.fub_data?.email||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="ef-phone-${id}" value="${d.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>City / Area</label><input id="ef-city-${id}" value="${d.location||''}"/></div>
+      <div class="edit-field"><label>Birthday</label><input id="ef-birthday-${id}" type="text" placeholder="e.g. 1985-06-15" value=""/></div>
+      <div class="edit-field"><label>Spouse name</label><input id="ef-spouse-${id}" value=""/></div>
+      <div class="edit-field"><label>Stage</label>
+        <select id="ef-stage-${id}">
+          <option value="">— select —</option>
+          ${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}">${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="edit-field full"><label>Background / Notes</label><textarea id="ef-notes-${id}">${d.fub_data ? '' : (d.notes||'')}</textarea></div>
+    </div>
+
+    <hr class="divider"/>
+    <div class="section-label">Suggested tags — click to approve / reject</div>
+    <div class="tags-wrap" id="tags-${id}"></div>
+
+    <div class="section-label">Add a tag manually</div>
+    <div class="tag-adder">
+      <select id="tag-select-${id}">
+        <option value="">— choose a tag —</option>
+        ${tagOptions}
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="addManualTag('${id}')">Add</button>
+    </div>
+
+    <div class="action-row" style="margin-top:16px">
+      <button class="btn btn-green" onclick="pushSingleContact('${id}')">Push to FUB</button>
+      <button class="btn btn-outline" onclick="document.getElementById('single-result').innerHTML=''">Clear</button>
+      <span class="push-msg" id="pmsg-${id}"></span>
+    </div>
+  </div>`;
+
+  renderTagsFor(id, d.suggested_tags || []);
+}
+
+function addManualTag(id) {
+  const sel = document.getElementById('tag-select-' + id);
+  const tag = sel.value;
+  if (!tag) return;
+  const item = queue.find(q => q.id === id);
+  if (item && item.result) {
+    const existing = item.result.suggested_tags || [];
+    if (!existing.find(t => t.tag === tag)) {
+      existing.push({ tag, confidence: 'high', reason: 'Manually added' });
+      const i = existing.length - 1;
+      tagStates[id][i] = 'approved';
+      item.result.suggested_tags = existing;
+    }
+    renderTagsFor(id, item.result.suggested_tags);
+  }
+  sel.value = '';
+}
+
+function renderTagsFor(id, tags) {
+  const wrap = document.getElementById('tags-' + id); if (!wrap) return;
+  wrap.innerHTML = tags.map((t,i) => {
+    const state = tagStates[id]?.[i] || 'pending';
+    const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
+    return `<span class="tag ${state}" onclick="toggleTag('${id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+}
+
+function toggleTag(id,i) {
+  if (!tagStates[id]) return;
+  const s = tagStates[id][i];
+  tagStates[id][i] = s==='pending'?'approved':s==='approved'?'rejected':'pending';
+  const item = queue.find(q=>q.id===id);
+  if (item) renderTagsFor(id, item.result.suggested_tags||[]);
+}
+
+// ── Push ─────────────────────────────────────────────────────────────
+async function pushSingleContact(id) {
+  const fubKey = getFUBKey();
+  if (!fubKey) { setMsg(id,'Add FUB API key in sidebar','err'); return; }
+  const item = queue.find(q=>q.id===id);
+  const data = item?.result;
+  if (!data) return;
+
+  const approved = (data.suggested_tags||[]).filter((_,i)=>tagStates[id]?.[i]==='approved').map(t=>t.tag);
+
+  // Collect edited fields
+  const editedContact = {
+    ...data,
+    full_name: [
+      document.getElementById('ef-first-'+id)?.value || '',
+      document.getElementById('ef-last-'+id)?.value || ''
+    ].filter(Boolean).join(' ') || data.full_name,
+    email: document.getElementById('ef-email-'+id)?.value || data.fub_data?.email || '',
+    phone: document.getElementById('ef-phone-'+id)?.value || data.fub_data?.phone || '',
+    location: document.getElementById('ef-city-'+id)?.value || data.location || '',
+    birthday: document.getElementById('ef-birthday-'+id)?.value || '',
+    spouse_name: document.getElementById('ef-spouse-'+id)?.value || '',
+    stage: document.getElementById('ef-stage-'+id)?.value || '',
+    notes: document.getElementById('ef-notes-'+id)?.value || data.notes || '',
+    approved_tags: approved
+  };
+
+  setMsg(id,'Pushing...','');
+  try {
+    const res = await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:editedContact})});
+    const result = await res.json();
+    if(result.error) throw new Error(result.error);
+    setMsg(id,`Pushed — ${approved.length} tags applied`,'ok');
+    pushedCount++; updateQueueItem(id,'pushed'); updateStats();
+    await saveToHistory({...editedContact, pushed: true}, true);
+    loadHistory();
+  } catch(e) { setMsg(id,'Failed: '+e.message,'err'); }
+}
+
+function setMsg(id,text,type) {
+  const el = document.getElementById('pmsg-'+id);
+  if(el){el.textContent=text;el.className='push-msg'+(type?' '+type:'');}
+}
+
+// ── Batch & Excel ─────────────────────────────────────────────────────
+async function runBatch() {
+  const raw = document.getElementById('batch-names').value.trim(); if(!raw) return;
+  const contacts = raw.split('\n').map(l=>{const p=l.split(',');return{name:p[0].trim(),city:(p[1]||'').trim()};}).filter(c=>c.name);
+  startBatchQueue(contacts);
+  showPanel('queue'); document.querySelectorAll('.nav-item')[2].classList.add('active'); document.querySelectorAll('.nav-item')[0].classList.remove('active');
+}
+
+function handleFile(e) {
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try {
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(data.length<2) return;
+      excelHeaders=data[0].map(String); excelRows=data.slice(1).filter(r=>r.some(c=>String(c).trim()));
+      populateCols(); document.getElementById('col-mapper').style.display='block';
+      document.getElementById('row-count').textContent=excelRows.length+' contacts found';
+    }catch(err){alert('Could not read file.');}
+  };
+  reader.readAsBinaryString(file);
+}
+
+function populateCols() {
+  const ids=['col-first','col-last','col-city','col-email'];
+  const hints=[['first','fname'],['last','lname','surname'],['city','area','location'],['email','mail']];
+  ids.forEach((id,i)=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='<option value="">— none —</option>'+excelHeaders.map((h,j)=>`<option value="${j}">${h}</option>`).join('');
+    const match=excelHeaders.findIndex(h=>hints[i].some(hint=>h.toLowerCase().includes(hint)));
+    if(match>=0) sel.value=match;
+  });
+}
+
+function loadFromExcel() {
+  const ci=id=>{const v=document.getElementById(id).value;return v!==''?parseInt(v):null;};
+  const fc=ci('col-first'),lc=ci('col-last'),cc=ci('col-city'),ec=ci('col-email');
+  if(fc===null&&lc===null){alert('Select at least a first or last name column.');return;}
+  const contacts=excelRows.map(r=>({
+    name:[fc!==null?String(r[fc]||''):'',lc!==null?String(r[lc]||''):''].filter(Boolean).join(' ').trim(),
+    city:cc!==null?String(r[cc]||'').trim():'',email:ec!==null?String(r[ec]||'').trim():''
+  })).filter(c=>c.name);
+  if(!contacts.length){alert('No contacts found.');return;}
+  startBatchQueue(contacts);
+}
+
+// ── Queue ─────────────────────────────────────────────────────────────
+function startBatchQueue(contacts) {
+  contacts.forEach(c=>{
+    const id='q'+Date.now()+Math.random().toString(36).slice(2);
+    queue.push({id,name:c.name,city:c.city||'',email:c.email||'',status:'pending',result:null,expanded:false});
+    tagStates[id]={};
+  });
+  updateStats(); renderQueue(); updateBadge(); processNext();
+}
+
+function addToQueue(result,id,status) {
+  const existing=queue.find(q=>q.id===id);
+  if(!existing) queue.push({id,name:result.full_name,city:'',email:'',status,result,expanded:false});
+  else{existing.result=result;existing.status=status;}
+  updateStats(); renderQueue(); updateBadge();
+}
+
+function updateQueueItem(id,status) {
+  const item=queue.find(q=>q.id===id); if(item){item.status=status;renderQueue();updateStats();}
+}
+
+let processing=false;
+async function processNext() {
+  if(processing) return;
+  const next=queue.find(q=>q.status==='pending'); if(!next) {
+    if(queue.some(q=>q.status==='done'||q.status==='review')) document.getElementById('push-all-btn').style.display='inline-block';
+    return;
+  }
+  processing=true; next.status='running'; renderQueue();
+  try {
+    const res=await fetch(API+'/api/enrich',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:next.name,city:next.city,fubApiKey:getFUBKey()})});
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    next.result=data;
+    (data.suggested_tags||[]).forEach((_,i)=>tagStates[next.id][i]='pending');
+    // Flag for review: low confidence OR no tags found
+    next.status=(data.confidence_overall==='low'||!(data.suggested_tags||[]).length)?'review':'done';
+    await saveToHistory(data, false);
+  } catch(e){next.status='error';next.error=e.message;}
+  processing=false; updateStats(); renderQueue(); updateBadge();
+  setTimeout(processNext,600);
+}
+
+function renderQueue() {
+  const total=queue.length,done=queue.filter(q=>['done','review','pushed'].includes(q.status)).length;
+  document.getElementById('q-progress').style.width=total?Math.round(done/total*100)+'%':'0%';
+  document.getElementById('q-status').textContent=done+' of '+total+' enriched';
+  if(!queue.length){document.getElementById('queue-list').innerHTML='<div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div>';return;}
+  document.getElementById('queue-list').innerHTML=queue.map(item=>{
+    const pillClass={pending:'pill-pending',running:'pill-running',done:'pill-done',review:'pill-review',error:'pill-error',pushed:'pill-pushed'}[item.status]||'pill-pending';
+    const pillText=item.status==='review'?'needs review':item.status;
+    const topTags=item.result?item.result.suggested_tags?.slice(0,2).map(t=>`<span style="font-size:11px;color:var(--ink-muted)">${t.tag.split(':')[0]}</span>`).join(' · '):'—';
+    const conf=item.result?item.result.confidence_overall:'—';
+    const confColor=conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':conf==='low'?'var(--red)':'var(--ink-muted)';
+    const expandContent=item.expanded&&item.result?renderExpandContent(item):'';
+    return `<div>
+      <div class="queue-row" onclick="toggleQueueExpand('${item.id}')">
+        <div><div style="font-size:13px;font-weight:500">${item.name}</div>${item.city?`<div style="font-size:11px;color:var(--ink-muted)">${item.city}</div>`:''}</div>
+        <div>${topTags}</div>
+        <div style="font-size:12px;font-weight:500;color:${confColor}">${conf}</div>
+        <div><span class="pill ${pillClass}">${pillText}</span></div>
+      </div>
+      <div class="expand-panel ${item.expanded?'open':''}">${expandContent}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderExpandContent(item) {
+  const d=item.result; if(!d) return '';
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+  const tagsHtml=(d.suggested_tags||[]).map((t,i)=>{
+    const state=tagStates[item.id]?.[i]||'pending';
+    const conf=t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
+    return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+
+  return `${d.warning?`<div class="warning-box" style="margin-bottom:12px">${d.warning}</div>`:''}
+  <div class="edit-grid" style="margin-bottom:12px">
+    <div class="edit-field"><label>First name</label><input id="qf-first-${item.id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
+    <div class="edit-field"><label>Last name</label><input id="qf-last-${item.id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+    <div class="edit-field"><label>Email</label><input id="qf-email-${item.id}" value="${item.email||d.fub_data?.email||''}"/></div>
+    <div class="edit-field"><label>Phone</label><input id="qf-phone-${item.id}" value="${d.fub_data?.phone||''}"/></div>
+    <div class="edit-field"><label>City</label><input id="qf-city-${item.id}" value="${d.location||item.city||''}"/></div>
+    <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value=""/></div>
+    <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value=""/></div>
+    <div class="edit-field"><label>Stage</label>
+      <select id="qf-stage-${item.id}">
+        <option value="">— select —</option>
+        ${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}">${d.notes||''}</textarea></div>
+  </div>
+  <div class="section-label">Tags — click to approve</div>
+  <div class="tags-wrap">${tagsHtml}</div>
+  <div class="tag-adder" style="margin-bottom:12px">
+    <select id="qtag-select-${item.id}">
+      <option value="">— add a tag —</option>
+      ${tagOptions}
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="addQueueManualTag('${item.id}')">Add</button>
+  </div>
+  <div class="action-row" style="margin-top:14px">
+    <button class="btn btn-green btn-sm" onclick="pushQueueItem('${item.id}')">Push to FUB</button>
+    <span class="push-msg" id="pmsg-${item.id}"></span>
+  </div>`;
+}
+
+function addQueueManualTag(id) {
+  const sel = document.getElementById('qtag-select-' + id);
+  const tag = sel.value; if (!tag) return;
+  const item = queue.find(q => q.id === id);
+  if (item && item.result) {
+    const existing = item.result.suggested_tags || [];
+    if (!existing.find(t => t.tag === tag)) {
+      existing.push({ tag, confidence: 'high', reason: 'Manually added' });
+      tagStates[id][existing.length - 1] = 'approved';
+      item.result.suggested_tags = existing;
+    }
+  }
+  sel.value = '';
+  renderQueue();
+}
+
+function toggleQueueExpand(id) {
+  const item=queue.find(q=>q.id===id); if(!item||!item.result) return;
+  item.expanded=!item.expanded; renderQueue();
+}
+
+function toggleQueueTag(id,i) {
+  if(!tagStates[id]) return;
+  const s=tagStates[id][i];
+  tagStates[id][i]=s==='pending'?'approved':s==='approved'?'rejected':'pending';
+  renderQueue();
+}
+
+async function pushQueueItem(id) {
+  const fubKey=getFUBKey(); if(!fubKey){setMsg(id,'Add FUB API key','err');return;}
+  const item=queue.find(q=>q.id===id); if(!item?.result) return;
+  const approved=(item.result.suggested_tags||[]).filter((_,i)=>tagStates[id]?.[i]==='approved').map(t=>t.tag);
+
+  const editedContact = {
+    ...item.result,
+    full_name: [document.getElementById('qf-first-'+id)?.value||'', document.getElementById('qf-last-'+id)?.value||''].filter(Boolean).join(' ') || item.result.full_name,
+    email: document.getElementById('qf-email-'+id)?.value || item.email || item.result.fub_data?.email || '',
+    phone: document.getElementById('qf-phone-'+id)?.value || item.result.fub_data?.phone || '',
+    location: document.getElementById('qf-city-'+id)?.value || item.result.location || '',
+    birthday: document.getElementById('qf-birthday-'+id)?.value || '',
+    spouse_name: document.getElementById('qf-spouse-'+id)?.value || '',
+    stage: document.getElementById('qf-stage-'+id)?.value || '',
+    notes: document.getElementById('qf-notes-'+id)?.value || item.result.notes || '',
+    approved_tags: approved
+  };
+
+  setMsg(id,'Pushing...','');
+  try {
+    const res=await fetch(API+'/api/push-to-fub',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fubApiKey:fubKey,contact:editedContact})});
+    const result=await res.json();
+    if(result.error) throw new Error(result.error);
+    setMsg(id,`Pushed — ${approved.length} tags`,'ok');
+    item.status='pushed'; pushedCount++; updateStats(); renderQueue(); updateBadge();
+    await saveToHistory({...editedContact, pushed: true}, true);
+    loadHistory();
+  } catch(e){setMsg(id,'Failed: '+e.message,'err');}
+}
+
+async function pushAll() {
+  for(const item of queue.filter(q=>(q.status==='done'||q.status==='review')&&q.result)){
+    Object.keys(tagStates[item.id]||{}).forEach(i=>{if(tagStates[item.id][i]==='pending')tagStates[item.id][i]='approved';});
+    await pushQueueItem(item.id);
+    await new Promise(r=>setTimeout(r,500));
+  }
+}
+
+function clearQueue(){queue=[];tagStates={};pushedCount=0;document.getElementById('push-all-btn').style.display='none';updateStats();renderQueue();updateBadge();}
+
+function updateStats(){
+  document.getElementById('st-total').textContent=queue.length;
+  document.getElementById('st-enriched').textContent=queue.filter(q=>['done','review','pushed'].includes(q.status)).length;
+  document.getElementById('st-review').textContent=queue.filter(q=>q.status==='review').length;
+  document.getElementById('st-pushed').textContent=pushedCount;
+}
+
+function updateBadge(){
+  const b=document.getElementById('queue-badge');
+  b.textContent=queue.length; b.style.display=queue.length?'inline':'none';
+}
+
+// ── Voice ─────────────────────────────────────────────────────────────
+async function toggleRecord(){
+  if(!isRecording){
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      audioChunks=[];
+      mediaRecorder=new MediaRecorder(stream);
+      mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+      mediaRecorder.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());const blob=new Blob(audioChunks,{type:'audio/webm'});await transcribeAudio(blob);};
+      mediaRecorder.start(); isRecording=true;
+      document.getElementById('record-btn').classList.add('recording');
+      document.getElementById('record-label').textContent='Recording... tap to stop';
+    }catch(e){alert('Microphone access denied.');}
+  } else {
+    mediaRecorder.stop(); isRecording=false;
+    document.getElementById('record-btn').classList.remove('recording');
+    document.getElementById('record-label').textContent='Tap to record';
+  }
+}
+
+async function handleAudio(e){const file=e.target.files[0];if(!file) return;await transcribeAudio(file);}
+
+async function transcribeAudio(blob){
+  document.getElementById('transcript-box').textContent='Transcribing...';
+  try{
+    const fd=new FormData(); fd.append('audio',blob,'memo.webm');
+    const res=await fetch(API+'/api/transcribe',{method:'POST',body:fd});
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    document.getElementById('transcript-box').textContent=data.transcript;
+    await extractVoiceTags(data.transcript);
+  }catch(e){document.getElementById('transcript-box').textContent='Transcription failed: '+e.message;}
+}
+
+async function extractVoiceTags(transcript){
+  const name=document.getElementById('v-name').value.trim();
+  try{
+    const res=await fetch(API+'/api/extract-tags',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript,contactName:name})});
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    currentVoiceTags=data.suggested_tags||[]; voiceTagStates={};
+    currentVoiceTags.forEach((_,i)=>voiceTagStates[i]='pending');
+    renderVoiceTags(); renderVoiceDetails(data.extracted_details);
+    document.getElementById('voice-tags-area').style.display='block';
+  }catch(e){console.error(e);}
+}
+
+function renderVoiceTags(){
+  document.getElementById('voice-tags').innerHTML=currentVoiceTags.map((t,i)=>{
+    const state=voiceTagStates[i];
+    const conf=t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
+    return `<span class="tag ${state}" onclick="toggleVoiceTag(${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+}
+
+function toggleVoiceTag(i){const s=voiceTagStates[i];voiceTagStates[i]=s==='pending'?'approved':s==='approved'?'rejected':'pending';renderVoiceTags();}
+
+function renderVoiceDetails(details){
+  if(!details) return;
+  const fields=[['Job title',details.job_title],['Company',details.company],['Birthday',details.birthday],['Address',details.address],['Family',details.family_notes],['Interests',(details.interests||[]).join(', ')||null]].filter(f=>f[1]);
+  document.getElementById('voice-details').innerHTML=fields.map(([k,v])=>`<div class="field"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`).join('');
+}
+
+async function saveVoiceMemo(){
+  const name=document.getElementById('v-name').value.trim()||'Unknown contact';
+  const approved=currentVoiceTags.filter((_,i)=>voiceTagStates[i]==='approved').map(t=>t.tag);
+  const id='v'+Date.now();
+  const fakeResult={full_name:name,initials:name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),suggested_tags:currentVoiceTags.map(t=>({...t})),notes:document.getElementById('transcript-box').textContent,confidence_overall:'high',warning:null,approved_tags:approved};
+  tagStates[id]={};
+  currentVoiceTags.forEach((_,i)=>tagStates[id][i]=voiceTagStates[i]);
+  addToQueue(fakeResult,id,'done');
+  await saveToHistory(fakeResult, false);
+  document.getElementById('voice-msg').textContent='Saved to queue';
+  document.getElementById('voice-msg').className='push-msg ok';
+  loadHistory();
+}
+
+function clearVoice(){
+  document.getElementById('transcript-box').textContent='Your transcript will appear here...';
+  document.getElementById('voice-tags-area').style.display='none';
+  document.getElementById('v-name').value='';
+  currentVoiceTags=[]; voiceTagStates={};
+}
+
+const dz=document.getElementById('drop-zone');
+if(dz){
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='white';});
+  dz.addEventListener('dragleave',()=>{dz.style.background='';});
+  dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';const f=e.dataTransfer.files[0];if(f)handleFile({target:{files:[f]}});});
+}
+
+document.getElementById('s-name').addEventListener('keydown',e=>{if(e.key==='Enter')enrichSingle();});
+
+// ── Boot ──────────────────────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", initClerk);
+</script>
+</body>
+</html>
