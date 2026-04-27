@@ -441,7 +441,7 @@ async function checkExistingSession() {
   } catch(e) { return false; }
 }
 
-function showApp(agent) {
+async function showApp(agent) {
   document.getElementById('auth-screen').classList.add('hidden');
   currentUserId = agent.agentId;
   localStorage.setItem('trellis_session', JSON.stringify(agent));
@@ -474,6 +474,29 @@ function showApp(agent) {
     .then(d => { if (d.fubApiKey) { document.getElementById('fub-key').value = d.fubApiKey; checkFUB(); } })
     .catch(() => {});
   loadHistory();
+  
+  // Process any pending DocuSign key
+  const pendingKey = sessionStorage.getItem('pending_ds_key');
+  if (pendingKey && !dsAccessToken) {
+    sessionStorage.removeItem('pending_ds_key');
+    try {
+      const res = await fetch('/api/docusign-token?key=' + pendingKey, { headers: authHeaders() });
+      const data = await res.json();
+      if (data.accessToken) {
+        dsAccessToken = data.accessToken;
+        dsAccountId = data.accountId;
+        dsBaseUri = data.baseUri;
+        localStorage.setItem('ds_token_' + currentUserId, JSON.stringify({ dsAccessToken, dsAccountId, dsBaseUri }));
+        showDocuSignConnected();
+        // Switch to transactions tab
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-transactions').classList.add('active');
+        const transNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.textContent.includes('Transactions'));
+        if (transNav) transNav.classList.add('active');
+      }
+    } catch(e) { console.error('DS pending key error:', e); }
+  }
 }
 
 async function signOut() {
