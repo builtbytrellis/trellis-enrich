@@ -649,7 +649,7 @@ function toggleHistoryExpand(idx) {
       <div class="edit-field"><label>Stage</label>
         <select id="hf-stage-${hid}">
           <option value="">— select —</option>
-          ${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}" ${c.stage===s?'selected':''}>${s}</option>`).join('')}
+          ${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}" ${c.stage===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </div>
       <div class="edit-field full"><label>Notes</label><textarea id="hf-notes-${hid}">${c.notes||''}</textarea></div>
@@ -780,7 +780,7 @@ function renderSingleResult(d, id) {
       <div class="edit-field"><label>Birthday</label><input id="ef-birthday-${id}" placeholder="e.g. 1985-06-15" value=""/></div>
       <div class="edit-field"><label>Spouse name</label><input id="ef-spouse-${id}" value=""/></div>
       <div class="edit-field"><label>Stage</label>
-        <select id="ef-stage-${id}"><option value="">— select —</option>${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+        <select id="ef-stage-${id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
       </div>
       <div class="edit-field full"><label>Notes</label><textarea id="ef-notes-${id}">${d.notes||''}</textarea></div>
     </div>
@@ -1014,7 +1014,7 @@ function renderExpandContent(item) {
     <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value=""/></div>
     <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value=""/></div>
     <div class="edit-field"><label>Stage</label>
-      <select id="qf-stage-${item.id}"><option value="">— select —</option>${['Sphere','Lead','Prospect','Active Buyer','Active Seller','Under Contract','Past Client','Archived'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+      <select id="qf-stage-${item.id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
     </div>
     <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}">${d.notes||''}</textarea></div>
   </div>
