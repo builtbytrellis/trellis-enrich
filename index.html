@@ -1173,10 +1173,10 @@ function clearVoice() {
 
 // ── DocuSign ──────────────────────────────────────────────────────────
 function connectDocuSign() {
-  const clientId = '2a98ce6b-99e2-4e4e-8f6a-6e9f4d141d7c';
+  const clientId = '1f22b580-e7af-4236-91af-6db6b959f6d2';
   const redirectUri = encodeURIComponent(window.location.origin + '/api/docusign-callback');
   const scopes = encodeURIComponent('signature rooms_read rooms_write');
-  window.location.href = `https://account-d.docusign.com/oauth/auth?response_type=code&scope=${scopes}&client_id=${clientId}&redirect_uri=${redirectUri}`;
+  window.open(`https://account.docusign.com/oauth/auth?response_type=code&scope=${scopes}&client_id=${clientId}&redirect_uri=${redirectUri}`, '_blank');
 }
 
 function disconnectDocuSign() {
