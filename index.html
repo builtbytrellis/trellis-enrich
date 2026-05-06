@@ -564,6 +564,7 @@ function showPanel(id, el) {
   if (panel) panel.classList.add('active');
   if (el) el.classList.add('active');
   if (id === 'history') loadHistory();
+  if (id === 'queue' && !queue.length) loadPersistentQueue();
 }
 
 function switchEnrichTab(t) {
@@ -733,6 +734,51 @@ async function saveToHistory(contact, pushed) {
   try {
     await fetch('/api/save-contact', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ contact: { ...contact, pushed: pushed || false } }) });
   } catch(e) { console.error('Save failed:', e); }
+}
+
+// ── Persistent Queue API ───────────────────────────────────────────────
+async function saveQueueItem(item) {
+  try {
+    await fetch('/api/queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ contact: { id: item.id, name: item.name, city: item.city, email: item.email, status: item.status, result: item.result, approved_tags: item.approved_tags, addedAt: item.addedAt || new Date().toISOString() } }) });
+  } catch(e) { console.error('Queue save failed:', e); }
+}
+
+async function updateQueueItemStatus(id, status, result, approved_tags) {
+  try {
+    await fetch('/api/queue', { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ id, status, result, approved_tags }) });
+  } catch(e) { console.error('Queue update failed:', e); }
+}
+
+async function loadPersistentQueue() {
+  if (!currentUserId) return;
+  try {
+    const agentId = impersonating ? impersonating.agentId : currentUserId;
+    const url = impersonating ? '/api/queue?agentId=' + agentId : '/api/queue';
+    const res = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    const items = data.queue || [];
+    // Restore queue from Redis — skip already pushed items
+    queue = items.filter(i => i.status !== 'pushed').map(i => ({ ...i, expanded: false }));
+    items.filter(i => i.status !== 'pushed').forEach(i => {
+      tagStates[i.id] = {};
+      (i.result?.suggested_tags || []).forEach((t, idx) => {
+        const approved = i.approved_tags || [];
+        tagStates[i.id][idx] = approved.includes(t.tag) ? 'approved' : 'pending';
+      });
+    });
+    pushedCount = items.filter(i => i.status === 'pushed').length;
+    updateStats(); renderQueue(); updateBadge();
+    // Resume any pending enrichments
+    if (queue.some(i => i.status === 'pending')) processNext();
+  } catch(e) { console.error('Load queue failed:', e); }
+}
+
+async function clearPersistentQueue() {
+  try {
+    const agentId = impersonating ? impersonating.agentId : currentUserId;
+    const url = impersonating ? '/api/queue?agentId=' + agentId : '/api/queue';
+    await fetch(url, { method: 'DELETE', headers: authHeaders(), body: JSON.stringify({ clearAll: true }) });
+  } catch(e) { console.error('Clear queue failed:', e); }
 }
 
 // ── Single enrichment ─────────────────────────────────────────────────
@@ -935,12 +981,14 @@ function loadFromExcel() {
 }
 
 // ── Queue ─────────────────────────────────────────────────────────────
-function startBatchQueue(contacts) {
-  contacts.forEach(c => {
+async function startBatchQueue(contacts) {
+  for (const c of contacts) {
     const id = 'q' + Date.now() + Math.random().toString(36).slice(2);
-    queue.push({id, name:c.name, city:c.city||'', email:c.email||'', status:'pending', result:null, expanded:false});
+    const item = {id, name:c.name, city:c.city||'', email:c.email||'', status:'pending', result:null, expanded:false, addedAt: new Date().toISOString()};
+    queue.push(item);
     tagStates[id] = {};
-  });
+    await saveQueueItem(item);
+  }
   updateStats(); renderQueue(); updateBadge(); processNext();
 }
 
@@ -968,8 +1016,9 @@ async function processNext() {
     next.result = data;
     (data.suggested_tags||[]).forEach((_,i) => tagStates[next.id][i] = 'pending');
     next.status = (data.confidence_overall==='low' || !(data.suggested_tags||[]).length) ? 'review' : 'done';
+    await updateQueueItemStatus(next.id, next.status, data, []);
     await saveToHistory(data, false);
-  } catch(e) { next.status = 'error'; next.error = e.message; }
+  } catch(e) { next.status = 'error'; next.error = e.message; await updateQueueItemStatus(next.id, 'error', null, []); }
   processing = false; updateStats(); renderQueue(); updateBadge();
   setTimeout(processNext, 600);
 }
@@ -1066,6 +1115,7 @@ async function pushQueueItem(id) {
     if(result.error) throw new Error(result.error);
     setMsg(id, `Pushed — ${approved.length} tags`, 'ok');
     item.status = 'pushed'; pushedCount++; updateStats(); renderQueue(); updateBadge();
+    await updateQueueItemStatus(item.id, 'pushed', null, approved);
     await saveToHistory({...editedContact, pushed: true}, true); loadHistory();
   } catch(e) { setMsg(id, 'Failed: '+e.message, 'err'); }
 }
@@ -1078,7 +1128,7 @@ async function pushAll() {
   }
 }
 
-function clearQueue() { queue=[]; tagStates={}; pushedCount=0; document.getElementById('push-all-btn').style.display='none'; updateStats(); renderQueue(); updateBadge(); }
+async function clearQueue() { queue=[]; tagStates={}; pushedCount=0; document.getElementById('push-all-btn').style.display='none'; updateStats(); renderQueue(); updateBadge(); await clearPersistentQueue(); }
 function updateStats() {
   document.getElementById('st-total').textContent = queue.length;
   document.getElementById('st-enriched').textContent = queue.filter(q => ['done','review','pushed'].includes(q.status)).length;
@@ -1162,6 +1212,7 @@ async function saveVoiceMemo() {
   document.getElementById('voice-msg').textContent = 'Saved to queue';
   document.getElementById('voice-msg').className = 'push-msg ok';
   loadHistory();
+  await loadPersistentQueue();
 }
 
 function clearVoice() {
