@@ -166,6 +166,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="nav-item" onclick="showPanel('queue',this)"><span class="nav-dot"></span>Queue <span id="queue-badge" style="margin-left:auto;background:rgba(184,146,74,.3);color:var(--gold-light);font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
       <div class="nav-item" onclick="showPanel('history',this)"><span class="nav-dot"></span>History</div>
       <div class="nav-item" onclick="showPanel('transactions',this)"><span class="nav-dot"></span>Transactions</div>
+      <div class="nav-item" onclick="showPanel('fintrac',this)"><span class="nav-dot"></span>FINTRAC</div>
     </nav>
     <div class="fub-section">
       <div class="fub-label">Follow Up Boss</div>
@@ -326,6 +327,35 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
           </div>
           <div id="transactions-list"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- FINTRAC -->
+    <div class="panel" id="panel-fintrac">
+      <div class="page-title">FINTRAC Import</div>
+      <div class="page-sub">Upload FINTRAC PDFs to automatically extract birthdays, occupations, and contact details.</div>
+
+      <div class="card">
+        <div class="card-title">Upload FINTRAC forms</div>
+        <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Drop multiple PDFs at once. We'll extract birthday, occupation, address and match to your contacts automatically.</p>
+        <div class="drop-zone" id="fintrac-drop" onclick="document.getElementById('fintrac-inp').click()" style="padding:32px">
+          <input type="file" id="fintrac-inp" accept=".pdf" multiple style="display:none" onchange="handleFintracFiles(event)"/>
+          <div style="font-size:32px;margin-bottom:8px">📄</div>
+          <p>Drop FINTRAC PDFs here or click to browse</p>
+          <small>Accepts multiple files — scanned and digital PDFs supported</small>
+        </div>
+        <div id="fintrac-status" style="display:none;margin-top:12px">
+          <div style="font-size:13px;color:var(--ink-muted)" id="fintrac-progress">Processing...</div>
+          <div class="progress-wrap" style="margin-top:8px"><div class="progress-fill" id="fintrac-progress-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div id="fintrac-results" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <span style="font-size:13px;font-weight:500" id="fintrac-count"></span>
+          <button class="btn btn-green btn-sm" style="margin-left:auto" onclick="applyAllFintracToContacts()">Apply All to Contacts</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden" id="fintrac-list"></div>
       </div>
     </div>
 
@@ -1222,6 +1252,150 @@ function clearVoice() {
   currentVoiceTags = []; voiceTagStates = {};
 }
 
+
+// ── FINTRAC Upload ────────────────────────────────────────────────────
+let fintracResults = [];
+
+const fintracDrop = document.getElementById ? document.getElementById('fintrac-drop') : null;
+
+async function handleFintracFiles(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  await processFintracFiles(files);
+}
+
+async function processFintracFiles(files) {
+  document.getElementById('fintrac-status').style.display = 'block';
+  document.getElementById('fintrac-results').style.display = 'none';
+  fintracResults = [];
+
+  const BATCH = 3; // Process 3 at a time
+  let processed = 0;
+
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    const fd = new FormData();
+    batch.forEach(f => fd.append('pdfs', f));
+
+    try {
+      const res = await fetch('/api/extract-fintrac', {
+        method: 'POST',
+        headers: { 'x-session-token': getToken() },
+        body: fd
+      });
+      const data = await res.json();
+      if (data.results) fintracResults.push(...data.results);
+    } catch(e) { console.error('Batch error:', e); }
+
+    processed += batch.length;
+    const pct = Math.round(processed / files.length * 100);
+    document.getElementById('fintrac-progress').textContent = `Processing ${processed} of ${files.length} files...`;
+    document.getElementById('fintrac-progress-bar').style.width = pct + '%';
+  }
+
+  document.getElementById('fintrac-status').style.display = 'none';
+  renderFintracResults();
+}
+
+function renderFintracResults() {
+  const valid = fintracResults.filter(r => !r.error && !r.not_fintrac);
+  const errors = fintracResults.filter(r => r.error);
+
+  document.getElementById('fintrac-count').textContent = `${valid.length} contacts extracted${errors.length ? ', ' + errors.length + ' errors' : ''}`;
+  document.getElementById('fintrac-results').style.display = 'block';
+
+  document.getElementById('fintrac-list').innerHTML = valid.map((r, idx) => `
+    <div style="padding:16px 20px;border-bottom:.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--gold);flex-shrink:0">${(r.full_name||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${r.full_name || 'Unknown'}</div>
+          <div style="font-size:11px;color:var(--ink-muted)">${r.filename}</div>
+        </div>
+        <button class="btn btn-green btn-sm" onclick="applyFintracToContact(${idx})">Apply to Contact</button>
+      </div>
+      <div class="field-grid">
+        ${r.date_of_birth ? `<div class="field"><div class="field-key">Birthday</div><div class="field-val">${r.date_of_birth}</div></div>` : ''}
+        ${r.occupation ? `<div class="field"><div class="field-key">Occupation</div><div class="field-val">${r.occupation}</div></div>` : ''}
+        ${r.employer ? `<div class="field"><div class="field-key">Employer</div><div class="field-val">${r.employer}</div></div>` : ''}
+        ${r.city ? `<div class="field"><div class="field-key">City</div><div class="field-val">${r.city}</div></div>` : ''}
+        ${r.phone ? `<div class="field"><div class="field-key">Phone</div><div class="field-val">${r.phone}</div></div>` : ''}
+        ${r.id_type ? `<div class="field"><div class="field-key">ID Type</div><div class="field-val">${r.id_type}</div></div>` : ''}
+      </div>
+      <div id="fintrac-apply-msg-${idx}" style="font-size:12px;margin-top:6px"></div>
+    </div>
+  `).join('') + (errors.length ? `<div style="padding:16px;font-size:12px;color:var(--red)">${errors.length} files could not be processed</div>` : '');
+}
+
+async function applyFintracToContact(idx) {
+  const r = fintracResults.filter(x => !x.error && !x.not_fintrac)[idx];
+  if (!r || !r.full_name) return;
+
+  const msgEl = document.getElementById('fintrac-apply-msg-' + idx);
+  msgEl.textContent = 'Searching for contact...';
+  msgEl.style.color = 'var(--ink-muted)';
+
+  // Search history for matching contact by name
+  const nameLower = r.full_name.toLowerCase();
+  const match = historyContacts.find(c => {
+    const cName = (c.full_name || c.name || '').toLowerCase();
+    return cName === nameLower || 
+      nameLower.includes(cName.split(' ')[0]) || 
+      cName.includes(r.full_name.split(' ')[0].toLowerCase());
+  });
+
+  if (match) {
+    // Update the contact with FINTRAC data
+    const updated = {
+      ...match,
+      birthday: r.date_of_birth || match.birthday,
+      job_title: r.occupation || match.job_title,
+      company: r.employer || match.company,
+      phone: r.phone || match.phone,
+      location: r.city || match.location,
+      fintrac_verified: true
+    };
+    await saveToHistory(updated, match.pushed || false);
+    await loadHistory();
+    msgEl.textContent = '✓ Applied to ' + (match.full_name || match.name);
+    msgEl.style.color = 'var(--green)';
+  } else {
+    // Add as new contact to queue
+    const id = 'fintrac_' + Date.now();
+    const result = {
+      full_name: r.full_name,
+      initials: r.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+      job_title: r.occupation || null,
+      company: r.employer || null,
+      location: r.city || null,
+      birthday: r.date_of_birth || null,
+      phone: r.phone || null,
+      notes: 'FINTRAC verified contact',
+      confidence_overall: 'high',
+      suggested_tags: [
+        r.is_buyer ? { tag: 'Client: Buyer', confidence: 'high', reason: 'Listed as buyer in FINTRAC' } : null,
+        r.is_seller ? { tag: 'Client: Seller', confidence: 'high', reason: 'Listed as seller in FINTRAC' } : null,
+        { tag: 'Relationship: Past Client', confidence: 'high', reason: 'Verified via FINTRAC' }
+      ].filter(Boolean),
+      fintrac_verified: true
+    };
+    tagStates[id] = {};
+    result.suggested_tags.forEach((_, i) => tagStates[id][i] = 'approved');
+    addToQueue(result, id, 'done');
+    await saveToHistory(result, false);
+    msgEl.textContent = '✓ Added to queue as new contact';
+    msgEl.style.color = 'var(--amber)';
+  }
+}
+
+async function applyAllFintracToContacts() {
+  const valid = fintracResults.filter(r => !r.error && !r.not_fintrac);
+  for (let i = 0; i < valid.length; i++) {
+    await applyFintracToContact(i);
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
+
 // ── DocuSign ──────────────────────────────────────────────────────────
 function connectDocuSign() {
   const clientId = '2a98ce6b-99e2-4e4e-8f6a-6e9f4d141d7c';
@@ -1295,6 +1469,20 @@ if(dz) {
   dz.addEventListener('drop', e => { e.preventDefault(); dz.style.background = ''; const f = e.dataTransfer.files[0]; if(f) handleFile({target:{files:[f]}}); });
 }
 document.getElementById('s-name').addEventListener('keydown', e => { if(e.key === 'Enter') enrichSingle(); });
+
+// FINTRAC drag and drop
+window.addEventListener('DOMContentLoaded', () => {
+  const fz = document.getElementById('fintrac-drop');
+  if (fz) {
+    fz.addEventListener('dragover', e => { e.preventDefault(); fz.style.background = 'white'; });
+    fz.addEventListener('dragleave', () => { fz.style.background = ''; });
+    fz.addEventListener('drop', e => { 
+      e.preventDefault(); fz.style.background = ''; 
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+      if (files.length) processFintracFiles(files);
+    });
+  }
+});
 
 window.addEventListener('load', async function() {
   const urlParams = new URLSearchParams(window.location.search);
