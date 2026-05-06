@@ -15,27 +15,82 @@ async function searchFUB(name, fubApiKey) {
     const data = await res.json();
     if (data.people && data.people.length > 0) return data.people[0];
     return null;
-  } catch(e) {
-    return null;
-  }
+  } catch(e) { return null; }
 }
 
-async function webSearchContact(openai, name, city) {
+async function webSearchContact(openai, name, city, email) {
   const locationHint = city ? ` in ${city}` : ' in Toronto or GTA';
+  const emailHint = email ? ` Their email is ${email}.` : '';
+  
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-search-preview',
-      max_tokens: 600,
+      max_tokens: 800,
       messages: [{
         role: 'user',
-        content: `Search for information about "${name}"${locationHint}. I need: their job title, employer/company, neighbourhood, approximate age, family situation, and any notable interests or community involvement. Focus on LinkedIn, company websites, news, or social media. Be concise — just the facts you find.`
+        content: `Search for information about "${name}"${locationHint}.${emailHint}
+
+Find: job title, employer/company, neighbourhood, approximate age, family situation, interests, community involvement, LinkedIn, social media, news mentions.
+
+If the email domain suggests a company (e.g. @rbc.com = RBC bank employee, @osler.com = Osler law firm), use that to infer profession.
+
+Be specific and concise — just facts you find.`
       }]
     });
     return response.choices[0].message.content?.trim() || null;
   } catch(e) {
-    console.warn('Web search failed (non-fatal):', e.message);
+    console.warn('Web search failed:', e.message);
     return null;
   }
+}
+
+function inferFromEmail(email) {
+  if (!email) return null;
+  const domain = email.split('@')[1]?.toLowerCase();
+  if (!domain) return null;
+  
+  const domainMap = {
+    // Finance
+    'rbc.com': 'Works at RBC (Royal Bank of Canada) — Finance profession',
+    'td.com': 'Works at TD Bank — Finance profession',
+    'bmo.com': 'Works at BMO — Finance profession',
+    'scotiabank.com': 'Works at Scotiabank — Finance profession',
+    'cibc.com': 'Works at CIBC — Finance profession',
+    'sunlife.com': 'Works at Sun Life Financial — Finance/Insurance profession',
+    'manulife.com': 'Works at Manulife — Finance/Insurance profession',
+    // Legal
+    'osler.com': 'Works at Osler law firm — Legal profession',
+    'blg.com': 'Works at Borden Ladner Gervais — Legal profession',
+    'mccarthy.ca': 'Works at McCarthy Tétrault — Legal profession',
+    // Healthcare
+    'sunnybrook.ca': 'Works at Sunnybrook Hospital — Healthcare profession',
+    'uhn.ca': 'Works at University Health Network — Healthcare profession',
+    'sickkids.ca': 'Works at SickKids Hospital — Healthcare profession',
+    // Tech
+    'shopify.com': 'Works at Shopify — Tech profession',
+    'rogers.com': 'Works at Rogers — Tech/Telecom profession',
+    'bell.ca': 'Works at Bell — Tech/Telecom profession',
+    // Real Estate
+    'realtor.ca': 'Real estate agent',
+    'century21.ca': 'Real estate agent at Century 21',
+    'royallepage.ca': 'Real estate agent at Royal LePage',
+    'remax.ca': 'Real estate agent at RE/MAX',
+  };
+  
+  // Check exact domain match
+  if (domainMap[domain]) return domainMap[domain];
+  
+  // Check for government emails
+  if (domain.endsWith('.gc.ca') || domain.endsWith('.gov.on.ca')) return 'Works in government — likely stable employment, homeowner profile';
+  if (domain.endsWith('.edu') || domain.endsWith('.ac.ca') || domain.endsWith('.utoronto.ca')) return 'Works in education/academia';
+  if (domain.endsWith('.on.ca') && domain.includes('school')) return 'Works in education — Teacher/Administrator';
+  
+  // Generic business email = business owner signal
+  if (!['gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com','me.com'].includes(domain)) {
+    return `Has business email @${domain} — likely business owner or professional`;
+  }
+  
+  return null;
 }
 
 module.exports = async (req, res) => {
@@ -45,23 +100,26 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { name, city, fubApiKey } = req.body;
+  const { name, city, fubApiKey, email } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const fubKey = fubApiKey || process.env.FUB_API_KEY;
 
-    // Step 1 — pull existing FUB data
+    // Step 1 — pull FUB data
     const fubContact = await searchFUB(name, fubKey);
+    const contactEmail = email || (fubContact?.emails || [])[0]?.value || null;
 
-    // Build FUB context string
+    // Build FUB context
     let fubContext = '';
     if (fubContact) {
       const emails = (fubContact.emails || []).map(e => e.value).join(', ');
       const phones = (fubContact.phones || []).map(p => p.value).join(', ');
       const addr = (fubContact.addresses || []).map(a => [a.street, a.city, a.state].filter(Boolean).join(' ')).join(', ');
       const tags = (fubContact.tags || []).join(', ');
+      const lastContact = fubContact.lastCommunicationDate || fubContact.updated || null;
+      
       fubContext = `
 EXISTING FUB DATA:
 - Name: ${fubContact.firstName || ''} ${fubContact.lastName || ''}
@@ -72,82 +130,81 @@ EXISTING FUB DATA:
 - Address: ${addr || 'unknown'}
 - Existing tags: ${tags || 'none'}
 - Source: ${fubContact.source || 'unknown'}
+- Last contact: ${lastContact || 'unknown'}
 - Created: ${fubContact.created || 'unknown'}
 `;
     }
 
-    // Step 2 — web search when FUB data is missing or sparse
-    const fubHasUsefulData = fubContact && (
-      fubContact.jobTitle ||
-      fubContact.company ||
-      (fubContact.addresses || []).length > 0 ||
-      (fubContact.tags || []).length > 2
-    );
-
-    let webContext = '';
-    if (!fubHasUsefulData) {
-      const searchResult = await webSearchContact(openai, name, city);
-      if (searchResult) {
-        webContext = `\nWEB SEARCH RESULTS:\n${searchResult}\n`;
-      }
-    }
-
-    // Step 3 — GPT-4o tag generation
-    const dataAvailable = (fubContext || webContext)
-      ? `${fubContext}${webContext}`
-      : 'No FUB data and web search returned no results — work from name and city only, use low confidence.';
+    // Step 2 — email domain inference (always run)
+    const emailInference = inferFromEmail(contactEmail);
+    
+    // Step 3 — web search (ALWAYS run for better confidence)
+    const webResult = await webSearchContact(openai, name, city, contactEmail);
+    
+    // Build full context
+    const contextParts = [];
+    if (fubContext) contextParts.push(fubContext);
+    if (emailInference) contextParts.push(`\nEMAIL INFERENCE:\n${emailInference}`);
+    if (webResult) contextParts.push(`\nWEB SEARCH RESULTS:\n${webResult}`);
+    
+    const dataAvailable = contextParts.length > 0 
+      ? contextParts.join('\n')
+      : 'No data found — use name and city context only, assign low confidence.';
 
     const tagList = FUB_TAGS.join(', ');
 
-    const prompt = `You are a real estate CRM enrichment agent for Toronto/GTA. Analyze this contact and suggest CRM tags.
+    const prompt = `You are a real estate CRM enrichment agent specializing in the Toronto/GTA market. Analyze this contact and suggest the most relevant CRM tags.
 
-Contact name: "${name}"${city ? `\nCity context: ${city}` : ''}
+Contact: "${name}"${city ? ` — City: ${city}` : ''}
 ${dataAvailable}
 
-RULES — read carefully:
-1. You MUST only suggest tags that appear EXACTLY in the available tag list below. Copy them character-for-character.
-2. Do NOT invent tags, rephrase tags, or combine tags. If a concept is not in the list, skip it.
-3. Always try to include an age tag (Age: 20s / Age: 30s / Age: 40s / Age: 50s / Age: 60+) — estimate from career stage, graduation year, family situation, or any other signal. Only omit if truly no signal exists.
-4. Max 8 tags total.
+RULES:
+1. Tags MUST be copied EXACTLY from the available list — character for character
+2. Always include an Age tag (Age: 20s / 30s / 40s / 50s / 60+) — estimate from any signal available
+3. Always include a Life Stage tag when inferable
+4. Always include a Profession tag when inferable
+5. Use Relationship tag based on source/history (Past Client = Relationship: Past Client, sphere = Relationship: Sphere, etc.)
+6. Confidence should be "high" when web search confirms details, "medium" when inferred from email/FUB, "low" when guessing from name only
+7. Max 8 tags
 
-Available tags (use ONLY these, copied exactly):
+Available tags (copy EXACTLY):
 ${tagList}
 
-Return ONLY this JSON object — no markdown, no explanation:
+Return ONLY this JSON — no markdown:
 {
-  "full_name": "properly cased full name",
+  "full_name": "properly cased name",
   "initials": "2 uppercase chars",
-  "job_title": "from data or inferred or null",
-  "company": "from data or inferred or null",
-  "location": "city or neighbourhood or null",
-  "likely_age_range": "20s or 30s or 40s or 50s or 60+ or unknown",
-  "family_signals": "e.g. Married, 2 kids or null",
-  "interests": ["array", "of", "strings"],
+  "job_title": "from data or inferred",
+  "company": "from data or inferred",
+  "location": "city or neighbourhood",
+  "likely_age_range": "20s|30s|40s|50s|60+|unknown",
+  "family_signals": "e.g. Married with 2 kids or null",
+  "interests": ["array"],
   "community_involvement": [],
   "linkedin_url": null,
   "suggested_tags": [
-    { "tag": "EXACT tag from list", "reason": "one sentence citing the signal", "confidence": "high|medium|low" }
+    {"tag": "EXACT tag from list", "reason": "specific signal that supports this", "confidence": "high|medium|low"}
   ],
-  "notes": "1-2 sentences useful for a real estate agent",
+  "notes": "2-3 sentences useful for a real estate agent making a nurturing call",
   "confidence_overall": "high|medium|low",
   "warning": null
 }`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
-      max_tokens: 1200,
+      max_tokens: 1400,
       response_format: { type: 'json_object' },
       messages: [{ role: 'user', content: prompt }]
     });
 
     const result = JSON.parse(response.choices[0].message.content);
 
-    // Server-side filter: strip any tags not in the approved list
+    // Server-side filter: strip tags not in approved list
     if (result.suggested_tags) {
       result.suggested_tags = result.suggested_tags.filter(t => FUB_TAGS_SET.has(t.tag));
     }
 
-    // Attach raw FUB data for frontend use
+    // Attach FUB data
     result.fub_data = fubContact ? {
       email: (fubContact.emails || [])[0]?.value || null,
       phone: (fubContact.phones || [])[0]?.value || null,
