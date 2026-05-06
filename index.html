@@ -621,7 +621,8 @@ function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
 async function loadHistory() {
   if (!currentUserId) return;
   try {
-    const res = await fetch('/api/get-contacts', { headers: authHeaders() });
+    const url = impersonating ? '/api/get-contacts?agentId=' + impersonating.agentId : '/api/get-contacts';
+    const res = await fetch(url, { headers: authHeaders() });
     const data = await res.json();
     historyContacts = data.contacts || [];
     renderHistory();
@@ -762,7 +763,9 @@ function setHistMsg(hid, text, type) {
 async function saveToHistory(contact, pushed) {
   if (!currentUserId) return;
   try {
-    await fetch('/api/save-contact', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ contact: { ...contact, pushed: pushed || false } }) });
+    const body = { contact: { ...contact, pushed: pushed || false } };
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    await fetch('/api/save-contact', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
   } catch(e) { console.error('Save failed:', e); }
 }
 
