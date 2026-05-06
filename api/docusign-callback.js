@@ -7,11 +7,13 @@ module.exports = async (req, res) => {
   if (!code) return res.redirect('/?docusign_error=missing_code');
 
   try {
-    const integrationKey = process.env.DOCUSIGN_DAVID_INTEGRATION_KEY || process.env.DOCUSIGN_INTEGRATION_KEY;
-    const secretKey = process.env.DOCUSIGN_DAVID_SECRET_KEY || process.env.DOCUSIGN_SECRET_KEY;
+    // Use the shared integration key for all agents
+    const integrationKey = process.env.DOCUSIGN_INTEGRATION_KEY;
+    const secretKey = process.env.DOCUSIGN_SECRET_KEY;
     const credentials = Buffer.from(`${integrationKey}:${secretKey}`).toString('base64');
     const redirectUri = 'https://trellis-enrich-el6t.vercel.app/api/docusign-callback';
 
+    // Use production DocuSign URL
     const tokenRes = await fetch('https://account.docusign.com/oauth/token', {
       method: 'POST',
       headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' },
