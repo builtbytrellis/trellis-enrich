@@ -1272,19 +1272,31 @@ async function processFintracFiles(files) {
   document.getElementById('fintrac-results').style.display = 'none';
   fintracResults = [];
 
-  const BATCH = 3; // Process 3 at a time
+  const BATCH = 3;
   let processed = 0;
+
+  // Convert file to base64
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
 
   for (let i = 0; i < files.length; i += BATCH) {
     const batch = files.slice(i, i + BATCH);
-    const fd = new FormData();
-    batch.forEach(f => fd.append('pdfs', f));
-
     try {
+      const pdfs = await Promise.all(batch.map(async f => ({
+        filename: f.name,
+        base64: await toBase64(f)
+      })));
+
       const res = await fetch('/api/extract-fintrac', {
         method: 'POST',
-        headers: { 'x-session-token': getToken() },
-        body: fd
+        headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+        body: JSON.stringify({ pdfs })
       });
       const data = await res.json();
       if (data.results) fintracResults.push(...data.results);
