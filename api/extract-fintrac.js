@@ -1,111 +1,1510 @@
-const { verifySession } = require('./auth');
-const formidable = require('formidable');
-const fs = require('fs');
-const fetch = require('node-fetch');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Trellis Enrich</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--ink:#1a1a18;--ink-soft:#4a4a44;--ink-muted:#8a8a80;--cream:#f8f5ef;--cream-deep:#efe9dc;--gold:#b8924a;--gold-light:#d4ae72;--gold-pale:#f5eddb;--green:#2d4a35;--green-light:#e8f0e9;--border:rgba(26,26,24,0.1);--red:#c0392b;--red-light:#fdf0ef;--blue:#1a4a8a;--blue-light:#eef3fb;--amber:#b8924a;--amber-light:#fdf6e8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;font-weight:300;min-height:100vh}
+#auth-screen{display:flex;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:24px}
+#auth-screen.hidden{display:none}
+#app-shell{display:none;min-height:100vh}
+#app-shell.visible{display:flex}
+#impersonate-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--gold);color:white;padding:8px 24px;font-size:12px;font-weight:500;align-items:center;justify-content:center;gap:16px}
+#impersonate-banner.active{display:flex}
+.sidebar{width:220px;background:var(--ink);flex-shrink:0;display:flex;flex-direction:column;padding:28px 0;position:fixed;height:100vh;overflow-y:auto}
+.main{margin-left:220px;flex:1;padding:40px 48px;max-width:1000px}
+.logo{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:300;letter-spacing:.12em;color:white;text-transform:uppercase;padding:0 24px 20px;border-bottom:.5px solid rgba(255,255,255,.1)}
+.logo span{color:var(--gold)}
+.user-section{padding:16px 24px;border-bottom:.5px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:white;flex-shrink:0}
+.user-name{font-size:12px;color:rgba(255,255,255,.8);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-signout{background:none;border:none;color:rgba(255,255,255,.3);font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0}
+.btn-signout:hover{color:rgba(255,255,255,.7)}
+.nav{padding:16px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 24px;font-size:13px;color:rgba(255,255,255,.5);cursor:pointer;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05)}
+.nav-item.active{color:white;border-left-color:var(--gold);background:rgba(255,255,255,.07)}
+.nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0}
+.nav-item.active .nav-dot{opacity:1;background:var(--gold)}
+.fub-section{padding:16px 24px;border-top:.5px solid rgba(255,255,255,.1)}
+.fub-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:6px}
+.fub-input{width:100%;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:4px;padding:8px 10px;font-size:12px;color:white;font-family:'DM Sans',sans-serif}
+.fub-input::placeholder{color:rgba(255,255,255,.3)}
+.fub-status{font-size:11px;margin-top:5px;color:rgba(255,255,255,.3)}
+.fub-status.on{color:#7bc67e}
+.panel{display:none}.panel.active{display:block}
+.page-title{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;color:var(--ink);margin-bottom:4px}
+.page-sub{font-size:13px;color:var(--ink-muted);margin-bottom:28px}
+.card{background:white;border:.5px solid var(--border);border-radius:6px;padding:24px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:14px}
+.input-row{display:flex;gap:10px;margin-bottom:12px}
+.input-row input{flex:1;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.input-row input:focus{outline:none;border-color:var(--gold)}
+textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif;resize:vertical;margin-bottom:12px}
+.btn{padding:10px 20px;border-radius:4px;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s;border:none;font-family:'DM Sans',sans-serif}
+.btn-primary{background:var(--ink);color:white}.btn-primary:hover{opacity:.8}.btn-primary:disabled{opacity:.35;cursor:not-allowed}
+.btn-gold{background:var(--gold);color:white}.btn-gold:hover{opacity:.85}
+.btn-outline{background:transparent;border:.5px solid var(--border);color:var(--ink)}.btn-outline:hover{background:var(--cream)}
+.btn-green{background:var(--green);color:white}.btn-green:hover{opacity:.85}
+.btn-sm{padding:6px 14px;font-size:12px}
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border-radius:20px;cursor:pointer;border:.5px solid transparent;transition:all .15s}
+.tag.pending{background:var(--blue-light);color:var(--blue);border-color:rgba(26,74,138,.2)}
+.tag.approved{background:var(--green-light);color:var(--green);border-color:rgba(45,74,53,.2)}
+.tag.rejected{background:#f5f5f5;color:#aaa;text-decoration:line-through;opacity:.5}
+.conf-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.conf-high{background:var(--green)}.conf-med{background:var(--amber)}.conf-low{background:var(--red)}
+.result-header{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-weight:500;font-size:16px;color:var(--gold);flex-shrink:0}
+.result-name{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:400}
+.result-sub{font-size:12px;color:var(--ink-muted);margin-top:2px}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.field{background:var(--cream);border-radius:4px;padding:10px 12px}
+.field-key{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:3px}
+.field-val{font-size:13px;color:var(--ink)}.field-val.empty{color:var(--ink-muted);font-style:italic;font-size:12px}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.edit-field label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);display:block;margin-bottom:4px}
+.edit-field input,.edit-field select,.edit-field textarea{width:100%;padding:8px 10px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.edit-field input:focus,.edit-field select:focus,.edit-field textarea:focus{outline:none;border-color:var(--gold)}
+.edit-field textarea{min-height:60px;resize:vertical}
+.edit-field.full{grid-column:1/-1}
+.tag-adder{display:flex;gap:8px;align-items:center;margin-top:8px}
+.tag-adder select{flex:1;padding:7px 10px;font-size:12px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);color:var(--ink);font-family:'DM Sans',sans-serif}
+.section-label{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:8px;margin-top:16px}
+.divider{border:none;border-top:.5px solid var(--border);margin:16px 0}
+.action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.push-msg{font-size:12px;margin-left:auto}.push-msg.ok{color:var(--green)}.push-msg.err{color:var(--red)}
+.warning-box{background:var(--amber-light);border:.5px solid rgba(184,146,74,.3);border-radius:4px;padding:10px 14px;font-size:12px;color:var(--amber);margin-bottom:14px}
+.tab-row{display:flex;gap:0;border:.5px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:20px;width:fit-content}
+.tab{padding:9px 20px;font-size:13px;cursor:pointer;background:white;color:var(--ink-muted);border:none;font-family:'DM Sans',sans-serif;transition:all .12s}
+.tab.active{background:var(--ink);color:white}
+.tab:not(:last-child){border-right:.5px solid var(--border)}
+.drop-zone{border:1px dashed var(--border);border-radius:6px;padding:28px;text-align:center;cursor:pointer;transition:background .15s;margin-bottom:16px}
+.drop-zone:hover{background:white}
+.drop-zone p{font-size:14px;color:var(--ink-muted);margin-top:8px}
+.drop-zone small{font-size:12px;color:var(--ink-muted);opacity:.7}
+.col-map{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.col-map label{font-size:12px;color:var(--ink-soft);display:block;margin-bottom:4px}
+.col-map select{width:100%;padding:8px 10px;font-size:13px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);font-family:'DM Sans',sans-serif}
+.queue-header{display:grid;grid-template-columns:2fr 1.5fr 1fr 90px;gap:8px;padding:8px 16px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);border-bottom:.5px solid var(--border)}
+.queue-row{display:grid;grid-template-columns:2fr 1.5fr 1fr 90px;gap:8px;padding:14px 16px;border-bottom:.5px solid var(--border);align-items:center;cursor:pointer;transition:background .12s}
+.queue-row:hover{background:var(--cream)}.queue-row:last-child{border-bottom:none}
+.pill{font-size:11px;padding:3px 10px;border-radius:20px;display:inline-block}
+.pill-pending{background:#f0f0ee;color:var(--ink-muted)}
+.pill-running{background:var(--blue-light);color:var(--blue)}
+.pill-done{background:var(--green-light);color:var(--green)}
+.pill-review{background:var(--amber-light);color:var(--amber)}
+.pill-error{background:var(--red-light);color:var(--red)}
+.pill-pushed{background:var(--green-light);color:var(--green)}
+.expand-panel{display:none;background:var(--cream);padding:16px;border-bottom:.5px solid var(--border)}
+.expand-panel.open{display:block}
+.record-btn{display:flex;align-items:center;gap:10px;padding:14px 20px;background:var(--ink);color:white;border:none;border-radius:6px;font-size:14px;font-weight:400;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;width:100%;justify-content:center}
+.record-btn.recording{background:var(--red);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+.record-dot{width:10px;height:10px;border-radius:50%;background:white;flex-shrink:0}
+.transcript-box{background:var(--cream);border:.5px solid var(--border);border-radius:4px;padding:14px;font-size:13px;color:var(--ink-soft);line-height:1.7;min-height:80px;margin:12px 0;font-style:italic}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+.stat{background:white;border:.5px solid var(--border);border-radius:6px;padding:18px 20px}
+.stat-n{font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:300;color:var(--ink);line-height:1}
+.stat-l{font-size:12px;color:var(--ink-muted);margin-top:4px}
+.progress-wrap{height:2px;background:var(--border);border-radius:2px;margin-bottom:20px;overflow:hidden}
+.progress-fill{height:100%;background:var(--gold);transition:width .4s ease}
+.empty-state{text-align:center;padding:48px 24px;color:var(--ink-muted);font-size:14px}
+.empty-state .big{font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--ink-muted);margin-bottom:8px;font-weight:300}
+.history-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .12s}
+.history-item:hover{background:var(--cream)}
+.history-avatar{width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--gold);flex-shrink:0}
+.history-name{font-size:13px;font-weight:500;color:var(--ink)}
+.history-meta{font-size:11px;color:var(--ink-muted);margin-top:2px}
+.history-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.history-tag{font-size:10px;background:var(--green-light);color:var(--green);padding:2px 7px;border-radius:10px}
+</style>
+</head>
+<body>
 
-module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-session-token');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+<div id="impersonate-banner">
+  <span id="impersonate-msg"></span>
+  <button onclick="stopImpersonating()" style="background:rgba(255,255,255,.2);border:none;color:white;padding:4px 12px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">← Back to Admin</button>
+</div>
 
-  const session = await verifySession(req, res);
-  if (!session) return;
+<!-- Auth screen -->
+<div id="auth-screen">
+  <div style="font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:300;letter-spacing:.15em;text-transform:uppercase">Trellis<span style="color:var(--gold)">.</span></div>
+  <div style="font-size:13px;color:var(--ink-muted)">Sign in to access your workspace</div>
+  <div style="width:100%;max-width:380px;background:white;border:.5px solid rgba(26,26,24,0.1);border-radius:8px;padding:32px">
+    <div style="margin-bottom:20px">
+      <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8a8a80;display:block;margin-bottom:6px">Email</label>
+      <input type="email" id="login-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()"
+        style="width:100%;padding:10px 12px;font-size:14px;border:.5px solid rgba(26,26,24,0.15);border-radius:4px;background:#f8f5ef;color:#1a1a18;font-family:'DM Sans',sans-serif;outline:none"/>
+    </div>
+    <div style="margin-bottom:24px">
+      <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8a8a80;display:block;margin-bottom:6px">Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
+        style="width:100%;padding:10px 12px;font-size:14px;border:.5px solid rgba(26,26,24,0.15);border-radius:4px;background:#f8f5ef;color:#1a1a18;font-family:'DM Sans',sans-serif;outline:none"/>
+    </div>
+    <button onclick="doLogin()" id="login-btn" style="width:100%;padding:12px;background:#1a1a18;color:white;border:none;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">Sign in</button>
+    <div id="login-error" style="color:#c0392b;font-size:12px;margin-top:12px;text-align:center;display:none"></div>
+  </div>
+</div>
 
+<!-- App shell -->
+<div id="app-shell">
+  <div class="sidebar">
+    <div class="logo">Trellis<span>.</span></div>
+    <div class="user-section">
+      <div class="user-avatar" id="user-avatar"></div>
+      <div class="user-name" id="user-name"></div>
+      <button class="btn-signout" onclick="signOut()">Sign out</button>
+    </div>
+    <nav class="nav" id="main-nav">
+      <div class="nav-item active" onclick="showPanel('enrich',this)"><span class="nav-dot"></span>Enrich</div>
+      <div class="nav-item" onclick="showPanel('voice',this)"><span class="nav-dot"></span>Voice memos</div>
+      <div class="nav-item" onclick="showPanel('queue',this)"><span class="nav-dot"></span>Queue <span id="queue-badge" style="margin-left:auto;background:rgba(184,146,74,.3);color:var(--gold-light);font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
+      <div class="nav-item" onclick="showPanel('history',this)"><span class="nav-dot"></span>History</div>
+      <div class="nav-item" onclick="showPanel('transactions',this)"><span class="nav-dot"></span>Transactions</div>
+      <div class="nav-item" onclick="showPanel('fintrac',this)"><span class="nav-dot"></span>FINTRAC</div>
+    </nav>
+    <div class="fub-section">
+      <div class="fub-label">Follow Up Boss</div>
+      <input class="fub-input" type="password" id="fub-key" placeholder="Paste API key..." oninput="checkFUB()"/>
+      <div class="fub-status" id="fub-status">Not connected</div>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- Enrich -->
+    <div class="panel active" id="panel-enrich">
+      <div class="page-title">Enrich contacts</div>
+      <div class="page-sub">Search, enrich, tag — then push directly to Follow Up Boss.</div>
+      <div class="tab-row">
+        <div class="tab active" id="etab-single" onclick="switchEnrichTab('single')">Single</div>
+        <div class="tab" id="etab-batch" onclick="switchEnrichTab('batch')">Batch</div>
+        <div class="tab" id="etab-excel" onclick="switchEnrichTab('excel')">From Excel / FUB export</div>
+      </div>
+      <div id="epanel-single">
+        <div class="card">
+          <div class="input-row">
+            <input type="text" id="s-name" placeholder="Contact name (e.g. Sarah Chen)"/>
+            <input type="text" id="s-city" placeholder="City / area (optional)" style="max-width:200px"/>
+            <button class="btn btn-primary" id="s-btn" onclick="enrichSingle()">Enrich</button>
+          </div>
+        </div>
+        <div id="single-result"></div>
+      </div>
+      <div id="epanel-batch" style="display:none">
+        <div class="card">
+          <div class="card-title">One name per line. Add comma + city for better results.</div>
+          <textarea class="notes" id="batch-names" placeholder="Sarah Chen, Toronto&#10;Michael Thompson&#10;Priya Sharma, Markham"></textarea>
+          <button class="btn btn-primary" onclick="runBatch()">Enrich all</button>
+        </div>
+      </div>
+      <div id="epanel-excel" style="display:none">
+        <div class="card">
+          <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-inp').click()">
+            <input type="file" id="file-inp" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(event)"/>
+            <p>Drop your Excel or CSV file here</p>
+            <small>Works with FUB exports or any spreadsheet with contact names</small>
+          </div>
+          <div id="col-mapper" style="display:none">
+            <div class="col-map">
+              <div><label>First name</label><select id="col-first"></select></div>
+              <div><label>Last name</label><select id="col-last"></select></div>
+              <div><label>City (optional)</label><select id="col-city"></select></div>
+              <div><label>Email (optional)</label><select id="col-email"></select></div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <button class="btn btn-primary" onclick="loadFromExcel()">Load contacts</button>
+              <span style="font-size:12px;color:var(--ink-muted)" id="row-count"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice -->
+    <div class="panel" id="panel-voice">
+      <div class="page-title">Voice memos</div>
+      <div class="page-sub">Record yourself talking about a contact. We'll transcribe it and extract the tags automatically.</div>
+      <div class="card">
+        <div class="card-title">Who is this memo about?</div>
+        <div class="input-row" style="margin-bottom:0"><input type="text" id="v-name" placeholder="Contact name"/></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Record or upload</div>
+        <button class="record-btn" id="record-btn" onclick="toggleRecord()">
+          <span class="record-dot"></span><span id="record-label">Tap to record</span>
+        </button>
+        <div style="text-align:center;margin:12px 0;font-size:12px;color:var(--ink-muted)">or</div>
+        <div class="drop-zone" onclick="document.getElementById('audio-inp').click()" style="padding:16px">
+          <input type="file" id="audio-inp" accept="audio/*" style="display:none" onchange="handleAudio(event)"/>
+          <p style="font-size:13px">Upload audio file</p>
+          <small>mp3, m4a, wav, webm supported</small>
+        </div>
+        <div class="transcript-box" id="transcript-box">Your transcript will appear here...</div>
+        <div id="voice-tags-area" style="display:none">
+          <div class="section-label">Extracted tags — click to approve</div>
+          <div class="tags-wrap" id="voice-tags"></div>
+          <div class="section-label" style="margin-top:12px">Extracted details</div>
+          <div id="voice-details" class="field-grid"></div>
+          <div class="action-row" style="margin-top:16px">
+            <button class="btn btn-green" onclick="saveVoiceMemo()">Save to queue</button>
+            <button class="btn btn-outline" onclick="clearVoice()">Clear</button>
+            <span class="push-msg" id="voice-msg"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Queue -->
+    <div class="panel" id="panel-queue">
+      <div class="page-title">Queue</div>
+      <div class="page-sub">All enriched contacts ready to review and push to Follow Up Boss.</div>
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-n" id="st-total">0</div><div class="stat-l">Total</div></div>
+        <div class="stat"><div class="stat-n" id="st-enriched">0</div><div class="stat-l">Enriched</div></div>
+        <div class="stat"><div class="stat-n" id="st-review">0</div><div class="stat-l">Needs review</div></div>
+        <div class="stat"><div class="stat-n" id="st-pushed">0</div><div class="stat-l">Pushed to FUB</div></div>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" id="q-progress" style="width:0%"></div></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-green btn-sm" id="push-all-btn" onclick="pushAll()" style="display:none">Push all approved to FUB</button>
+        <button class="btn btn-outline btn-sm" onclick="clearQueue()">Clear queue</button>
+        <span style="font-size:12px;color:var(--ink-muted);margin-left:auto" id="q-status"></span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="queue-header"><span>Contact</span><span>Top tags</span><span>Confidence</span><span>Status</span></div>
+        <div id="queue-list"><div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div></div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="panel" id="panel-history">
+      <div class="page-title">History</div>
+      <div class="page-sub">All contacts enriched and pushed — persisted across sessions.</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
+        <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="history-list"><div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div></div>
+      </div>
+    </div>
+
+    <!-- Transactions -->
+    <div class="panel" id="panel-transactions">
+      <div class="page-title">Transactions</div>
+      <div class="page-sub">Connect DocuSign to pull transaction data and extract FINTRAC information automatically.</div>
+      <div class="card" id="ds-not-connected">
+        <div class="card-title">Connect DocuSign</div>
+        <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Connect your DocuSign account to pull all your transaction rooms, extract client details from FINTRAC forms, and auto-populate contact profiles.</p>
+        <button class="btn btn-primary" onclick="connectDocuSign()">Connect DocuSign Account</button>
+      </div>
+      <div class="card" id="ds-connected" style="display:none">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:16px">✓</div>
+          <div><div style="font-size:13px;font-weight:500">DocuSign Connected</div><div style="font-size:11px;color:var(--ink-muted)" id="ds-account-info"></div></div>
+          <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="disconnectDocuSign()">Disconnect</button>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="loadRooms(false)">Load Transactions</button>
+          <button class="btn btn-gold" onclick="loadRooms(true)">Load + Extract FINTRAC</button>
+        </div>
+      </div>
+      <div id="ds-loading" style="display:none" class="card"><div style="font-size:13px;color:var(--ink-muted)">Loading transactions from DocuSign...</div></div>
+      <div id="ds-results" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <span style="font-size:13px;color:var(--ink-muted)" id="ds-count"></span>
+          <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="exportTransactions()">Export to Excel</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 80px;gap:8px;padding:10px 16px;font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-muted);border-bottom:.5px solid var(--border)">
+            <span>Property</span><span>Clients</span><span>Close Date</span><span>Status</span><span>FINTRAC</span>
+          </div>
+          <div id="transactions-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINTRAC -->
+    <div class="panel" id="panel-fintrac">
+      <div class="page-title">FINTRAC Import</div>
+      <div class="page-sub">Upload FINTRAC PDFs to automatically extract birthdays, occupations, and contact details.</div>
+
+      <div class="card">
+        <div class="card-title">Upload FINTRAC forms</div>
+        <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Drop multiple PDFs at once. We'll extract birthday, occupation, address and match to your contacts automatically.</p>
+        <div class="drop-zone" id="fintrac-drop" onclick="document.getElementById('fintrac-inp').click()" style="padding:32px">
+          <input type="file" id="fintrac-inp" accept=".pdf" multiple style="display:none" onchange="handleFintracFiles(event)"/>
+          <div style="font-size:32px;margin-bottom:8px">📄</div>
+          <p>Drop FINTRAC PDFs here or click to browse</p>
+          <small>Accepts multiple files — scanned and digital PDFs supported</small>
+        </div>
+        <div id="fintrac-status" style="display:none;margin-top:12px">
+          <div style="font-size:13px;color:var(--ink-muted)" id="fintrac-progress">Processing...</div>
+          <div class="progress-wrap" style="margin-top:8px"><div class="progress-fill" id="fintrac-progress-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div id="fintrac-results" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <span style="font-size:13px;font-weight:500" id="fintrac-count"></span>
+          <button class="btn btn-green btn-sm" style="margin-left:auto" onclick="applyAllFintracToContacts()">Apply All to Contacts</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden" id="fintrac-list"></div>
+      </div>
+    </div>
+
+    <!-- Admin -->
+    <div class="panel" id="panel-admin">
+      <div class="empty-state"><div class="big">Loading...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const API = '';
+const FUB_TAGS = ["Relationship: A++","Relationship: A+","Relationship: A","Relationship: B","Relationship: C","Relationship: Past Client","Relationship: Referral Source","Relationship: Super Referrer","Relationship: VIP","Relationship: Sphere","Client: Buyer","Client: Seller","Client: Investor","Client: Landlord","Client: Tenant","Life Stage: Young Professional","Life Stage: Young Family","Life Stage: Growing Family","Life Stage: Established Family","Life Stage: Empty Nester","Life Stage: Investor Profile","Timeline: Now","Timeline: 3-6 Months","Timeline: 6-12 Months","Timeline: 12+ Months","Engagement: Active","Engagement: Nurture","Engagement: Cold","Engagement: Do Not Contact","Comms: Text","Comms: Email","Comms: Call","Source: Open House","Source: Referral","Source: Social","Source: Past Client","Source: Cold","Type: Past Client","Type: Referral Source","Type: Super Referrer","Type: VIP","Type: Sphere","Buyer: Inquiry","Buyer: Pre-Approved","Buyer: Active","Buyer: Offer Stage","Buyer: Under Contract","Buyer: Closed","Seller: Thinking","Seller: Preparing","Seller: Interviewing","Seller: Ready","Seller: Listed","Seller: Sold","Opportunity: Upsizer","Opportunity: Downsizer","Opportunity: First-Time Buyer","Opportunity: Relocation","Opportunity: Mortgage Renewal","Opportunity: Likely Seller","Opportunity: Likely Buyer","Owner: Primary Residence","Owner: Investment Property","Owner: Rental Property","Owner: Multiple Properties","Property: Detached","Property: Semi-Detached","Property: Condo","Property: Townhouse","Property: Freehold","Property: Bungalow","Property: 3 Storey","Family: No Kids","Family: Kids Under 5","Family: Kids 5-10","Family: Kids Teens","Family: Expecting","Family: Empty Nester","Owned Since: Pre-2010","Owned Since: 2010-2015","Owned Since: 2016-2020","Owned Since: 2021-2023","Owned Since: 2024+","Signal: High Equity","Signal: Would Sell If Right Price","Signal: Would Sell Exclusive","Signal: Street Turnover","Lifestyle: Golfer","Lifestyle: Cottage Owner","Lifestyle: Foodie","Lifestyle: Loves Travel","Lifestyle: Fitness Focused","Lifestyle: Design Oriented","Profession: Finance","Profession: Healthcare","Profession: Legal","Profession: Tech","Profession: Education","Profession: Trades","Profession: Business Owner","Profession: Real Estate Agent","Profession: Mortgage Broker","Age: 20s","Age: 30s","Age: 40s","Age: 50s","Age: 60+"];
+
+let queue = [], tagStates = {}, pushedCount = 0;
+let excelRows = [], excelHeaders = [];
+let mediaRecorder, audioChunks = [], isRecording = false;
+let currentVoiceTags = [], voiceTagStates = {};
+let currentUserId = null, currentSession = null, impersonating = null;
+let historyContacts = [];
+let dsAccessToken = null, dsAccountId = null, dsBaseUri = null, dsTransactions = [];
+
+// ── Auth ──────────────────────────────────────────────────────────────
+function getToken() { return localStorage.getItem('trellis_token'); }
+function authHeaders() { return { 'Content-Type': 'application/json', 'x-session-token': getToken() }; }
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  errEl.style.display = 'none';
+  btn.textContent = 'Signing in...'; btn.disabled = true;
   try {
-    const form = formidable({ maxFileSize: 20 * 1024 * 1024, maxFiles: 50 });
-    const [, files] = await form.parse(req);
-
-    const pdfFiles = files.pdfs || [];
-    const fileList = Array.isArray(pdfFiles) ? pdfFiles : [pdfFiles];
-
-    if (!fileList.length) return res.status(400).json({ error: 'No PDFs provided' });
-
-    const results = [];
-
-    for (const file of fileList) {
-      try {
-        const pdfBuffer = fs.readFileSync(file.filepath || file.path);
-        const base64 = pdfBuffer.toString('base64');
-        const filename = file.originalFilename || file.name || 'document.pdf';
-
-        // Use OpenAI GPT-4o vision to extract FINTRAC data
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o',
-            max_tokens: 1000,
-            messages: [{
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: `This is a FINTRAC (Financial Transactions and Reports Analysis Centre of Canada) identity verification form from a Canadian real estate transaction.
-
-Extract ALL of the following and return ONLY valid JSON with no markdown:
-{
-  "full_name": "full legal name as written on form",
-  "date_of_birth": "YYYY-MM-DD format or null",
-  "occupation": "job title or occupation as written",
-  "employer": "employer or company name or null",
-  "address": "full street address or null",
-  "city": "city or null",
-  "province": "province or null",
-  "phone": "phone number or null",
-  "email": "email address or null",
-  "id_type": "e.g. Passport, Driver License, etc or null",
-  "id_number": "ID number or null",
-  "id_expiry": "expiry date or null",
-  "id_issuing_jurisdiction": "province or country that issued ID or null",
-  "is_buyer": true or false,
-  "is_seller": true or false,
-  "property_address": "property address from the transaction if visible or null",
-  "transaction_date": "YYYY-MM-DD or null"
+    const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    localStorage.setItem('trellis_token', data.token);
+    currentSession = data.agent;
+    showApp(data.agent);
+  } catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+  btn.textContent = 'Sign in'; btn.disabled = false;
 }
 
-If this is not a FINTRAC form, return: {"not_fintrac": true}
-If there are multiple people on the form, return the PRIMARY person (first listed).`
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:application/pdf;base64,${base64}`,
-                    detail: 'high'
-                  }
-                }
-              ]
-            }]
-          })
-        });
+async function checkExistingSession() {
+  const token = getToken();
+  if (!token) return false;
+  // Check for pending DocuSign key
+  const urlParams = new URLSearchParams(window.location.search);
+  const dsKey = urlParams.get('ds_key');
+  if (dsKey) { sessionStorage.setItem('pending_ds_key', dsKey); window.history.replaceState(null, '', window.location.pathname); }
+  try {
+    const res = await fetch('/api/get-contacts', { headers: authHeaders() });
+    if (res.status === 401) { localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session'); return false; }
+    const saved = localStorage.getItem('trellis_session');
+    if (saved) { currentSession = JSON.parse(saved); showApp(currentSession); return true; }
+    return false;
+  } catch(e) { return false; }
+}
 
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
+async function showApp(agent) {
+  document.getElementById('auth-screen').classList.add('hidden');
+  currentUserId = agent.agentId;
+  localStorage.setItem('trellis_session', JSON.stringify(agent));
+  document.getElementById('app-shell').classList.add('visible');
+  document.getElementById('user-name').textContent = agent.name;
+  document.getElementById('user-avatar').textContent = agent.name[0].toUpperCase();
 
-        const text = data.choices?.[0]?.message?.content || '';
-        const clean = text.replace(/```json\n?|```/g, '').trim();
-        const extracted = JSON.parse(clean);
+  // Remove stale admin nav
+  const stale = document.getElementById('nav-admin');
+  if (stale) stale.remove();
 
-        if (!extracted.not_fintrac) {
-          results.push({ filename, ...extracted });
-        }
-
-        // Clean up temp file
-        try { fs.unlinkSync(file.filepath || file.path); } catch(_) {}
-
-      } catch(fileErr) {
-        console.error('Error processing', file.originalFilename, fileErr.message);
-        results.push({ filename: file.originalFilename || 'unknown', error: fileErr.message });
-      }
-    }
-
-    return res.status(200).json({ success: true, count: results.length, results });
-  } catch(e) {
-    console.error('Extract FINTRAC error:', e);
-    return res.status(500).json({ error: e.message });
+  if (agent.role === 'admin') {
+    const nav = document.getElementById('main-nav');
+    const adminItem = document.createElement('div');
+    adminItem.className = 'nav-item'; adminItem.id = 'nav-admin';
+    adminItem.innerHTML = '<span class="nav-dot"></span>Admin';
+    adminItem.onclick = function() { showPanel('admin', adminItem); loadAdminPanel(); };
+    nav.appendChild(adminItem);
   }
-};
+
+  // Load FUB key from server
+  fetch('/api/create-agent?fubKey=true', { headers: authHeaders() })
+    .then(r => r.json())
+    .then(d => { if (d.fubApiKey) { document.getElementById('fub-key').value = d.fubApiKey; checkFUB(); } })
+    .catch(() => {});
+
+  // Handle pending DocuSign key
+  const pendingKey = sessionStorage.getItem('pending_ds_key');
+  if (pendingKey) {
+    sessionStorage.removeItem('pending_ds_key');
+    try {
+      const r = await fetch('/api/docusign-token?key=' + pendingKey, { headers: authHeaders() });
+      const d = await r.json();
+      if (d.accessToken) {
+        dsAccessToken = d.accessToken; dsAccountId = d.accountId; dsBaseUri = d.baseUri;
+        localStorage.setItem('ds_token_' + currentUserId, JSON.stringify({ dsAccessToken, dsAccountId, dsBaseUri }));
+        showDocuSignConnected();
+      }
+    } catch(e) {}
+  } else {
+    const saved = localStorage.getItem('ds_token_' + currentUserId);
+    if (saved) { try { const d = JSON.parse(saved); dsAccessToken = d.dsAccessToken; dsAccountId = d.dsAccountId; dsBaseUri = d.dsBaseUri; showDocuSignConnected(); } catch(e) {} }
+  }
+
+  loadHistory();
+}
+
+async function signOut() {
+  localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session');
+  document.getElementById('app-shell').classList.remove('visible');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  document.getElementById('login-password').value = '';
+  currentUserId = null; currentSession = null; impersonating = null;
+}
+
+// ── Admin ─────────────────────────────────────────────────────────────
+async function loadAdminPanel() {
+  const panel = document.getElementById('panel-admin'); if (!panel) return;
+  panel.innerHTML = '<div style="color:var(--ink-muted);font-size:13px">Loading...</div>';
+  try {
+    const res = await fetch('/api/create-agent', { headers: authHeaders() });
+    const data = await res.json();
+    const agents = data.agents || [];
+    const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+    panel.innerHTML = `
+      <div class="page-title">Admin</div>
+      <div class="page-sub">Manage agent accounts.</div>
+      <div class="card">
+        <div class="card-title">Create new agent</div>
+        <div class="edit-grid">
+          <div class="edit-field"><label>Full name</label><input id="new-agent-name" placeholder="Claire Speedie"/></div>
+          <div class="edit-field"><label>Email</label><input id="new-agent-email" type="email" placeholder="claire@example.com"/></div>
+          <div class="edit-field"><label>Password</label><input id="new-agent-pass" type="password" placeholder="Temporary password"/></div>
+          <div class="edit-field"><label>Role</label>
+            <select id="new-agent-role"><option value="agent">Agent</option><option value="admin">Admin</option></select>
+          </div>
+          <div class="edit-field full"><label>Follow Up Boss API Key</label><input id="new-agent-fub" type="password" placeholder="Paste their FUB API key..."/></div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="createAgent()">Create agent</button>
+          <span id="create-agent-msg" class="push-msg"></span>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">Active agents (${agents.length})</div>
+        ${agents.map(a => `
+          <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:.5px solid var(--border);flex-wrap:wrap">
+            <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--gold);flex-shrink:0">${a.name[0].toUpperCase()}</div>
+            <div style="flex:1;min-width:120px">
+              <div style="font-size:13px;font-weight:500">${a.name}</div>
+              <div style="font-size:11px;color:var(--ink-muted)">${a.email} · ${a.role}</div>
+            </div>
+            <span class="pill ${a.role === 'admin' ? 'pill-review' : 'pill-done'}">${a.role}</span>
+            <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
+            ${a.agentId !== 'admin_trellis' ? `
+              <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
+              <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
+            ` : ''}
+          </div>
+        `).join('')}
+      </div>`;
+  } catch(e) { panel.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
+}
+
+async function createAgent() {
+  const name = document.getElementById('new-agent-name').value.trim();
+  const email = document.getElementById('new-agent-email').value.trim();
+  const password = document.getElementById('new-agent-pass').value;
+  const role = document.getElementById('new-agent-role').value;
+  const fubApiKey = document.getElementById('new-agent-fub').value.trim();
+  const msg = document.getElementById('create-agent-msg');
+  if (!name || !email || !password) { msg.textContent = 'All fields required'; msg.className = 'push-msg err'; return; }
+  try {
+    const res = await fetch('/api/create-agent', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, email, password, role, fubApiKey }) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    msg.textContent = `${name} created successfully`; msg.className = 'push-msg ok';
+    setTimeout(() => loadAdminPanel(), 1000);
+  } catch(e) { msg.textContent = e.message; msg.className = 'push-msg err'; }
+}
+
+async function deleteAgent(agentId, name) {
+  if (!confirm(`Remove ${name}? This cannot be undone.`)) return;
+  try {
+    const res = await fetch('/api/create-agent', { method: 'DELETE', headers: authHeaders(), body: JSON.stringify({ agentId }) });
+    if (!res.ok) throw new Error((await res.json()).error);
+    loadAdminPanel();
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+async function enrichAsAgent(agentId, agentName) {
+  try {
+    const res = await fetch('/api/create-agent?fubKey=true&targetAgentId=' + agentId, { headers: authHeaders() });
+    const data = await res.json();
+    impersonating = { agentId, name: agentName, fubApiKey: data.fubApiKey || '' };
+  } catch(e) { impersonating = { agentId, name: agentName, fubApiKey: '' }; }
+  currentUserId = agentId;
+  document.getElementById('user-name').textContent = agentName + ' (via Admin)';
+  document.getElementById('user-avatar').textContent = agentName[0].toUpperCase();
+  const banner = document.getElementById('impersonate-banner');
+  document.getElementById('impersonate-msg').textContent = 'Enriching as ' + agentName;
+  banner.classList.add('active');
+  document.querySelector('.main').style.marginTop = '36px';
+  if (impersonating.fubApiKey) { document.getElementById('fub-key').value = impersonating.fubApiKey; checkFUB(); }
+  else { document.getElementById('fub-key').value = ''; document.getElementById('fub-status').textContent = 'No FUB key for this agent'; }
+  historyContacts = []; queue = []; tagStates = {}; pushedCount = 0;
+  await loadHistory();
+  showPanel('enrich', document.querySelector('.nav-item'));
+}
+
+function stopImpersonating() {
+  if (!impersonating) return;
+  impersonating = null;
+  currentUserId = currentSession.agentId;
+  document.getElementById('user-name').textContent = currentSession.name;
+  document.getElementById('user-avatar').textContent = currentSession.name[0].toUpperCase();
+  document.getElementById('impersonate-banner').classList.remove('active');
+  document.querySelector('.main').style.marginTop = '';
+  fetch('/api/create-agent?fubKey=true', { headers: authHeaders() })
+    .then(r => r.json()).then(d => { if (d.fubApiKey) { document.getElementById('fub-key').value = d.fubApiKey; checkFUB(); } }).catch(() => {});
+  loadHistory();
+  const adminNav = document.getElementById('nav-admin');
+  showPanel('admin', adminNav);
+  if (adminNav) adminNav.classList.add('active');
+  loadAdminPanel();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────
+function showPanel(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.classList.add('active');
+  if (el) el.classList.add('active');
+  if (id === 'history') loadHistory();
+  if (id === 'queue' && !queue.length) loadPersistentQueue();
+}
+
+function switchEnrichTab(t) {
+  ['single','batch','excel'].forEach(x => {
+    document.getElementById('epanel-' + x).style.display = x === t ? 'block' : 'none';
+    document.getElementById('etab-' + x).classList.toggle('active', x === t);
+  });
+}
+
+// ── FUB ──────────────────────────────────────────────────────────────
+function checkFUB() {
+  const v = document.getElementById('fub-key').value.trim();
+  const s = document.getElementById('fub-status');
+  s.textContent = v.length > 10 ? 'Connected' : 'Not connected';
+  s.className = 'fub-status' + (v.length > 10 ? ' on' : '');
+  if (v.length > 10 && currentUserId) {
+    localStorage.setItem('fub_key_' + currentUserId, v);
+    fetch('/api/create-agent', { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ fubApiKey: v }) }).catch(() => {});
+  }
+}
+function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
+
+// ── History ───────────────────────────────────────────────────────────
+async function loadHistory() {
+  if (!currentUserId) return;
+  try {
+    const url = impersonating ? '/api/get-contacts?agentId=' + impersonating.agentId : '/api/get-contacts';
+    const res = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    historyContacts = data.contacts || [];
+    renderHistory();
+  } catch(e) { console.error(e); }
+}
+
+function renderHistory() {
+  document.getElementById('history-count').textContent = historyContacts.length + ' contacts saved';
+  if (!historyContacts.length) {
+    document.getElementById('history-list').innerHTML = '<div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div>';
+    return;
+  }
+  document.getElementById('history-list').innerHTML = historyContacts.map((c, idx) => {
+    const approvedTags = c.approved_tags || [];
+    const initials = (c.full_name || c.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+    const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
+    return `<div>
+      <div class="history-item" onclick="toggleHistoryExpand(${idx})">
+        <div class="history-avatar">${initials}</div>
+        <div style="flex:1">
+          <div class="history-name">${c.full_name || c.name || 'Unknown'}</div>
+          <div class="history-meta">${[c.job_title, c.location].filter(Boolean).join(' · ')}${date ? ' · ' + date : ''}</div>
+          ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
+        </div>
+        <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
+      </div>
+      <div class="expand-panel" id="hexp-${idx}"></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHistoryExpand(idx) {
+  const panel = document.getElementById('hexp-' + idx); if (!panel) return;
+  if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.innerHTML = ''; return; }
+  const c = historyContacts[idx]; if (!c) return;
+  const hid = 'h' + idx;
+  if (!tagStates[hid]) {
+    tagStates[hid] = {};
+    (c.suggested_tags || []).forEach((t, i) => { tagStates[hid][i] = (c.approved_tags || []).includes(t.tag) ? 'approved' : 'pending'; });
+  }
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+  const tagsHtml = (c.suggested_tags || []).map((t, i) => {
+    const state = tagStates[hid][i] || 'pending';
+    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason||''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+  panel.innerHTML = `
+    <div class="edit-grid" style="margin-bottom:12px">
+      <div class="edit-field"><label>First name</label><input id="hf-first-${hid}" value="${(c.full_name||'').split(' ')[0]}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="hf-last-${hid}" value="${(c.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+      <div class="edit-field"><label>Email</label><input id="hf-email-${hid}" value="${c.email||c.fub_data?.email||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="hf-phone-${hid}" value="${c.phone||c.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>City</label><input id="hf-city-${hid}" value="${c.location||''}"/></div>
+      <div class="edit-field"><label>Birthday</label><input id="hf-birthday-${hid}" placeholder="e.g. 1985-06-15" value="${c.birthday||''}"/></div>
+      <div class="edit-field"><label>Spouse name</label><input id="hf-spouse-${hid}" value="${c.spouse_name||''}"/></div>
+      <div class="edit-field"><label>Stage</label>
+        <select id="hf-stage-${hid}">
+          <option value="">— select —</option>
+          ${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}" ${c.stage===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="edit-field full"><label>Notes</label><textarea id="hf-notes-${hid}">${c.notes||''}</textarea></div>
+    </div>
+    <div class="section-label">Tags — click to approve / reject</div>
+    <div class="tags-wrap" id="htags-${hid}">${tagsHtml}</div>
+    <div class="tag-adder" style="margin-bottom:12px">
+      <select id="htag-select-${hid}"><option value="">— add a tag —</option>${tagOptions}</select>
+      <button class="btn btn-outline btn-sm" onclick="addHistoryManualTag(${idx})">Add</button>
+    </div>
+    <div class="action-row" style="margin-top:14px">
+      <button class="btn btn-green" onclick="pushHistoryContact(${idx})">Push to FUB</button>
+      <span class="push-msg" id="hpmsg-${hid}"></span>
+    </div>`;
+  panel.classList.add('open');
+}
+
+function toggleHistoryTag(idx, i) {
+  const hid = 'h' + idx; if (!tagStates[hid]) return;
+  const s = tagStates[hid][i];
+  tagStates[hid][i] = s === 'pending' ? 'approved' : s === 'approved' ? 'rejected' : 'pending';
+  const c = historyContacts[idx];
+  const wrap = document.getElementById('htags-' + hid); if (!wrap) return;
+  wrap.innerHTML = (c.suggested_tags || []).map((t, i) => {
+    const state = tagStates[hid][i] || 'pending';
+    const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason||''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+}
+
+function addHistoryManualTag(idx) {
+  const hid = 'h' + idx;
+  const sel = document.getElementById('htag-select-' + hid);
+  const tag = sel.value; if (!tag) return;
+  const c = historyContacts[idx]; if (!c) return;
+  if (!c.suggested_tags) c.suggested_tags = [];
+  if (!c.suggested_tags.find(t => t.tag === tag)) {
+    c.suggested_tags.push({ tag, confidence: 'high', reason: 'Manually added' });
+    tagStates[hid][c.suggested_tags.length - 1] = 'approved';
+  }
+  toggleHistoryExpand(idx); toggleHistoryExpand(idx); sel.value = '';
+}
+
+async function pushHistoryContact(idx) {
+  const hid = 'h' + idx;
+  const fubKey = getFUBKey();
+  if (!fubKey) { setHistMsg(hid, 'Add FUB key in sidebar', 'err'); return; }
+  const c = historyContacts[idx]; if (!c) return;
+  const approved = (c.suggested_tags || []).filter((_, i) => tagStates[hid]?.[i] === 'approved').map(t => t.tag);
+  const contact = {
+    ...c,
+    full_name: [document.getElementById('hf-first-'+hid)?.value||'', document.getElementById('hf-last-'+hid)?.value||''].filter(Boolean).join(' ') || c.full_name,
+    email: document.getElementById('hf-email-'+hid)?.value || c.email || '',
+    phone: document.getElementById('hf-phone-'+hid)?.value || c.phone || '',
+    location: document.getElementById('hf-city-'+hid)?.value || c.location || '',
+    birthday: document.getElementById('hf-birthday-'+hid)?.value || c.birthday || '',
+    spouse_name: document.getElementById('hf-spouse-'+hid)?.value || c.spouse_name || '',
+    stage: document.getElementById('hf-stage-'+hid)?.value || c.stage || '',
+    notes: document.getElementById('hf-notes-'+hid)?.value || c.notes || '',
+    approved_tags: approved
+  };
+  setHistMsg(hid, 'Pushing...', '');
+  try {
+    const res = await fetch('/api/push-to-fub', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ fubApiKey: fubKey, contact }) });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    setHistMsg(hid, `Pushed — ${approved.length} tags applied`, 'ok');
+    historyContacts[idx].pushed = true;
+    await saveToHistory({...contact, pushed: true}, true);
+    renderHistory();
+  } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
+}
+
+function setHistMsg(hid, text, type) {
+  const el = document.getElementById('hpmsg-' + hid);
+  if (el) { el.textContent = text; el.className = 'push-msg' + (type ? ' ' + type : ''); }
+}
+
+async function saveToHistory(contact, pushed) {
+  if (!currentUserId) return;
+  try {
+    const body = { contact: { ...contact, pushed: pushed || false } };
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    await fetch('/api/save-contact', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+  } catch(e) { console.error('Save failed:', e); }
+}
+
+// ── Persistent Queue API ───────────────────────────────────────────────
+async function saveQueueItem(item) {
+  try {
+    await fetch('/api/queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ contact: { id: item.id, name: item.name, city: item.city, email: item.email, status: item.status, result: item.result, approved_tags: item.approved_tags, addedAt: item.addedAt || new Date().toISOString() } }) });
+  } catch(e) { console.error('Queue save failed:', e); }
+}
+
+async function updateQueueItemStatus(id, status, result, approved_tags) {
+  try {
+    await fetch('/api/queue', { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ id, status, result, approved_tags }) });
+  } catch(e) { console.error('Queue update failed:', e); }
+}
+
+async function loadPersistentQueue() {
+  if (!currentUserId) return;
+  try {
+    const agentId = impersonating ? impersonating.agentId : currentUserId;
+    const url = impersonating ? '/api/queue?agentId=' + agentId : '/api/queue';
+    const res = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    const items = data.queue || [];
+    // Restore queue from Redis — skip already pushed items
+    queue = items.filter(i => i.status !== 'pushed').map(i => ({ ...i, expanded: false }));
+    items.filter(i => i.status !== 'pushed').forEach(i => {
+      tagStates[i.id] = {};
+      (i.result?.suggested_tags || []).forEach((t, idx) => {
+        const approved = i.approved_tags || [];
+        tagStates[i.id][idx] = approved.includes(t.tag) ? 'approved' : 'pending';
+      });
+    });
+    pushedCount = items.filter(i => i.status === 'pushed').length;
+    updateStats(); renderQueue(); updateBadge();
+    // Resume any pending enrichments
+    if (queue.some(i => i.status === 'pending')) processNext();
+  } catch(e) { console.error('Load queue failed:', e); }
+}
+
+async function clearPersistentQueue() {
+  try {
+    const agentId = impersonating ? impersonating.agentId : currentUserId;
+    const url = impersonating ? '/api/queue?agentId=' + agentId : '/api/queue';
+    await fetch(url, { method: 'DELETE', headers: authHeaders(), body: JSON.stringify({ clearAll: true }) });
+  } catch(e) { console.error('Clear queue failed:', e); }
+}
+
+// ── Single enrichment ─────────────────────────────────────────────────
+async function enrichSingle() {
+  const name = document.getElementById('s-name').value.trim(); if (!name) return;
+  const city = document.getElementById('s-city').value.trim();
+  const btn = document.getElementById('s-btn');
+  btn.disabled = true; btn.textContent = 'Searching...';
+  document.getElementById('single-result').innerHTML = '<div class="card" style="color:var(--ink-muted);font-size:13px">Searching FUB and enriching...</div>';
+  try {
+    const res = await fetch('/api/enrich', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, city, fubApiKey: getFUBKey() }) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    const id = 'single_' + Date.now();
+    tagStates[id] = {};
+    (data.suggested_tags || []).forEach((_, i) => tagStates[id][i] = 'pending');
+    renderSingleResult(data, id);
+    addToQueue(data, id, 'done');
+    await saveToHistory(data, false);
+  } catch(e) {
+    document.getElementById('single-result').innerHTML = `<div class="card" style="color:var(--red);font-size:13px">Error: ${e.message}</div>`;
+  }
+  btn.disabled = false; btn.textContent = 'Enrich';
+}
+
+function renderSingleResult(d, id) {
+  const conf = d.confidence_overall;
+  const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':'var(--red)';
+  const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB — editing will update existing contact</div>` : '';
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+  document.getElementById('single-result').innerHTML = `<div class="card">
+    ${d.warning?`<div class="warning-box">${d.warning}</div>`:''}${fubInfo}
+    <div class="result-header">
+      <div class="avatar">${d.initials||'?'}</div>
+      <div><div class="result-name">${d.full_name}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' · ')||'No title found'}</div></div>
+      <div style="margin-left:auto;font-size:12px;font-weight:500;color:${confColor}">${conf} confidence</div>
+    </div>
+    <div class="section-label">Contact details — edit before pushing</div>
+    <div class="edit-grid">
+      <div class="edit-field"><label>First name</label><input id="ef-first-${id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="ef-last-${id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+      <div class="edit-field"><label>Email</label><input id="ef-email-${id}" value="${d.fub_data?.email||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="ef-phone-${id}" value="${d.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>City</label><input id="ef-city-${id}" value="${d.location||''}"/></div>
+      <div class="edit-field"><label>Birthday</label><input id="ef-birthday-${id}" placeholder="e.g. 1985-06-15" value=""/></div>
+      <div class="edit-field"><label>Spouse name</label><input id="ef-spouse-${id}" value=""/></div>
+      <div class="edit-field"><label>Stage</label>
+        <select id="ef-stage-${id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+      </div>
+      <div class="edit-field full"><label>Notes</label><textarea id="ef-notes-${id}">${d.notes||''}</textarea></div>
+    </div>
+    <hr class="divider"/>
+    <div class="section-label">Suggested tags — click to approve / reject</div>
+    <div class="tags-wrap" id="tags-${id}"></div>
+    <div class="section-label">Add a tag manually</div>
+    <div class="tag-adder">
+      <select id="tag-select-${id}"><option value="">— choose a tag —</option>${tagOptions}</select>
+      <button class="btn btn-outline btn-sm" onclick="addManualTag('${id}')">Add</button>
+    </div>
+    <div class="action-row" style="margin-top:16px">
+      <button class="btn btn-green" onclick="pushSingleContact('${id}')">Push to FUB</button>
+      <button class="btn btn-outline" onclick="document.getElementById('single-result').innerHTML=''">Clear</button>
+      <span class="push-msg" id="pmsg-${id}"></span>
+    </div>
+  </div>`;
+  renderTagsFor(id, d.suggested_tags || []);
+}
+
+function addManualTag(id) {
+  const sel = document.getElementById('tag-select-' + id); const tag = sel.value; if (!tag) return;
+  const item = queue.find(q => q.id === id);
+  if (item && item.result) {
+    const existing = item.result.suggested_tags || [];
+    if (!existing.find(t => t.tag === tag)) { existing.push({ tag, confidence: 'high', reason: 'Manually added' }); tagStates[id][existing.length-1] = 'approved'; item.result.suggested_tags = existing; }
+    renderTagsFor(id, item.result.suggested_tags);
+  }
+  sel.value = '';
+}
+
+function renderTagsFor(id, tags) {
+  const wrap = document.getElementById('tags-' + id); if (!wrap) return;
+  wrap.innerHTML = tags.map((t, i) => {
+    const state = tagStates[id]?.[i] || 'pending';
+    const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
+    return `<span class="tag ${state}" onclick="toggleTag('${id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+}
+
+function toggleTag(id, i) {
+  if (!tagStates[id]) return;
+  const s = tagStates[id][i]; tagStates[id][i] = s==='pending'?'approved':s==='approved'?'rejected':'pending';
+  const item = queue.find(q => q.id === id);
+  if (item) renderTagsFor(id, item.result.suggested_tags || []);
+}
+
+async function pushSingleContact(id) {
+  const fubKey = getFUBKey(); if (!fubKey) { setMsg(id, 'Add FUB API key in sidebar', 'err'); return; }
+  const item = queue.find(q => q.id === id); const data = item?.result; if (!data) return;
+  const approved = (data.suggested_tags||[]).filter((_,i) => tagStates[id]?.[i]==='approved').map(t => t.tag);
+  const editedContact = {
+    ...data,
+    full_name: [document.getElementById('ef-first-'+id)?.value||'', document.getElementById('ef-last-'+id)?.value||''].filter(Boolean).join(' ') || data.full_name,
+    email: document.getElementById('ef-email-'+id)?.value || data.fub_data?.email || '',
+    phone: document.getElementById('ef-phone-'+id)?.value || data.fub_data?.phone || '',
+    location: document.getElementById('ef-city-'+id)?.value || data.location || '',
+    birthday: document.getElementById('ef-birthday-'+id)?.value || '',
+    spouse_name: document.getElementById('ef-spouse-'+id)?.value || '',
+    stage: document.getElementById('ef-stage-'+id)?.value || '',
+    notes: document.getElementById('ef-notes-'+id)?.value || data.notes || '',
+    approved_tags: approved
+  };
+  setMsg(id, 'Pushing...', '');
+  try {
+    const res = await fetch('/api/push-to-fub', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ fubApiKey: fubKey, contact: editedContact }) });
+    const result = await res.json();
+    if (result.error) throw new Error(result.error);
+    setMsg(id, `Pushed — ${approved.length} tags applied`, 'ok');
+    pushedCount++; updateQueueItem(id, 'pushed'); updateStats();
+    await saveToHistory({...editedContact, pushed: true}, true); loadHistory();
+  } catch(e) { setMsg(id, 'Failed: ' + e.message, 'err'); }
+}
+
+function setMsg(id, text, type) { const el = document.getElementById('pmsg-'+id); if(el){el.textContent=text;el.className='push-msg'+(type?' '+type:'');} }
+
+// ── Batch & Excel ─────────────────────────────────────────────────────
+async function runBatch() {
+  const raw = document.getElementById('batch-names').value.trim(); if(!raw) return;
+  const contacts = raw.split('\n').map(l=>{const p=l.split(',');return{name:p[0].trim(),city:(p[1]||'').trim()};}).filter(c=>c.name);
+  startBatchQueue(contacts);
+  showPanel('queue'); document.querySelectorAll('.nav-item')[2].classList.add('active'); document.querySelectorAll('.nav-item')[0].classList.remove('active');
+}
+
+function handleFile(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, {type:'binary'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, {header:1,defval:''});
+      if(data.length < 2) return;
+      excelHeaders = data[0].map(String); excelRows = data.slice(1).filter(r=>r.some(c=>String(c).trim()));
+      populateCols(); document.getElementById('col-mapper').style.display = 'block';
+      document.getElementById('row-count').textContent = excelRows.length + ' contacts found';
+    } catch(err) { alert('Could not read file.'); }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function populateCols() {
+  const ids = ['col-first','col-last','col-city','col-email'];
+  const hints = [['first','fname'],['last','lname','surname'],['city','area','location'],['email','mail']];
+  ids.forEach((id, i) => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">— none —</option>' + excelHeaders.map((h,j) => `<option value="${j}">${h}</option>`).join('');
+    const match = excelHeaders.findIndex(h => hints[i].some(hint => h.toLowerCase().includes(hint)));
+    if(match >= 0) sel.value = match;
+  });
+}
+
+function loadFromExcel() {
+  const ci = id => { const v = document.getElementById(id).value; return v !== '' ? parseInt(v) : null; };
+  const fc=ci('col-first'), lc=ci('col-last'), cc=ci('col-city'), ec=ci('col-email');
+  if(fc===null && lc===null) { alert('Select at least a first or last name column.'); return; }
+  const rawContacts = excelRows.map(r => ({
+    firstName: fc!==null ? String(r[fc]||'').trim() : '',
+    lastName: lc!==null ? String(r[lc]||'').trim() : '',
+    city: cc!==null ? String(r[cc]||'').trim() : '',
+    email: ec!==null ? String(r[ec]||'').trim() : ''
+  })).filter(c => c.firstName || c.lastName);
+
+  const contacts = [];
+  rawContacts.forEach(c => {
+    const firstName = c.firstName, lastName = c.lastName;
+    const fullName = [firstName, lastName].filter(Boolean).join(' ');
+    const lastNameCouple = lastName.match(/^(?:&|and)\s+(.+)/i);
+    if (lastNameCouple) {
+      const p2 = lastNameCouple[1].trim();
+      const p2parts = p2.split(' ');
+      const sharedLast = p2parts.length > 1 ? p2parts[p2parts.length-1] : p2parts[0];
+      contacts.push({ name: firstName + ' ' + sharedLast, city: c.city, email: c.email });
+      contacts.push({ name: p2, city: c.city, email: '' });
+      return;
+    }
+    const fullCouple = fullName.match(/^(.+?)\s*(?:&|\band\b|\/)\s*(.+)$/i);
+    if (fullCouple) {
+      const part1 = fullCouple[1].trim(), part2 = fullCouple[2].trim();
+      const sharedLast = lastName.split(' ').pop() || part1.split(' ').pop();
+      contacts.push({ name: part1.split(' ').length > 1 ? part1 : part1+' '+sharedLast, city: c.city, email: c.email });
+      contacts.push({ name: part2.split(' ').length > 1 ? part2 : part2+' '+sharedLast, city: c.city, email: '' });
+      return;
+    }
+    contacts.push({ name: fullName, city: c.city, email: c.email });
+  });
+
+  if(!contacts.length) { alert('No contacts found.'); return; }
+  const splitCount = contacts.length - rawContacts.length;
+  document.getElementById('row-count').textContent = rawContacts.length + ' rows → ' + contacts.length + ' contacts' + (splitCount > 0 ? ' (' + splitCount + ' couples split)' : '');
+  startBatchQueue(contacts);
+}
+
+// ── Queue ─────────────────────────────────────────────────────────────
+async function startBatchQueue(contacts) {
+  for (const c of contacts) {
+    const id = 'q' + Date.now() + Math.random().toString(36).slice(2);
+    const item = {id, name:c.name, city:c.city||'', email:c.email||'', status:'pending', result:null, expanded:false, addedAt: new Date().toISOString()};
+    queue.push(item);
+    tagStates[id] = {};
+    await saveQueueItem(item);
+  }
+  updateStats(); renderQueue(); updateBadge(); processNext();
+}
+
+function addToQueue(result, id, status) {
+  const existing = queue.find(q => q.id === id);
+  if(!existing) queue.push({id, name:result.full_name, city:'', email:'', status, result, expanded:false});
+  else { existing.result = result; existing.status = status; }
+  updateStats(); renderQueue(); updateBadge();
+}
+
+function updateQueueItem(id, status) { const item = queue.find(q => q.id === id); if(item){item.status=status;renderQueue();updateStats();} }
+
+let processing = false;
+async function processNext() {
+  if(processing) return;
+  const next = queue.find(q => q.status === 'pending'); if(!next) {
+    if(queue.some(q => q.status==='done'||q.status==='review')) document.getElementById('push-all-btn').style.display = 'inline-block';
+    return;
+  }
+  processing = true; next.status = 'running'; renderQueue();
+  try {
+    const res = await fetch('/api/enrich', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:next.name, city:next.city, fubApiKey:getFUBKey()})});
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    next.result = data;
+    (data.suggested_tags||[]).forEach((_,i) => tagStates[next.id][i] = 'pending');
+    next.status = (data.confidence_overall==='low' || !(data.suggested_tags||[]).length) ? 'review' : 'done';
+    await updateQueueItemStatus(next.id, next.status, data, []);
+    await saveToHistory(data, false);
+  } catch(e) { next.status = 'error'; next.error = e.message; await updateQueueItemStatus(next.id, 'error', null, []); }
+  processing = false; updateStats(); renderQueue(); updateBadge();
+  setTimeout(processNext, 600);
+}
+
+function renderQueue() {
+  const total = queue.length, done = queue.filter(q => ['done','review','pushed'].includes(q.status)).length;
+  document.getElementById('q-progress').style.width = total ? Math.round(done/total*100)+'%' : '0%';
+  document.getElementById('q-status').textContent = done + ' of ' + total + ' enriched';
+  if(!queue.length) { document.getElementById('queue-list').innerHTML = '<div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div>'; return; }
+  document.getElementById('queue-list').innerHTML = queue.map(item => {
+    const pillClass = {pending:'pill-pending',running:'pill-running',done:'pill-done',review:'pill-review',error:'pill-error',pushed:'pill-pushed'}[item.status]||'pill-pending';
+    const topTags = item.result ? item.result.suggested_tags?.slice(0,2).map(t=>`<span style="font-size:11px;color:var(--ink-muted)">${t.tag.split(':')[0]}</span>`).join(' · ') : '—';
+    const conf = item.result ? item.result.confidence_overall : '—';
+    const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':conf==='low'?'var(--red)':'var(--ink-muted)';
+    return `<div>
+      <div class="queue-row" onclick="toggleQueueExpand('${item.id}')">
+        <div><div style="font-size:13px;font-weight:500">${item.name}</div>${item.city?`<div style="font-size:11px;color:var(--ink-muted)">${item.city}</div>`:''}</div>
+        <div>${topTags}</div>
+        <div style="font-size:12px;font-weight:500;color:${confColor}">${conf}</div>
+        <div><span class="pill ${pillClass}">${item.status==='review'?'needs review':item.status}</span></div>
+      </div>
+      <div class="expand-panel ${item.expanded?'open':''}">${item.expanded&&item.result?renderExpandContent(item):''}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderExpandContent(item) {
+  const d = item.result; if(!d) return '';
+  const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+  const tagsHtml = (d.suggested_tags||[]).map((t,i) => {
+    const state = tagStates[item.id]?.[i]||'pending';
+    const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
+    return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+  return `${d.warning?`<div class="warning-box" style="margin-bottom:12px">${d.warning}</div>`:''}
+  <div class="edit-grid" style="margin-bottom:12px">
+    <div class="edit-field"><label>First name</label><input id="qf-first-${item.id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
+    <div class="edit-field"><label>Last name</label><input id="qf-last-${item.id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
+    <div class="edit-field"><label>Email</label><input id="qf-email-${item.id}" value="${item.email||d.fub_data?.email||''}"/></div>
+    <div class="edit-field"><label>Phone</label><input id="qf-phone-${item.id}" value="${d.fub_data?.phone||''}"/></div>
+    <div class="edit-field"><label>City</label><input id="qf-city-${item.id}" value="${d.location||item.city||''}"/></div>
+    <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value=""/></div>
+    <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value=""/></div>
+    <div class="edit-field"><label>Stage</label>
+      <select id="qf-stage-${item.id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+    </div>
+    <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}">${d.notes||''}</textarea></div>
+  </div>
+  <div class="section-label">Tags — click to approve</div>
+  <div class="tags-wrap">${tagsHtml}</div>
+  <div class="tag-adder" style="margin-bottom:12px">
+    <select id="qtag-select-${item.id}"><option value="">— add a tag —</option>${tagOptions}</select>
+    <button class="btn btn-outline btn-sm" onclick="addQueueManualTag('${item.id}')">Add</button>
+  </div>
+  <div class="action-row" style="margin-top:14px">
+    <button class="btn btn-green btn-sm" onclick="pushQueueItem('${item.id}')">Push to FUB</button>
+    <span class="push-msg" id="pmsg-${item.id}"></span>
+  </div>`;
+}
+
+function addQueueManualTag(id) {
+  const sel = document.getElementById('qtag-select-' + id); const tag = sel.value; if (!tag) return;
+  const item = queue.find(q => q.id === id);
+  if (item && item.result) {
+    const existing = item.result.suggested_tags || [];
+    if (!existing.find(t => t.tag === tag)) { existing.push({ tag, confidence: 'high', reason: 'Manually added' }); tagStates[id][existing.length-1] = 'approved'; item.result.suggested_tags = existing; }
+  }
+  sel.value = ''; renderQueue();
+}
+
+function toggleQueueExpand(id) { const item = queue.find(q => q.id === id); if(!item||!item.result) return; item.expanded = !item.expanded; renderQueue(); }
+function toggleQueueTag(id, i) { if(!tagStates[id]) return; const s = tagStates[id][i]; tagStates[id][i] = s==='pending'?'approved':s==='approved'?'rejected':'pending'; renderQueue(); }
+
+async function pushQueueItem(id) {
+  const fubKey = getFUBKey(); if(!fubKey){setMsg(id,'Add FUB API key','err');return;}
+  const item = queue.find(q => q.id === id); if(!item?.result) return;
+  const approved = (item.result.suggested_tags||[]).filter((_,i) => tagStates[id]?.[i]==='approved').map(t => t.tag);
+  const editedContact = {
+    ...item.result,
+    full_name: [document.getElementById('qf-first-'+id)?.value||'', document.getElementById('qf-last-'+id)?.value||''].filter(Boolean).join(' ') || item.result.full_name,
+    email: document.getElementById('qf-email-'+id)?.value || item.email || item.result.fub_data?.email || '',
+    phone: document.getElementById('qf-phone-'+id)?.value || item.result.fub_data?.phone || '',
+    location: document.getElementById('qf-city-'+id)?.value || item.result.location || '',
+    birthday: document.getElementById('qf-birthday-'+id)?.value || '',
+    spouse_name: document.getElementById('qf-spouse-'+id)?.value || '',
+    stage: document.getElementById('qf-stage-'+id)?.value || '',
+    notes: document.getElementById('qf-notes-'+id)?.value || item.result.notes || '',
+    approved_tags: approved
+  };
+  setMsg(id, 'Pushing...', '');
+  try {
+    const res = await fetch('/api/push-to-fub', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fubApiKey:fubKey, contact:editedContact})});
+    const result = await res.json();
+    if(result.error) throw new Error(result.error);
+    setMsg(id, `Pushed — ${approved.length} tags`, 'ok');
+    item.status = 'pushed'; pushedCount++; updateStats(); renderQueue(); updateBadge();
+    await updateQueueItemStatus(item.id, 'pushed', null, approved);
+    await saveToHistory({...editedContact, pushed: true}, true); loadHistory();
+  } catch(e) { setMsg(id, 'Failed: '+e.message, 'err'); }
+}
+
+async function pushAll() {
+  for(const item of queue.filter(q => (q.status==='done'||q.status==='review') && q.result)) {
+    Object.keys(tagStates[item.id]||{}).forEach(i => { if(tagStates[item.id][i]==='pending') tagStates[item.id][i]='approved'; });
+    await pushQueueItem(item.id);
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
+
+async function clearQueue() { queue=[]; tagStates={}; pushedCount=0; document.getElementById('push-all-btn').style.display='none'; updateStats(); renderQueue(); updateBadge(); await clearPersistentQueue(); }
+function updateStats() {
+  document.getElementById('st-total').textContent = queue.length;
+  document.getElementById('st-enriched').textContent = queue.filter(q => ['done','review','pushed'].includes(q.status)).length;
+  document.getElementById('st-review').textContent = queue.filter(q => q.status==='review').length;
+  document.getElementById('st-pushed').textContent = pushedCount;
+}
+function updateBadge() { const b = document.getElementById('queue-badge'); b.textContent = queue.length; b.style.display = queue.length ? 'inline' : 'none'; }
+
+// ── Voice ─────────────────────────────────────────────────────────────
+async function toggleRecord() {
+  if(!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = async () => { stream.getTracks().forEach(t => t.stop()); await transcribeAudio(new Blob(audioChunks, {type:'audio/webm'})); };
+      mediaRecorder.start(); isRecording = true;
+      document.getElementById('record-btn').classList.add('recording');
+      document.getElementById('record-label').textContent = 'Recording... tap to stop';
+    } catch(e) { alert('Microphone access denied.'); }
+  } else {
+    mediaRecorder.stop(); isRecording = false;
+    document.getElementById('record-btn').classList.remove('recording');
+    document.getElementById('record-label').textContent = 'Tap to record';
+  }
+}
+
+async function handleAudio(e) { const file = e.target.files[0]; if(!file) return; await transcribeAudio(file); }
+
+async function transcribeAudio(blob) {
+  document.getElementById('transcript-box').textContent = 'Transcribing...';
+  try {
+    const fd = new FormData(); fd.append('audio', blob, 'memo.webm');
+    const res = await fetch('/api/transcribe', {method:'POST', body:fd});
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    document.getElementById('transcript-box').textContent = data.transcript;
+    await extractVoiceTags(data.transcript);
+  } catch(e) { document.getElementById('transcript-box').textContent = 'Transcription failed: ' + e.message; }
+}
+
+async function extractVoiceTags(transcript) {
+  const name = document.getElementById('v-name').value.trim();
+  try {
+    const res = await fetch('/api/extract-tags', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({transcript, contactName:name})});
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+    currentVoiceTags = data.suggested_tags || []; voiceTagStates = {};
+    currentVoiceTags.forEach((_, i) => voiceTagStates[i] = 'pending');
+    renderVoiceTags(); renderVoiceDetails(data.extracted_details);
+    document.getElementById('voice-tags-area').style.display = 'block';
+  } catch(e) { console.error(e); }
+}
+
+function renderVoiceTags() {
+  document.getElementById('voice-tags').innerHTML = currentVoiceTags.map((t, i) => {
+    const state = voiceTagStates[i];
+    const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
+    return `<span class="tag ${state}" onclick="toggleVoiceTag(${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+  }).join('');
+}
+
+function toggleVoiceTag(i) { const s = voiceTagStates[i]; voiceTagStates[i] = s==='pending'?'approved':s==='approved'?'rejected':'pending'; renderVoiceTags(); }
+
+function renderVoiceDetails(details) {
+  if(!details) return;
+  const fields = [['Job title',details.job_title],['Company',details.company],['Birthday',details.birthday],['Address',details.address],['Family',details.family_notes],['Interests',(details.interests||[]).join(', ')||null]].filter(f => f[1]);
+  document.getElementById('voice-details').innerHTML = fields.map(([k,v]) => `<div class="field"><div class="field-key">${k}</div><div class="field-val">${v}</div></div>`).join('');
+}
+
+async function saveVoiceMemo() {
+  const name = document.getElementById('v-name').value.trim() || 'Unknown contact';
+  const approved = currentVoiceTags.filter((_, i) => voiceTagStates[i]==='approved').map(t => t.tag);
+  const id = 'v' + Date.now();
+  const fakeResult = {full_name:name, initials:name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(), suggested_tags:currentVoiceTags.map(t=>({...t})), notes:document.getElementById('transcript-box').textContent, confidence_overall:'high', warning:null, approved_tags:approved};
+  tagStates[id] = {};
+  currentVoiceTags.forEach((_, i) => tagStates[id][i] = voiceTagStates[i]);
+  addToQueue(fakeResult, id, 'done');
+  await saveToHistory(fakeResult, false);
+  document.getElementById('voice-msg').textContent = 'Saved to queue';
+  document.getElementById('voice-msg').className = 'push-msg ok';
+  loadHistory();
+  await loadPersistentQueue();
+}
+
+function clearVoice() {
+  document.getElementById('transcript-box').textContent = 'Your transcript will appear here...';
+  document.getElementById('voice-tags-area').style.display = 'none';
+  document.getElementById('v-name').value = '';
+  currentVoiceTags = []; voiceTagStates = {};
+}
+
+
+// ── FINTRAC Upload ────────────────────────────────────────────────────
+let fintracResults = [];
+
+const fintracDrop = document.getElementById ? document.getElementById('fintrac-drop') : null;
+
+async function handleFintracFiles(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  await processFintracFiles(files);
+}
+
+async function processFintracFiles(files) {
+  document.getElementById('fintrac-status').style.display = 'block';
+  document.getElementById('fintrac-results').style.display = 'none';
+  fintracResults = [];
+
+  const BATCH = 3;
+  let processed = 0;
+
+  // Convert file to base64
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    try {
+      const pdfs = await Promise.all(batch.map(async f => ({
+        filename: f.name,
+        base64: await toBase64(f)
+      })));
+
+      const res = await fetch('/api/extract-fintrac', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+        body: JSON.stringify({ pdfs })
+      });
+      const data = await res.json();
+      if (data.results) fintracResults.push(...data.results);
+    } catch(e) { console.error('Batch error:', e); }
+
+    processed += batch.length;
+    const pct = Math.round(processed / files.length * 100);
+    document.getElementById('fintrac-progress').textContent = `Processing ${processed} of ${files.length} files...`;
+    document.getElementById('fintrac-progress-bar').style.width = pct + '%';
+  }
+
+  document.getElementById('fintrac-status').style.display = 'none';
+  renderFintracResults();
+}
+
+function renderFintracResults() {
+  const valid = fintracResults.filter(r => !r.error && !r.not_fintrac);
+  const errors = fintracResults.filter(r => r.error);
+
+  document.getElementById('fintrac-count').textContent = `${valid.length} contacts extracted${errors.length ? ', ' + errors.length + ' errors' : ''}`;
+  document.getElementById('fintrac-results').style.display = 'block';
+
+  document.getElementById('fintrac-list').innerHTML = valid.map((r, idx) => `
+    <div style="padding:16px 20px;border-bottom:.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--gold);flex-shrink:0">${(r.full_name||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${r.full_name || 'Unknown'}</div>
+          <div style="font-size:11px;color:var(--ink-muted)">${r.filename}</div>
+        </div>
+        <button class="btn btn-green btn-sm" onclick="applyFintracToContact(${idx})">Apply to Contact</button>
+      </div>
+      <div class="field-grid">
+        ${r.date_of_birth ? `<div class="field"><div class="field-key">Birthday</div><div class="field-val">${r.date_of_birth}</div></div>` : ''}
+        ${r.occupation ? `<div class="field"><div class="field-key">Occupation</div><div class="field-val">${r.occupation}</div></div>` : ''}
+        ${r.employer ? `<div class="field"><div class="field-key">Employer</div><div class="field-val">${r.employer}</div></div>` : ''}
+        ${r.city ? `<div class="field"><div class="field-key">City</div><div class="field-val">${r.city}</div></div>` : ''}
+        ${r.phone ? `<div class="field"><div class="field-key">Phone</div><div class="field-val">${r.phone}</div></div>` : ''}
+        ${r.id_type ? `<div class="field"><div class="field-key">ID Type</div><div class="field-val">${r.id_type}</div></div>` : ''}
+      </div>
+      <div id="fintrac-apply-msg-${idx}" style="font-size:12px;margin-top:6px"></div>
+    </div>
+  `).join('') + (errors.length ? `<div style="padding:16px;font-size:12px;color:var(--red)">${errors.length} files could not be processed</div>` : '');
+}
+
+async function applyFintracToContact(idx) {
+  const r = fintracResults.filter(x => !x.error && !x.not_fintrac)[idx];
+  if (!r || !r.full_name) return;
+
+  const msgEl = document.getElementById('fintrac-apply-msg-' + idx);
+  msgEl.textContent = 'Searching for contact...';
+  msgEl.style.color = 'var(--ink-muted)';
+
+  // Search history for matching contact by name
+  const nameLower = r.full_name.toLowerCase();
+  const match = historyContacts.find(c => {
+    const cName = (c.full_name || c.name || '').toLowerCase();
+    return cName === nameLower || 
+      nameLower.includes(cName.split(' ')[0]) || 
+      cName.includes(r.full_name.split(' ')[0].toLowerCase());
+  });
+
+  if (match) {
+    // Update the contact with FINTRAC data
+    const updated = {
+      ...match,
+      birthday: r.date_of_birth || match.birthday,
+      job_title: r.occupation || match.job_title,
+      company: r.employer || match.company,
+      phone: r.phone || match.phone,
+      location: r.city || match.location,
+      fintrac_verified: true
+    };
+    await saveToHistory(updated, match.pushed || false);
+    await loadHistory();
+    msgEl.textContent = '✓ Applied to ' + (match.full_name || match.name);
+    msgEl.style.color = 'var(--green)';
+  } else {
+    // Add as new contact to queue
+    const id = 'fintrac_' + Date.now();
+    const result = {
+      full_name: r.full_name,
+      initials: r.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+      job_title: r.occupation || null,
+      company: r.employer || null,
+      location: r.city || null,
+      birthday: r.date_of_birth || null,
+      phone: r.phone || null,
+      notes: 'FINTRAC verified contact',
+      confidence_overall: 'high',
+      suggested_tags: [
+        r.is_buyer ? { tag: 'Client: Buyer', confidence: 'high', reason: 'Listed as buyer in FINTRAC' } : null,
+        r.is_seller ? { tag: 'Client: Seller', confidence: 'high', reason: 'Listed as seller in FINTRAC' } : null,
+        { tag: 'Relationship: Past Client', confidence: 'high', reason: 'Verified via FINTRAC' }
+      ].filter(Boolean),
+      fintrac_verified: true
+    };
+    tagStates[id] = {};
+    result.suggested_tags.forEach((_, i) => tagStates[id][i] = 'approved');
+    addToQueue(result, id, 'done');
+    await saveToHistory(result, false);
+    msgEl.textContent = '✓ Added to queue as new contact';
+    msgEl.style.color = 'var(--amber)';
+  }
+}
+
+async function applyAllFintracToContacts() {
+  const valid = fintracResults.filter(r => !r.error && !r.not_fintrac);
+  for (let i = 0; i < valid.length; i++) {
+    await applyFintracToContact(i);
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
+
+// ── DocuSign ──────────────────────────────────────────────────────────
+function connectDocuSign() {
+  const clientId = '2a98ce6b-99e2-4e4e-8f6a-6e9f4d141d7c';
+  const redirectUri = encodeURIComponent(window.location.origin + '/api/docusign-callback');
+  const scopes = encodeURIComponent('signature rooms_read rooms_write');
+  window.open(`https://account.docusign.com/oauth/auth?response_type=code&scope=${scopes}&client_id=${clientId}&redirect_uri=${redirectUri}`, '_blank');
+}
+
+function disconnectDocuSign() {
+  dsAccessToken = null; dsAccountId = null; dsBaseUri = null;
+  localStorage.removeItem('ds_token_' + currentUserId);
+  document.getElementById('ds-connected').style.display = 'none';
+  document.getElementById('ds-not-connected').style.display = 'block';
+  document.getElementById('ds-results').style.display = 'none';
+}
+
+function showDocuSignConnected() {
+  document.getElementById('ds-not-connected').style.display = 'none';
+  document.getElementById('ds-connected').style.display = 'block';
+  document.getElementById('ds-account-info').textContent = 'Account ID: ' + dsAccountId;
+}
+
+async function loadRooms(extractFintrac) {
+  if (!dsAccessToken) { alert('Please connect DocuSign first'); return; }
+  document.getElementById('ds-loading').style.display = 'block';
+  document.getElementById('ds-results').style.display = 'none';
+  try {
+    const res = await fetch('/api/docusign-rooms', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ accessToken: dsAccessToken, accountId: dsAccountId, baseUri: dsBaseUri, extractFintrac }) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    dsTransactions = data.transactions || [];
+    renderTransactions();
+  } catch(e) { alert('Failed to load transactions: ' + e.message); }
+  document.getElementById('ds-loading').style.display = 'none';
+}
+
+function renderTransactions() {
+  document.getElementById('ds-count').textContent = dsTransactions.length + ' transactions found';
+  document.getElementById('ds-results').style.display = 'block';
+  document.getElementById('transactions-list').innerHTML = dsTransactions.map((t, idx) => {
+    const fintracCount = (t.fintracData || []).length;
+    return `<div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 80px;gap:8px;padding:14px 16px;border-bottom:.5px solid var(--border);align-items:center">
+      <div><div style="font-size:13px;font-weight:500">${t.address||t.name||'Unknown'}</div>${t.city?`<div style="font-size:11px;color:var(--ink-muted)">${t.city}</div>`:''}</div>
+      <div style="font-size:12px;color:var(--ink-muted)">${(t.fintracData||[]).map(f=>f.full_name).filter(Boolean).join(', ')||'—'}</div>
+      <div style="font-size:12px">${t.closingDate?new Date(t.closingDate).toLocaleDateString('en-CA'):'—'}</div>
+      <div><span class="pill ${t.status==='Active'?'pill-done':'pill-pending'}">${t.status||'—'}</span></div>
+      <div><span class="pill ${fintracCount>0?'pill-pushed':'pill-pending'}">${fintracCount>0?fintracCount+' found':'none'}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function exportTransactions() {
+  if (!dsTransactions.length) return;
+  const rows = [['Address','City','Status','Close Date','Sale Price','Client Name','DOB','Occupation','Phone','ID Type']];
+  dsTransactions.forEach(t => {
+    if (t.fintracData && t.fintracData.length) {
+      t.fintracData.forEach(f => rows.push([t.address||t.name||'',t.city||'',t.status||'',t.closingDate||'',t.salePrice||'',f.full_name||'',f.date_of_birth||'',f.occupation||'',f.phone||'',f.id_type||'']));
+    } else rows.push([t.address||t.name||'',t.city||'',t.status||'',t.closingDate||'',t.salePrice||'','','','','','']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+  XLSX.writeFile(wb, 'trellis-transactions.xlsx');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+if(dz) {
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.background = 'white'; });
+  dz.addEventListener('dragleave', () => { dz.style.background = ''; });
+  dz.addEventListener('drop', e => { e.preventDefault(); dz.style.background = ''; const f = e.dataTransfer.files[0]; if(f) handleFile({target:{files:[f]}}); });
+}
+document.getElementById('s-name').addEventListener('keydown', e => { if(e.key === 'Enter') enrichSingle(); });
+
+// FINTRAC drag and drop
+window.addEventListener('DOMContentLoaded', () => {
+  const fz = document.getElementById('fintrac-drop');
+  if (fz) {
+    fz.addEventListener('dragover', e => { e.preventDefault(); fz.style.background = 'white'; });
+    fz.addEventListener('dragleave', () => { fz.style.background = ''; });
+    fz.addEventListener('drop', e => { 
+      e.preventDefault(); fz.style.background = ''; 
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+      if (files.length) processFintracFiles(files);
+    });
+  }
+});
+
+window.addEventListener('load', async function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const dsKey = urlParams.get('ds_key');
+  if (dsKey) { sessionStorage.setItem('pending_ds_key', dsKey); window.history.replaceState(null, '', window.location.pathname); }
+  await checkExistingSession();
+});
+</script>
+</body>
+</html>
