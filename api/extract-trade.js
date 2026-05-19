@@ -19,32 +19,6 @@ async function withRetry(fn, label, maxAttempts = 3) {
   throw lastErr;
 }
 
-// OREA APS (Form 100/101) PDFs have the form template throughout the text
-// and the filled-in values clumped together right before the page-2 header.
-// The anchor "INITIALS OF SELLER(S):" reliably precedes the values block on
-// page 1 of merged APS PDFs.
-function focusOnTradeValues(text) {
-  const anchor = text.match(/INITIALS\s*OF\s*SELLER\(?S\)?/i);
-  if (anchor) {
-    return text.slice(anchor.index, anchor.index + 4000);
-  }
-  // Some APS PDFs may not have that exact phrase; try the page-1 footer anchor
-  const footer = text.match(/Form\s*1[01]\d?\s+Revised[^\n]+Page\s*1\s*of/i);
-  if (footer) {
-    return text.slice(footer.index, footer.index + 4000);
-  }
-  // Last resort: chars 4000-10000 (values typically live in this range)
-  return text.slice(4000, 10000);
-}
-
-// Form 320 (Confirmation of Co-operation and Representation) has commission
-// split info. When the merged PDF contains it, grab a window around it.
-function focusOnCommissionSection(text) {
-  const m = text.match(/Confirmation\s*of\s*Co-?operation/i);
-  if (!m) return null;
-  return text.slice(m.index, m.index + 4000);
-}
-
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -73,11 +47,9 @@ module.exports = async (req, res) => {
           continue;
         }
 
-        const apsValues = focusOnTradeValues(text);
-        const commissionSection = focusOnCommissionSection(text);
-        const compact = commissionSection
-          ? `${apsValues}\n\n=== Form 320 commission section ===\n${commissionSection}`
-          : apsValues;
+        // TP commission statements are short (~3K chars); send the whole thing.
+        // Cap at 10K as a safety bound for unusual documents.
+        const textForModel = text.length > 10000 ? text.slice(0, 10000) : text;
 
         const callOpenAI = () => fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -87,56 +59,68 @@ module.exports = async (req, res) => {
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
-            max_tokens: 800,
+            max_tokens: 900,
             response_format: { type: 'json_object' },
             messages: [{
               role: 'user',
-              content: `This is text extracted from an Ontario real estate Agreement of Purchase and Sale (OREA Form 100/101, sometimes merged with Form 320 Confirmation of Co-operation). The form template fills most of the text; the FILLED-IN values appear together in a block.
+              content: `This is text extracted from a real estate brokerage Trade Package (TP) / commission statement — typically issued by the agent's brokerage (e.g. Forest Hill Real Estate Inc.) when a deal is processed. The agent in question is the one named under "Agents:" — they earned the commission on this trade.
 
-The values block on a typical merged APS looks like a series of short lines, roughly in this order (some optional):
-  - City of <city>
-  - Condominium plan number (e.g. YRSC1112) — only on condo APS
-  - Parking/Locker designations — only on condo APS
-  - Sale price as digits (e.g. "485,000.00")
-  - Sale price as words (e.g. "Four Hundred Eighty-Five Thousand")
-  - Deposit terms ("upon acceptance" or similar)
-  - Deposit amount as digits (e.g. "24,250.00")
-  - Deposit as words
-  - Name of the BUYER'S brokerage (e.g. "HOMELIFE FRONTIER REALTY INC., BROKERAGE")
-  - Buyer side indicator (often just "B" or "Buyer")
-  - Times and dates
-  - Buyer name(s) — e.g. "Joel Hirsch&Sonya Hirsch"
-  - Seller name(s) — usually ALL CAPS — e.g. "MAJID KHADEM SAMENI"
-  - Property street address (e.g. "7North Park Road")
-  - Unit number
-  - City, Province, Postal (e.g. "VaughanONL4J 0C9")
-  - Offer/agreement date
-
-If a Form 320 commission section is present, it contains commission split info — typically the listing brokerage agrees to pay a percentage (e.g. 2.5%) of the sale price to the co-operating (buyer's) brokerage.
+The document has labeled sections. Common fields and where to find them:
+- Property header at the top: street address, then city/province/postal on the next line
+- Type / Class lines explain the deal:
+    "A - RESIDENTIAL" / "A - COMMERCIAL" etc. → property_type
+    "A - LISTING" or "OUR LISTING" → agent was on SELLER side (listing agent)
+    "B - SALE OF COMPETITOR'S LISTING" → agent was on BUYER side (selling agent, i.e. they brought the buyer)
+    "C - LEASE" → lease deal
+- MLS #: the listing ID
+- Offer Date, Entry Date, Firm Date, Close Date
+- Status (Open / Firm / Closed)
+- Contacts section lists Buyer, Seller, Solicitors. Each line has a one-letter end marker:
+    "BuyerSMARCO PICCOLO27 ALLOWAY PL, MAPLE, ON, L6A-1N9, CA" — the S after "Buyer" is a side marker; the name follows immediately, then address
+- Selling Price (the actual sale price)
+- Deposit amount + who held it ("Held By")
+- Listing Comm. Rate vs Selling Comm. Rate:
+    If Listing Comm. Rate > 0% → agent was on LISTING (seller) side
+    If Selling Comm. Rate > 0% → agent was on SELLING (buyer) side
+    Both > 0% = double-end deal (agent represented both sides)
+- Commission row breaks out: Listing / Listing Other / Selling / Selling Other / Sub-Total / HST / Total
+- Agents section names the agent (e.g. "GREENSPAN, LORRY") with their agent code
 
 Extracted text:
-${compact}
+${textForModel}
 
-Return ONLY valid JSON:
+Return ONLY valid JSON. Use null for any field you can't find. Numeric fields as numbers (not strings, no dollar signs or commas). Dates as YYYY-MM-DD.
+
 {
-  "property_address": "street address with unit if any (e.g. '7 North Park Road, Unit 1007') or null",
-  "property_city": "city or null",
-  "property_province": "province (e.g. 'ON') or null",
-  "property_postal": "postal code (e.g. 'L4J 0C9') or null",
-  "buyer_names": ["array of buyer full names, split on '&' or 'and'"],
-  "seller_names": ["array of seller full names"],
-  "sale_price": numeric_value_or_null,
-  "deposit": numeric_value_or_null,
-  "agreement_date": "YYYY-MM-DD or null",
-  "closing_date": "YYYY-MM-DD or null",
-  "lorrys_brokerage": "the brokerage name visible in the values block (this is the BUYER'S brokerage on a buy-side deal) or null",
-  "lorrys_side": "'buyer' if the brokerage appears in the buyer-side portion of values, 'seller' if seller-side, or null",
-  "commission_pct": numeric_value_if_form_320_shows_a_percent_or_null,
-  "commission_amount": numeric_value_if_explicitly_shown_or_null,
-  "docusign_envelope_id": "DocuSign envelope ID if present or null",
-  "form_type": "'APS Condo' or 'APS Residential' or 'APS Other' or null"
+  "mls_number": "string or null",
+  "property_address": "street address with unit (e.g. '35 Bastion Street, Unit 1920')",
+  "property_city": "string or null",
+  "property_province": "two-letter province code or null",
+  "property_postal": "postal code or null",
+  "property_type": "Residential / Commercial / Lease or null",
+  "agent_name": "the agent named in the Agents section (e.g. 'Lorry Greenspan')",
+  "agent_code": "string or null",
+  "agent_side": "'buyer' if Selling Comm. Rate > 0 and Listing Comm. Rate = 0, 'seller' if reversed, 'both' if double-end, null if unclear",
+  "buyer_name": "full name of buyer or null",
+  "buyer_address": "buyer's address as shown (this is where they CURRENTLY live, BEFORE moving into the property they bought) or null",
+  "seller_name": "full name of seller or null",
+  "seller_address": "seller's address as shown or null",
+  "selling_price": numeric_or_null,
+  "deposit": numeric_or_null,
+  "deposit_held_by": "string or null",
+  "offer_date": "YYYY-MM-DD or null",
+  "firm_date": "YYYY-MM-DD or null",
+  "close_date": "YYYY-MM-DD or null",
+  "status": "Open / Firm / Closed or null",
+  "listing_commission_pct": numeric_or_null,
+  "selling_commission_pct": numeric_or_null,
+  "gross_commission": "the total selling-side commission amount before splits, or null",
+  "agent_share_pretax": "the agent's share before HST (from the Agents row) or null",
+  "agent_share_after_hst": "the agent's net after HST or null",
+  "outside_brokerage": "the OTHER brokerage on the deal (e.g. the listing brokerage if agent was buy-side) or null",
+  "outside_brokerage_agent": "the OTHER agent or null"
 }
-If this is not an Ontario APS form return: {"not_aps": true}`
+If this is not a brokerage trade package or commission statement return: {"not_trade_package": true}`
             }]
           })
         }).then(async r => {
@@ -148,10 +132,10 @@ If this is not an Ontario APS form return: {"not_aps": true}`
         const data = await withRetry(callOpenAI, `trade:${pdf.filename}`);
         const extracted = JSON.parse(data.choices?.[0]?.message?.content || '{}');
 
-        if (extracted.not_aps) {
-          results.push({ filename: pdf.filename, error: 'PDF did not look like an OREA Agreement of Purchase and Sale' });
-        } else if (!extracted.property_address && !extracted.sale_price) {
-          results.push({ filename: pdf.filename, error: 'No property address or sale price extracted — form may be blank or unreadable', ...extracted });
+        if (extracted.not_trade_package) {
+          results.push({ filename: pdf.filename, error: 'PDF did not look like a brokerage trade package / commission statement' });
+        } else if (!extracted.property_address && !extracted.selling_price) {
+          results.push({ filename: pdf.filename, error: 'No property address or sale price extracted — form may be unreadable', ...extracted });
         } else {
           results.push({ filename: pdf.filename, ...extracted });
         }

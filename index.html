@@ -1549,36 +1549,63 @@ function renderTradeResults() {
   document.getElementById('trade-results').style.display = 'block';
 
   const cards = valid.map((r, idx) => {
-    const buyers = (r.buyer_names || []).join(', ');
-    const sellers = (r.seller_names || []).join(', ');
-    const matchOnBuyer = (r.buyer_names || []).map(n => findContactMatch(n)).find(Boolean);
-    const matchOnSeller = (r.seller_names || []).map(n => findContactMatch(n)).find(Boolean);
-    const matched = matchOnBuyer || matchOnSeller;
-    const matchedRole = matchOnBuyer ? 'buyer' : matchOnSeller ? 'seller' : null;
-    const matchedName = matched ? (matched.full_name || matched.name) : null;
+    const buyerMatch = findContactMatch(r.buyer_name);
+    const sellerMatch = findContactMatch(r.seller_name);
+    const sideLabel = r.agent_side === 'buyer' ? 'Buy side'
+                   : r.agent_side === 'seller' ? 'List side'
+                   : r.agent_side === 'both' ? 'Double-ended'
+                   : '';
+    const sideColor = r.agent_side === 'buyer' ? 'var(--green)'
+                   : r.agent_side === 'seller' ? 'var(--gold)'
+                   : 'var(--ink-muted)';
+
+    // Address-update preview (what Phase 2's "Push to FUB" will do):
+    const preview = [];
+    if (r.agent_side === 'buyer' && r.buyer_name && r.property_address) {
+      preview.push(`Update <b>${r.buyer_name}</b>'s address to <b>${r.property_address}</b> (they're moving in)`);
+    }
+    if (r.agent_side === 'seller' && r.seller_name && r.property_address) {
+      preview.push(`Leave <b>${r.seller_name}</b>'s address alone, add note: "Sold ${r.property_address} on ${r.close_date || 'unknown date'}"`);
+    }
+    if (r.agent_share_pretax) {
+      preview.push(`Track <b>${fmtMoney(r.agent_share_pretax)}</b> commission earned (after HST: ${fmtMoney(r.agent_share_after_hst)})`);
+    }
 
     return `
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
         <div style="flex:1">
           <div style="font-size:15px;font-weight:500">${r.property_address || 'Address unknown'}</div>
-          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${r.filename} ${r.form_type ? '• ' + r.form_type : ''} ${r.lorrys_side ? '• Lorry on ' + r.lorrys_side + ' side' : ''}</div>
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">
+            ${r.filename}
+            ${r.mls_number ? '• MLS ' + r.mls_number : ''}
+            ${sideLabel ? `• <span style="color:${sideColor};font-weight:500">${sideLabel}</span>` : ''}
+            ${r.status ? '• ' + r.status : ''}
+          </div>
         </div>
-        ${matched
-          ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ Matches ${matchedName} (${matchedRole})</div>`
+        ${(buyerMatch || sellerMatch)
+          ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ ${(buyerMatch||sellerMatch).full_name || (buyerMatch||sellerMatch).name} in contacts</div>`
           : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
       </div>
 
       <div class="field-grid">
-        <div class="field"><div class="field-key">Buyer(s)</div><div class="field-val"><input type="text" id="trade-buyers-${idx}" value="${buyers.replace(/"/g,'&quot;')}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
-        <div class="field"><div class="field-key">Seller(s)</div><div class="field-val"><input type="text" id="trade-sellers-${idx}" value="${sellers.replace(/"/g,'&quot;')}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
-        <div class="field"><div class="field-key">Sale price</div><div class="field-val"><input type="text" id="trade-price-${idx}" value="${fmtMoney(r.sale_price)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Buyer</div><div class="field-val"><input type="text" id="trade-buyer-${idx}" value="${(r.buyer_name||'').replace(/"/g,'&quot;')}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Seller</div><div class="field-val"><input type="text" id="trade-seller-${idx}" value="${(r.seller_name||'').replace(/"/g,'&quot;')}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Selling price</div><div class="field-val"><input type="text" id="trade-price-${idx}" value="${fmtMoney(r.selling_price)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
         <div class="field"><div class="field-key">Deposit</div><div class="field-val"><input type="text" id="trade-deposit-${idx}" value="${fmtMoney(r.deposit)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
-        <div class="field"><div class="field-key">Closing date</div><div class="field-val"><input type="text" id="trade-closing-${idx}" value="${r.closing_date || ''}" placeholder="YYYY-MM-DD" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
-        <div class="field"><div class="field-key">Agreement date</div><div class="field-val"><input type="text" id="trade-agreement-${idx}" value="${r.agreement_date || ''}" placeholder="YYYY-MM-DD" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
-        <div class="field"><div class="field-key">Commission %</div><div class="field-val"><input type="text" id="trade-commpct-${idx}" value="${r.commission_pct != null ? r.commission_pct : ''}" placeholder="e.g. 2.5" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
-        <div class="field"><div class="field-key">Commission $</div><div class="field-val"><input type="text" id="trade-commamt-${idx}" value="${fmtMoney(r.commission_amount)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Close date</div><div class="field-val"><input type="text" id="trade-closing-${idx}" value="${r.close_date || ''}" placeholder="YYYY-MM-DD" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Offer date</div><div class="field-val"><input type="text" id="trade-offer-${idx}" value="${r.offer_date || ''}" placeholder="YYYY-MM-DD" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">${r.agent_side === 'seller' ? 'Listing' : 'Selling'} comm. rate</div><div class="field-val"><input type="text" id="trade-commpct-${idx}" value="${(r.agent_side === 'seller' ? r.listing_commission_pct : r.selling_commission_pct) ?? ''}" placeholder="e.g. 2.5" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/>%</div></div>
+        <div class="field"><div class="field-key">Gross comm.</div><div class="field-val"><input type="text" id="trade-commgross-${idx}" value="${fmtMoney(r.gross_commission)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Agent's share</div><div class="field-val">${fmtMoney(r.agent_share_pretax)} <span style="color:var(--ink-muted);font-size:11px">(net ${fmtMoney(r.agent_share_after_hst)})</span></div></div>
+        <div class="field"><div class="field-key">Buyer's current addr.</div><div class="field-val" style="font-size:12px">${r.buyer_address || '—'}</div></div>
       </div>
+
+      ${preview.length ? `
+      <div style="margin-top:14px;padding:10px 12px;background:var(--cream-deep);border-radius:6px;border-left:3px solid var(--gold)">
+        <div style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">On Push to FUB:</div>
+        ${preview.map(p => `<div style="font-size:12px;color:var(--ink);padding:2px 0">• ${p}</div>`).join('')}
+      </div>` : ''}
 
       <div id="trade-push-msg-${idx}" style="font-size:12px;margin-top:10px;min-height:16px"></div>
     </div>`;
