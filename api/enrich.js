@@ -18,13 +18,31 @@ async function searchFUB(name, fubApiKey) {
   } catch(e) { return null; }
 }
 
+async function withRetry(fn, label, maxAttempts = 3) {
+  let lastErr;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      const msg = e?.message || String(e);
+      const is429 = e?.status === 429 || /429|rate limit/i.test(msg);
+      if (!is429 || attempt === maxAttempts) break;
+      const waitMs = 1500 * attempt;
+      console.warn(`${label} 429 attempt ${attempt}, waiting ${waitMs}ms`);
+      await new Promise(r => setTimeout(r, waitMs));
+    }
+  }
+  throw lastErr;
+}
+
 async function webSearchContact(openai, name, city, email) {
   const locationHint = city ? ` in ${city}` : ' in Toronto or GTA';
   const emailHint = email ? ` Their email is ${email}.` : '';
-  
+
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-search-preview',
+    const response = await withRetry(() => openai.chat.completions.create({
+      model: 'gpt-4o-mini-search-preview',
       max_tokens: 800,
       messages: [{
         role: 'user',
@@ -36,12 +54,26 @@ If the email domain suggests a company (e.g. @rbc.com = RBC bank employee, @osle
 
 Be specific and concise — just facts you find.`
       }]
-    });
+    }), 'web search');
     return response.choices[0].message.content?.trim() || null;
   } catch(e) {
     console.warn('Web search failed:', e.message);
     return null;
   }
+}
+
+function socialDataContext(fubContact) {
+  const s = fubContact?.socialData;
+  if (!s) return null;
+  const parts = [];
+  if (s.company) parts.push(`company: ${s.company}`);
+  if (s.title) parts.push(`title: ${s.title}`);
+  if (s.bio) parts.push(`bio: ${s.bio.slice(0, 600)}`);
+  if (s.location) parts.push(`location: ${s.location}`);
+  if (s.linkedIn) parts.push(`LinkedIn: ${s.linkedIn}`);
+  if (s.gender) parts.push(`gender: ${s.gender}`);
+  if (s.age) parts.push(`age: ${s.age}`);
+  return parts.length ? parts.join('\n') : null;
 }
 
 function inferFromEmail(email) {
@@ -137,13 +169,18 @@ EXISTING FUB DATA:
 
     // Step 2 — email domain inference (always run)
     const emailInference = inferFromEmail(contactEmail);
-    
-    // Step 3 — web search (ALWAYS run for better confidence)
-    const webResult = await webSearchContact(openai, name, city, contactEmail);
-    
+
+    // Step 3 — FUB socialData (free, from FUB's own enrichment)
+    const socialCtx = socialDataContext(fubContact);
+
+    // Step 4 — web search ONLY when we lack good signal (skip if socialData has company/title/bio)
+    const skipWebSearch = !!(socialCtx && (fubContact?.socialData?.company || fubContact?.socialData?.bio));
+    const webResult = skipWebSearch ? null : await webSearchContact(openai, name, city, contactEmail);
+
     // Build full context
     const contextParts = [];
     if (fubContext) contextParts.push(fubContext);
+    if (socialCtx) contextParts.push(`\nFUB SOCIAL DATA:\n${socialCtx}`);
     if (emailInference) contextParts.push(`\nEMAIL INFERENCE:\n${emailInference}`);
     if (webResult) contextParts.push(`\nWEB SEARCH RESULTS:\n${webResult}`);
     
@@ -190,12 +227,12 @@ Return ONLY this JSON — no markdown:
   "warning": null
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const response = await withRetry(() => openai.chat.completions.create({
+      model: 'gpt-4o-mini',
       max_tokens: 1400,
       response_format: { type: 'json_object' },
       messages: [{ role: 'user', content: prompt }]
-    });
+    }), 'tag suggest');
 
     const result = JSON.parse(response.choices[0].message.content);
 
