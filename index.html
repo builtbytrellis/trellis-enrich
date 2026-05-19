@@ -1319,6 +1319,18 @@ function renderFintracResults() {
   document.getElementById('fintrac-count').textContent = `${valid.length} contacts extracted${errors.length ? ', ' + errors.length + ' errors' : ''}`;
   document.getElementById('fintrac-results').style.display = 'block';
 
+  const errorRows = errors.length ? `
+    <div style="padding:14px 20px;border-top:.5px solid var(--border);background:var(--red-light)">
+      <div style="font-size:12px;font-weight:500;color:var(--red);margin-bottom:8px">${errors.length} file${errors.length>1?'s':''} could not be processed</div>
+      ${errors.map(e => `
+        <div style="font-size:11px;color:var(--ink-soft);padding:4px 0;border-top:.5px dashed rgba(192,57,43,0.2)">
+          <div style="font-weight:500;color:var(--ink)">${e.filename || 'unknown.pdf'}</div>
+          <div style="color:var(--red);margin-top:2px">${e.error || 'unknown error'}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
   document.getElementById('fintrac-list').innerHTML = valid.map((r, idx) => `
     <div style="padding:16px 20px;border-bottom:.5px solid var(--border)">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -1339,7 +1351,7 @@ function renderFintracResults() {
       </div>
       <div id="fintrac-apply-msg-${idx}" style="font-size:12px;margin-top:6px"></div>
     </div>
-  `).join('') + (errors.length ? `<div style="padding:16px;font-size:12px;color:var(--red)">${errors.length} files could not be processed</div>` : '');
+  `).join('') + errorRows;
 }
 
 async function applyFintracToContact(idx) {
