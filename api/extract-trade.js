@@ -40,15 +40,16 @@ module.exports = async (req, res) => {
         const pdfBuffer = Buffer.from(pdf.base64, 'base64');
         const pdfParse = require('pdf-parse');
         const pdfData = await pdfParse(pdfBuffer);
-        const text = pdfData.text || '';
+        const text = (pdfData.text || '').trim();
 
-        if (!text.trim()) {
-          results.push({ filename: pdf.filename, error: 'PDF has no extractable text (likely scanned image — OCR not yet supported)' });
+        if (text.length < 200) {
+          results.push({
+            filename: pdf.filename,
+            error: 'PDF has minimal extractable text (likely scanned image / Authentisign-wrapped). OCR support is needed for this brokerage\'s format.'
+          });
           continue;
         }
 
-        // TP commission statements are short (~3K chars); send the whole thing.
-        // Cap at 10K as a safety bound for unusual documents.
         const textForModel = text.length > 10000 ? text.slice(0, 10000) : text;
 
         const callOpenAI = () => fetch('https://api.openai.com/v1/chat/completions', {
@@ -59,69 +60,75 @@ module.exports = async (req, res) => {
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
-            max_tokens: 900,
+            max_tokens: 1000,
             response_format: { type: 'json_object' },
             messages: [{
               role: 'user',
-              content: `This is text extracted from a real estate brokerage Trade Package (TP) / commission statement — typically issued by the agent's brokerage (e.g. Forest Hill Real Estate Inc.) when a deal is processed. The agent in question is the one named under "Agents:" — they earned the commission on this trade.
+              content: `You are extracting deal data from a real estate brokerage Trade Package / Commission Statement. Layouts differ by brokerage; do not assume any specific labels.
 
-The document has labeled sections. Common fields and where to find them:
-- Property header at the top: street address, then city/province/postal on the next line
-- Type / Class lines explain the deal:
-    "A - RESIDENTIAL" / "A - COMMERCIAL" etc. → property_type
-    "A - LISTING" or "OUR LISTING" → agent was on SELLER side (listing agent)
-    "B - SALE OF COMPETITOR'S LISTING" → agent was on BUYER side (selling agent, i.e. they brought the buyer)
-    "C - LEASE" → lease deal
-- MLS #: the listing ID
-- Offer Date, Entry Date, Firm Date, Close Date
-- Status (Open / Firm / Closed)
-- Contacts section lists Buyer, Seller, Solicitors. Each line has a ONE-LETTER END-MARKER between the role and the name. STRIP it from the extracted name:
-    "BuyerSMARCO PICCOLO27 ALLOWAY PL..." — the S immediately after "Buyer" is the side-marker for "Selling end"; the actual name is "MARCO PICCOLO"
-    "SellerLDIANA BATALEVICH ON, -, CA" — the L immediately after "Seller" is the side-marker for "Listing end"; the actual name is "DIANA BATALEVICH" (NOT "LDIANA")
-    "SolicitorLANNA GUREVICH..." — actual name is "ANNA GUREVICH"
-    "SolicitorSBIANCHI AND PRESTA..." — actual name is "BIANCHI AND PRESTA..."
-  Rule: when a name starts with a single letter immediately followed by an uppercase letter forming a real first name, that single letter is the side marker — drop it.
-- Selling Price (the actual sale price)
-- Deposit amount + who held it ("Held By")
-- Listing Comm. Rate vs Selling Comm. Rate:
-    If Listing Comm. Rate > 0% → agent was on LISTING (seller) side
-    If Selling Comm. Rate > 0% → agent was on SELLING (buyer) side
-    Both > 0% = double-end deal (agent represented both sides)
-- Commission row breaks out: Listing / Listing Other / Selling / Selling Other / Sub-Total / HST / Total
-- Agents section names the agent (e.g. "GREENSPAN, LORRY") with their agent code
+STEP 1 — IDENTIFY DEAL TYPE
+Look for any of these signals:
+  - "LEASE", "RENTAL", "LEASING", "Monthly Rent", "Tenant", "Landlord", "Lessee", "Lessor" → deal_type = "lease"
+  - "SALE", "Purchase", "Buyer", "Seller", "Vendor", "Selling Price" with a price > \$100,000 → deal_type = "sale"
+  - Very short doc (~<1000 chars) with only commission/fees and no parties or property section → deal_type = "lease_renewal" (renewal commission slip)
+  - Class / Type / Category fields naming "RESIDENTIAL SALE", "RENTAL OR LEASING FEE", "COMMERCIAL LEASE", etc. — use them
+  - If the "Selling Price" or main monetary amount is between \$1,000 and \$15,000, treat it as MONTHLY RENT (deal_type = lease), not a sale price
+
+STEP 2 — IDENTIFY AGENT SIDE
+The agent named in the document (usually under "Agents:" or similar) earned the commission. Determine which side:
+  - "Listing Comm. Rate > 0" / "Listing Side" / "Listing Agent: <name>" → agent_side = "seller" (sale) or "landlord" (lease)
+  - "Selling Comm. Rate > 0" / "Co-op Side" / "Buyer Agent: <name>" / "Selling Agent: <name>" → agent_side = "buyer" (sale) or "tenant" (lease)
+  - Both > 0 → "both" (double-ended)
+
+STEP 3 — EXTRACT NAMES
+Names sometimes have a single-letter side-marker prefix (e.g. "BuyerSMARCO PICCOLO" — the S is a Selling-end marker, the actual name is MARCO PICCOLO; "SellerLDIANA BATALEVICH" — the L is the Listing-end marker, actual name is DIANA BATALEVICH). STRIP these single-letter prefixes.
+
+Different brokerages use different role labels:
+  - Sale: Buyer / Purchaser / Vendor / Seller
+  - Lease: Tenant / Lessee / Landlord / Lessor
+
+The "current address" shown for a buyer/tenant is where they live BEFORE this transaction (we'll use the property address as their new home after).
+
+STEP 4 — PRICES
+  - Sale → "sale_price" field; "monthly_rent" stays null
+  - Lease → "monthly_rent" field; "sale_price" stays null
+  - "Selling Price" labeled values map to whichever applies based on deal_type
 
 Extracted text:
 ${textForModel}
 
-Return ONLY valid JSON. Use null for any field you can't find. Numeric fields as numbers (not strings, no dollar signs or commas). Dates as YYYY-MM-DD.
+Return ONLY valid JSON. Numbers as numbers (no dollar signs/commas). Dates as YYYY-MM-DD.
 
 {
+  "deal_type": "'sale' | 'lease' | 'lease_renewal' | 'unknown'",
   "mls_number": "string or null",
-  "property_address": "street address with unit (e.g. '35 Bastion Street, Unit 1920')",
+  "property_address": "street + unit (e.g. '35 Bastion Street, Unit 1920') or null",
   "property_city": "string or null",
-  "property_province": "two-letter province code or null",
+  "property_province": "two-letter province or null",
   "property_postal": "postal code or null",
-  "property_type": "Residential / Commercial / Lease or null",
-  "agent_name": "the agent named in the Agents section (e.g. 'Lorry Greenspan')",
+  "property_type": "'Residential' / 'Commercial' / null",
+  "agent_name": "the agent who earned the commission",
   "agent_code": "string or null",
-  "agent_side": "'buyer' if Selling Comm. Rate > 0 and Listing Comm. Rate = 0, 'seller' if reversed, 'both' if double-end, null if unclear",
-  "buyer_name": "full name of buyer or null",
-  "buyer_address": "buyer's address as shown (this is where they CURRENTLY live, BEFORE moving into the property they bought) or null",
-  "seller_name": "full name of seller or null",
-  "seller_address": "seller's address as shown or null",
-  "selling_price": numeric_or_null,
+  "agent_side": "'buyer' (sale-buy), 'seller' (sale-list), 'tenant' (lease-rep-tenant), 'landlord' (lease-rep-landlord), 'both' (double-ended), or null",
+  "buyer_or_tenant_name": "full name (strip side-marker prefix) or null",
+  "buyer_or_tenant_current_address": "their address as shown (BEFORE the move) or null",
+  "seller_or_landlord_name": "full name (strip side-marker prefix) or null",
+  "seller_or_landlord_current_address": "address as shown or null",
+  "sale_price": numeric_or_null,
+  "monthly_rent": numeric_or_null,
+  "lease_term_months": numeric_or_null,
   "deposit": numeric_or_null,
   "deposit_held_by": "string or null",
   "offer_date": "YYYY-MM-DD or null",
   "firm_date": "YYYY-MM-DD or null",
   "close_date": "YYYY-MM-DD or null",
-  "status": "Open / Firm / Closed or null",
+  "status": "string or null",
   "listing_commission_pct": numeric_or_null,
   "selling_commission_pct": numeric_or_null,
-  "gross_commission": "the total selling-side commission amount before splits, or null",
-  "agent_share_pretax": "the agent's share before HST (from the Agents row) or null",
-  "agent_share_after_hst": "the agent's net after HST or null",
-  "outside_brokerage": "the OTHER brokerage on the deal (e.g. the listing brokerage if agent was buy-side) or null",
+  "gross_commission": numeric_or_null,
+  "agent_share_pretax": numeric_or_null,
+  "agent_share_after_hst": numeric_or_null,
+  "outside_brokerage": "the OTHER brokerage on the deal or null",
   "outside_brokerage_agent": "the OTHER agent or null"
 }
 If this is not a brokerage trade package or commission statement return: {"not_trade_package": true}`
@@ -138,8 +145,8 @@ If this is not a brokerage trade package or commission statement return: {"not_t
 
         if (extracted.not_trade_package) {
           results.push({ filename: pdf.filename, error: 'PDF did not look like a brokerage trade package / commission statement' });
-        } else if (!extracted.property_address && !extracted.selling_price) {
-          results.push({ filename: pdf.filename, error: 'No property address or sale price extracted — form may be unreadable', ...extracted });
+        } else if (!extracted.property_address && !extracted.sale_price && !extracted.monthly_rent) {
+          results.push({ filename: pdf.filename, error: 'No property address or price extracted — form may be unreadable', ...extracted });
         } else {
           results.push({ filename: pdf.filename, ...extracted });
         }
