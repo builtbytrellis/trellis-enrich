@@ -67,12 +67,13 @@ module.exports = async (req, res) => {
               content: `You are extracting deal data from a real estate brokerage Trade Package / Commission Statement. Layouts differ by brokerage; do not assume any specific labels.
 
 STEP 1 — IDENTIFY DEAL TYPE
-Look for any of these signals:
-  - "LEASE", "RENTAL", "LEASING", "Monthly Rent", "Tenant", "Landlord", "Lessee", "Lessor" → deal_type = "lease"
-  - "SALE", "Purchase", "Buyer", "Seller", "Vendor", "Selling Price" with a price > \$100,000 → deal_type = "sale"
-  - Very short doc (~<1000 chars) with only commission/fees and no parties or property section → deal_type = "lease_renewal" (renewal commission slip)
-  - Class / Type / Category fields naming "RESIDENTIAL SALE", "RENTAL OR LEASING FEE", "COMMERCIAL LEASE", etc. — use them
-  - If the "Selling Price" or main monetary amount is between \$1,000 and \$15,000, treat it as MONTHLY RENT (deal_type = lease), not a sale price
+Apply these rules IN ORDER (first one that matches wins):
+  1. If the document is short (<1500 chars) AND has no Buyer/Seller/Tenant/Landlord section AND only shows commission/fees → deal_type = "lease_renewal". Renewal slips often just list "Commission, \$X" then deductions then "Balance Due on Closing" with no party info.
+  2. If the main monetary amount is BETWEEN \$500 AND \$20,000 → deal_type = "lease" (this is monthly rent; sale prices in Toronto/GTA are always ≥ \$100K). Half-month or partial commission amounts (e.g. \$1,337.50) appearing as the price also indicate lease (likely renewal — re-check rule 1).
+  3. If "LEASE", "RENTAL", "LEASING", "Monthly Rent", "Tenant", "Landlord", "Lessee", "Lessor" appears anywhere → deal_type = "lease"
+  4. If main monetary amount ≥ \$100,000 → deal_type = "sale"
+  5. Class / Type / Category labels — "RENTAL OR LEASING FEE" = lease, "RESIDENTIAL SALE" / "COMPETITOR'S LISTING" / "OUR LISTING" = sale
+  6. Else: deal_type = "unknown"
 
 STEP 2 — IDENTIFY AGENT SIDE
 The agent named in the document (usually under "Agents:" or similar) earned the commission. Determine which side:
@@ -80,8 +81,17 @@ The agent named in the document (usually under "Agents:" or similar) earned the 
   - "Selling Comm. Rate > 0" / "Co-op Side" / "Buyer Agent: <name>" / "Selling Agent: <name>" → agent_side = "buyer" (sale) or "tenant" (lease)
   - Both > 0 → "both" (double-ended)
 
-STEP 3 — EXTRACT NAMES
-Names sometimes have a single-letter side-marker prefix (e.g. "BuyerSMARCO PICCOLO" — the S is a Selling-end marker, the actual name is MARCO PICCOLO; "SellerLDIANA BATALEVICH" — the L is the Listing-end marker, actual name is DIANA BATALEVICH). STRIP these single-letter prefixes.
+STEP 3 — EXTRACT NAMES (critical rules)
+
+CRITICAL: The "agent_name" you extract is the agent who earned the commission (usually listed under "Agents:" or "Agent:" with a code like "(A) 2666 - GREENSPAN, LORRY"). This person is NEVER the buyer, seller, tenant, or landlord — they are a third party. Never put the agent's name in any party field. If the only name you can find for one of the parties happens to be the agent, return null for that party.
+
+Names sometimes have a single-letter side-marker prefix to STRIP:
+  - "BuyerSMARCO PICCOLO" — the S is a Selling-end marker; actual name is MARCO PICCOLO
+  - "SellerLDIANA BATALEVICH" — the L is a Listing-end marker; actual name is DIANA BATALEVICH
+  - "SellerL576922 ONTARIO LTD" — the L is the side marker; actual name is "576922 ONTARIO LTD" (numbered corporation)
+  - "SellerLLANDLORD PROPERTY..." — strip the side-marker L, actual name is "LANDLORD PROPERTY..."
+
+Rule: when a Buyer/Seller/Tenant/Landlord label is immediately followed by a SINGLE letter (S, L, or sometimes B) before the actual name, that letter is the side-marker — drop it. The actual name starts right after.
 
 Different brokerages use different role labels:
   - Sale: Buyer / Purchaser / Vendor / Seller
