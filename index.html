@@ -167,6 +167,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="nav-item" onclick="showPanel('history',this)"><span class="nav-dot"></span>History</div>
       <div class="nav-item" onclick="showPanel('transactions',this)"><span class="nav-dot"></span>Transactions</div>
       <div class="nav-item" onclick="showPanel('fintrac',this)"><span class="nav-dot"></span>FINTRAC</div>
+      <div class="nav-item" onclick="showPanel('trades',this)"><span class="nav-dot"></span>Past Trades</div>
     </nav>
     <div class="fub-section">
       <div class="fub-label">Follow Up Boss</div>
@@ -356,6 +357,34 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
           <button class="btn btn-green btn-sm" style="margin-left:auto" onclick="applyAllFintracToContacts(event)">Apply All to Contacts</button>
         </div>
         <div class="card" style="padding:0;overflow:hidden" id="fintrac-list"></div>
+      </div>
+    </div>
+
+    <!-- Past Trades -->
+    <div class="panel" id="panel-trades">
+      <div class="page-title">Past Trades</div>
+      <div class="page-sub">Upload Agreement of Purchase and Sale PDFs (OREA Form 100/101) to extract deal info for commission tracking and address updates.</div>
+
+      <div class="card">
+        <div class="card-title">Upload APS PDFs</div>
+        <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Drop merged APS PDFs (typically includes the agreement plus Form 320 commission section). We'll extract buyers, sellers, property, sale price, deposit, closing date, and commission.</p>
+        <div class="drop-zone" id="trade-drop" onclick="document.getElementById('trade-inp').click()" style="padding:32px">
+          <input type="file" id="trade-inp" accept=".pdf" multiple style="display:none" onchange="handleTradeFiles(event)"/>
+          <div style="font-size:32px;margin-bottom:8px">🏠</div>
+          <p>Drop APS PDFs here or click to browse</p>
+          <small>Accepts multiple files</small>
+        </div>
+        <div id="trade-status" style="display:none;margin-top:12px">
+          <div style="font-size:13px;color:var(--ink-muted)" id="trade-progress">Processing...</div>
+          <div class="progress-wrap" style="margin-top:8px"><div class="progress-fill" id="trade-progress-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <div id="trade-results" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+          <span style="font-size:13px;font-weight:500" id="trade-count"></span>
+        </div>
+        <div id="trade-list"></div>
       </div>
     </div>
 
@@ -1440,6 +1469,133 @@ async function applyAllFintracToContacts(ev) {
 
   if (countEl) countEl.textContent = `${baseCountText} • ✓ ${matched} updated, ${added} new${failed ? ', ' + failed + ' failed' : ''}`;
   if (btn) { btn.disabled = false; btn.textContent = originalBtnText; }
+}
+
+// ── Past Trades ───────────────────────────────────────────────────────
+let tradeResults = [];
+
+async function handleTradeFiles(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  await processTradeFiles(files);
+}
+
+async function processTradeFiles(files) {
+  document.getElementById('trade-status').style.display = 'block';
+  document.getElementById('trade-results').style.display = 'none';
+  tradeResults = [];
+
+  const BATCH = 3;
+  let processed = 0;
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    try {
+      const pdfs = await Promise.all(batch.map(async f => ({
+        filename: f.name,
+        base64: await toBase64(f)
+      })));
+
+      const res = await fetch('/api/extract-trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+        body: JSON.stringify({ pdfs })
+      });
+      const data = await res.json();
+      if (data.results) tradeResults.push(...data.results);
+    } catch(e) { console.error('Trade batch error:', e); }
+
+    processed += batch.length;
+    const pct = Math.round(processed / files.length * 100);
+    document.getElementById('trade-progress').textContent = `Processing ${processed} of ${files.length} files...`;
+    document.getElementById('trade-progress-bar').style.width = pct + '%';
+  }
+
+  document.getElementById('trade-status').style.display = 'none';
+  renderTradeResults();
+}
+
+function findContactMatch(name) {
+  if (!name || !historyContacts.length) return null;
+  const n = name.toLowerCase();
+  return historyContacts.find(c => {
+    const cn = (c.full_name || c.name || '').toLowerCase();
+    if (!cn) return false;
+    return cn === n || n.includes(cn.split(' ')[0]) || cn.includes(n.split(' ')[0]);
+  });
+}
+
+function fmtMoney(v) {
+  if (v == null || v === '') return '';
+  const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[,$]/g, ''));
+  return isNaN(n) ? '' : '$' + n.toLocaleString('en-CA', { maximumFractionDigits: 2 });
+}
+
+function renderTradeResults() {
+  const valid = tradeResults.filter(r => !r.error);
+  const errors = tradeResults.filter(r => r.error);
+
+  document.getElementById('trade-count').textContent =
+    `${valid.length} trade${valid.length !== 1 ? 's' : ''} extracted${errors.length ? ', ' + errors.length + ' error' + (errors.length>1?'s':'') : ''}`;
+  document.getElementById('trade-results').style.display = 'block';
+
+  const cards = valid.map((r, idx) => {
+    const buyers = (r.buyer_names || []).join(', ');
+    const sellers = (r.seller_names || []).join(', ');
+    const matchOnBuyer = (r.buyer_names || []).map(n => findContactMatch(n)).find(Boolean);
+    const matchOnSeller = (r.seller_names || []).map(n => findContactMatch(n)).find(Boolean);
+    const matched = matchOnBuyer || matchOnSeller;
+    const matchedRole = matchOnBuyer ? 'buyer' : matchOnSeller ? 'seller' : null;
+    const matchedName = matched ? (matched.full_name || matched.name) : null;
+
+    return `
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:500">${r.property_address || 'Address unknown'}</div>
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${r.filename} ${r.form_type ? '• ' + r.form_type : ''} ${r.lorrys_side ? '• Lorry on ' + r.lorrys_side + ' side' : ''}</div>
+        </div>
+        ${matched
+          ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ Matches ${matchedName} (${matchedRole})</div>`
+          : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
+      </div>
+
+      <div class="field-grid">
+        <div class="field"><div class="field-key">Buyer(s)</div><div class="field-val"><input type="text" id="trade-buyers-${idx}" value="${buyers.replace(/"/g,'&quot;')}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Seller(s)</div><div class="field-val"><input type="text" id="trade-sellers-${idx}" value="${sellers.replace(/"/g,'&quot;')}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Sale price</div><div class="field-val"><input type="text" id="trade-price-${idx}" value="${fmtMoney(r.sale_price)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Deposit</div><div class="field-val"><input type="text" id="trade-deposit-${idx}" value="${fmtMoney(r.deposit)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Closing date</div><div class="field-val"><input type="text" id="trade-closing-${idx}" value="${r.closing_date || ''}" placeholder="YYYY-MM-DD" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Agreement date</div><div class="field-val"><input type="text" id="trade-agreement-${idx}" value="${r.agreement_date || ''}" placeholder="YYYY-MM-DD" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Commission %</div><div class="field-val"><input type="text" id="trade-commpct-${idx}" value="${r.commission_pct != null ? r.commission_pct : ''}" placeholder="e.g. 2.5" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+        <div class="field"><div class="field-key">Commission $</div><div class="field-val"><input type="text" id="trade-commamt-${idx}" value="${fmtMoney(r.commission_amount)}" style="width:100%;border:none;background:transparent;padding:0;font-size:13px"/></div></div>
+      </div>
+
+      <div id="trade-push-msg-${idx}" style="font-size:12px;margin-top:10px;min-height:16px"></div>
+    </div>`;
+  }).join('');
+
+  const errorRows = errors.length ? `
+    <div class="card" style="background:var(--red-light);border-color:rgba(192,57,43,0.2)">
+      <div style="font-size:12px;font-weight:500;color:var(--red);margin-bottom:8px">${errors.length} file${errors.length>1?'s':''} could not be processed</div>
+      ${errors.map(e => `
+        <div style="font-size:11px;color:var(--ink-soft);padding:4px 0;border-top:.5px dashed rgba(192,57,43,0.2)">
+          <div style="font-weight:500;color:var(--ink)">${e.filename || 'unknown.pdf'}</div>
+          <div style="color:var(--red);margin-top:2px">${e.error || 'unknown error'}</div>
+        </div>
+      `).join('')}
+    </div>` : '';
+
+  document.getElementById('trade-list').innerHTML = cards + errorRows;
 }
 
 // ── DocuSign ──────────────────────────────────────────────────────────
