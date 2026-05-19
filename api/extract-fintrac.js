@@ -89,27 +89,43 @@ module.exports = async (req, res) => {
             response_format: { type: 'json_object' },
             messages: [{
               role: 'user',
-              content: `This is text extracted from a FINTRAC (Financial Transactions and Reports Analysis Centre of Canada) identity verification form from a Canadian real estate transaction. The form template boilerplate fills most of the text; the actual filled-in client data appears as scattered lines (name, address, DOB in YYYY/MM/DD, occupation, ID type and number).
+              content: `This is text extracted from a FINTRAC (Canadian real estate anti-money-laundering) identity verification form. The form is filled out by a REALTOR about a CLIENT (the individual being identified — usually a buyer or seller).
+
+When the extracted text contains a clumped block of values (delimited below by "=== filled values block ==="), the values appear in THIS FIXED ORDER:
+  1. Transaction property address (the property being bought/sold — NOT the client's home)
+  2. Transaction city/province/postal
+  3. Name of the realtor/broker/salesperson (the AGENT — NOT the client)
+  4. Date the form was completed (NOT the client's date of birth)
+  5. CLIENT's full legal name  ← this is what goes in "full_name"
+  6. CLIENT's home address     ← this is what goes in "address"
+  7. CLIENT's date of birth (YYYY/MM/DD)  ← this is what goes in "date_of_birth"
+  8. CLIENT's occupation, often combined with employer (e.g. "Director IT - CIBC")
+  9. ID document type (Driver's Licence / Passport / etc.)
+  10. ID document number
+  11. ID issuing jurisdiction (province + country, e.g. "ONCAN" = Ontario, Canada)
+  12. ID document expiry date
+
+If instead the values are inline with labels (e.g. "1. Full legal name of individual:    Stephen Alexander Boeckh"), extract them directly from those lines.
 
 Extracted text:
 ${textForModel}
 
-Extract ALL information and return ONLY valid JSON:
+Return ONLY valid JSON about the CLIENT (never about the realtor):
 {
-  "full_name": "full legal name of the client/individual being identified (NOT the realtor) or null",
-  "date_of_birth": "YYYY-MM-DD format or null",
-  "occupation": "occupation/job title or null",
-  "employer": "employer/company or null",
-  "address": "street address of individual or null",
-  "city": "city or null",
-  "province": "province or null",
+  "full_name": "client's full legal name (item 5 in the values block, NOT item 3 which is the realtor) or null",
+  "date_of_birth": "client's DOB in YYYY-MM-DD format (item 7, NOT item 4 which is the form date) or null",
+  "occupation": "client's job title (parsed from item 8) or null",
+  "employer": "client's employer/company (parsed from item 8 — e.g. 'CIBC' from 'Director IT - CIBC') or null",
+  "address": "client's home address (item 6, NOT item 1 which is the transaction property) or null",
+  "city": "client's home city or null",
+  "province": "client's home province or null",
   "phone": "phone number or null",
   "email": "email or null",
-  "id_type": "Passport/Driver's Licence/etc or null",
-  "id_number": "ID number or null",
+  "id_type": "ID document type (item 9) or null",
+  "id_number": "ID document number (item 10) or null",
   "is_buyer": true,
   "is_seller": false,
-  "property_address": "transaction property address or null"
+  "property_address": "transaction property address (item 1 in the values block) or null"
 }
 If this is not a FINTRAC form return: {"not_fintrac": true}`
             }]
