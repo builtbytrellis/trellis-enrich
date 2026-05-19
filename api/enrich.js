@@ -132,7 +132,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { name, city, fubApiKey, email } = req.body;
+  const { name, city, fubApiKey, email, skip_web_search } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
 
   try {
@@ -173,8 +173,8 @@ EXISTING FUB DATA:
     // Step 3 — FUB socialData (free, from FUB's own enrichment)
     const socialCtx = socialDataContext(fubContact);
 
-    // Step 4 — web search ONLY when we lack good signal (skip if socialData has company/title/bio)
-    const skipWebSearch = !!(socialCtx && (fubContact?.socialData?.company || fubContact?.socialData?.bio));
+    // Step 4 — web search: caller can force-skip (bulk load), or we skip when FUB socialData has the signal
+    const skipWebSearch = !!skip_web_search || !!(socialCtx && (fubContact?.socialData?.company || fubContact?.socialData?.bio));
     const webResult = skipWebSearch ? null : await webSearchContact(openai, name, city, contactEmail);
 
     // Build full context
