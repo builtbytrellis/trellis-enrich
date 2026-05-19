@@ -75,8 +75,12 @@ The document has labeled sections. Common fields and where to find them:
 - MLS #: the listing ID
 - Offer Date, Entry Date, Firm Date, Close Date
 - Status (Open / Firm / Closed)
-- Contacts section lists Buyer, Seller, Solicitors. Each line has a one-letter end marker:
-    "BuyerSMARCO PICCOLO27 ALLOWAY PL, MAPLE, ON, L6A-1N9, CA" — the S after "Buyer" is a side marker; the name follows immediately, then address
+- Contacts section lists Buyer, Seller, Solicitors. Each line has a ONE-LETTER END-MARKER between the role and the name. STRIP it from the extracted name:
+    "BuyerSMARCO PICCOLO27 ALLOWAY PL..." — the S immediately after "Buyer" is the side-marker for "Selling end"; the actual name is "MARCO PICCOLO"
+    "SellerLDIANA BATALEVICH ON, -, CA" — the L immediately after "Seller" is the side-marker for "Listing end"; the actual name is "DIANA BATALEVICH" (NOT "LDIANA")
+    "SolicitorLANNA GUREVICH..." — actual name is "ANNA GUREVICH"
+    "SolicitorSBIANCHI AND PRESTA..." — actual name is "BIANCHI AND PRESTA..."
+  Rule: when a name starts with a single letter immediately followed by an uppercase letter forming a real first name, that single letter is the side marker — drop it.
 - Selling Price (the actual sale price)
 - Deposit amount + who held it ("Held By")
 - Listing Comm. Rate vs Selling Comm. Rate:
