@@ -353,7 +353,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div id="fintrac-results" style="display:none">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
           <span style="font-size:13px;font-weight:500" id="fintrac-count"></span>
-          <button class="btn btn-green btn-sm" style="margin-left:auto" onclick="applyAllFintracToContacts()">Apply All to Contacts</button>
+          <button class="btn btn-green btn-sm" style="margin-left:auto" onclick="applyAllFintracToContacts(event)">Apply All to Contacts</button>
         </div>
         <div class="card" style="padding:0;overflow:hidden" id="fintrac-list"></div>
       </div>
@@ -1354,25 +1354,22 @@ function renderFintracResults() {
   `).join('') + errorRows;
 }
 
-async function applyFintracToContact(idx) {
+async function applyFintracToContact(idx, skipReload) {
   const r = fintracResults.filter(x => !x.error && !x.not_fintrac)[idx];
-  if (!r || !r.full_name) return;
+  if (!r || !r.full_name) return 'skipped';
 
   const msgEl = document.getElementById('fintrac-apply-msg-' + idx);
-  msgEl.textContent = 'Searching for contact...';
-  msgEl.style.color = 'var(--ink-muted)';
+  if (msgEl) { msgEl.textContent = 'Searching for contact...'; msgEl.style.color = 'var(--ink-muted)'; }
 
-  // Search history for matching contact by name
   const nameLower = r.full_name.toLowerCase();
   const match = historyContacts.find(c => {
     const cName = (c.full_name || c.name || '').toLowerCase();
-    return cName === nameLower || 
-      nameLower.includes(cName.split(' ')[0]) || 
+    return cName === nameLower ||
+      nameLower.includes(cName.split(' ')[0]) ||
       cName.includes(r.full_name.split(' ')[0].toLowerCase());
   });
 
   if (match) {
-    // Update the contact with FINTRAC data
     const updated = {
       ...match,
       birthday: r.date_of_birth || match.birthday,
@@ -1383,12 +1380,11 @@ async function applyFintracToContact(idx) {
       fintrac_verified: true
     };
     await saveToHistory(updated, match.pushed || false);
-    await loadHistory();
-    msgEl.textContent = '✓ Applied to ' + (match.full_name || match.name);
-    msgEl.style.color = 'var(--green)';
+    if (!skipReload) await loadHistory();
+    if (msgEl) { msgEl.textContent = '✓ Applied to ' + (match.full_name || match.name); msgEl.style.color = 'var(--green)'; }
+    return 'matched';
   } else {
-    // Add as new contact to queue
-    const id = 'fintrac_' + Date.now();
+    const id = 'fintrac_' + Date.now() + '_' + idx;
     const result = {
       full_name: r.full_name,
       initials: r.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
@@ -1410,17 +1406,40 @@ async function applyFintracToContact(idx) {
     result.suggested_tags.forEach((_, i) => tagStates[id][i] = 'approved');
     addToQueue(result, id, 'done');
     await saveToHistory(result, false);
-    msgEl.textContent = '✓ Added to queue as new contact';
-    msgEl.style.color = 'var(--amber)';
+    if (msgEl) { msgEl.textContent = '✓ Added as new contact'; msgEl.style.color = 'var(--amber)'; }
+    return 'new';
   }
 }
 
-async function applyAllFintracToContacts() {
+async function applyAllFintracToContacts(ev) {
   const valid = fintracResults.filter(r => !r.error && !r.not_fintrac);
+  if (!valid.length) return;
+
+  const btn = ev && ev.target;
+  const originalBtnText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Applying...'; }
+
+  const countEl = document.getElementById('fintrac-count');
+  const baseCountText = countEl ? countEl.textContent : '';
+
+  let matched = 0, added = 0, failed = 0;
   for (let i = 0; i < valid.length; i++) {
-    await applyFintracToContact(i);
-    await new Promise(r => setTimeout(r, 200));
+    if (countEl) countEl.textContent = `Applying ${i+1} of ${valid.length}...`;
+    try {
+      const outcome = await applyFintracToContact(i, true);
+      if (outcome === 'matched') matched++;
+      else if (outcome === 'new') added++;
+    } catch(e) {
+      console.error('Apply failed for idx', i, e);
+      failed++;
+    }
+    await new Promise(r => setTimeout(r, 80));
   }
+
+  await loadHistory();
+
+  if (countEl) countEl.textContent = `${baseCountText} • ✓ ${matched} updated, ${added} new${failed ? ', ' + failed + ' failed' : ''}`;
+  if (btn) { btn.disabled = false; btn.textContent = originalBtnText; }
 }
 
 // ── DocuSign ──────────────────────────────────────────────────────────
