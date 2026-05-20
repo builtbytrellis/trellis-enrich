@@ -5,7 +5,11 @@ const { verifySession } = require('./auth');
 async function recordDebug(agentId, payload) {
   try {
     const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
-    await redis.set(`last_push_debug:${agentId}`, JSON.stringify({ at: new Date().toISOString(), ...payload }), { ex: 86400 });
+    const data = JSON.stringify({ at: new Date().toISOString(), agentId, ...payload });
+    await redis.set(`last_push_debug:${agentId}`, data, { ex: 86400 });
+    // Also write a global key so the assistant can fetch the latest push
+    // regardless of which agent triggered it.
+    await redis.set('last_push_debug_global', data, { ex: 86400 });
   } catch (e) { console.warn('debug record failed:', e.message); }
 }
 
