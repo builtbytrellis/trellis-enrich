@@ -173,8 +173,19 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="fub-label">Follow Up Boss</div>
       <input class="fub-input" type="password" id="fub-key" placeholder="Paste API key..." oninput="checkFUB()"/>
       <div class="fub-status" id="fub-status">Not connected</div>
-      <button onclick="verifyFubKey()" style="margin-top:6px;background:none;border:.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif">Verify account</button>
+      <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+        <button onclick="verifyFubKey()" style="background:none;border:.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif">Verify account</button>
+        <button onclick="saveFubKey()" style="background:none;border:.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif">Save key</button>
+      </div>
       <div id="fub-verify-result" style="font-size:11px;color:rgba(255,255,255,.7);margin-top:6px;line-height:1.4"></div>
+      <details style="margin-top:10px;font-size:11px;color:rgba(255,255,255,.5)">
+        <summary style="cursor:pointer">Cleanup tools</summary>
+        <div style="margin-top:6px;display:flex;gap:6px;align-items:center">
+          <input type="text" id="cleanup-deal-id" placeholder="dealId" style="flex:1;background:rgba(255,255,255,.08);border:.5px solid rgba(255,255,255,.15);border-radius:3px;padding:4px 6px;color:white;font-size:11px;font-family:'DM Sans',sans-serif"/>
+          <button onclick="deleteFubDeal()" style="background:rgba(192,57,43,.3);border:.5px solid rgba(192,57,43,.5);color:rgba(255,255,255,.8);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif">Delete</button>
+        </div>
+        <div id="cleanup-result" style="font-size:11px;margin-top:4px;line-height:1.3"></div>
+      </details>
     </div>
   </div>
 
@@ -1693,6 +1704,56 @@ function renderTradeResults() {
     </div>` : '';
 
   document.getElementById('trade-list').innerHTML = cards + errorRows;
+}
+
+async function saveFubKey() {
+  const key = document.getElementById('fub-key').value.trim();
+  const el = document.getElementById('fub-verify-result');
+  if (!key) { el.innerHTML = '<span style="color:#d4ae72">Paste a key first.</span>'; return; }
+  el.innerHTML = 'Saving...';
+  try {
+    const body = { fubApiKey: key };
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/create-agent', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if (d.success) {
+      el.innerHTML = '<span style="color:#7bc67e">✓ Saved to your agent record. Now click Verify.</span>';
+    } else {
+      el.innerHTML = `<span style="color:#c0392b">Save failed: ${d.error || res.status}</span>`;
+    }
+  } catch (e) {
+    el.innerHTML = `<span style="color:#c0392b">Error: ${e.message}</span>`;
+  }
+}
+
+async function deleteFubDeal() {
+  const dealId = document.getElementById('cleanup-deal-id').value.trim();
+  const el = document.getElementById('cleanup-result');
+  if (!dealId) { el.innerHTML = '<span style="color:#d4ae72">Enter a dealId first.</span>'; return; }
+  if (!confirm(`Delete FUB deal #${dealId} using the currently stored API key?\n\nThis is permanent.`)) return;
+  el.innerHTML = 'Deleting...';
+  try {
+    const body = { dealId: parseInt(dealId, 10) };
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/delete-fub-deal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if (d.success) {
+      const name = d.deal?.name ? ` (${d.deal.name})` : '';
+      el.innerHTML = `<span style="color:#7bc67e">✓ Deleted deal ${dealId}${name}</span>`;
+    } else {
+      el.innerHTML = `<span style="color:#c0392b">Delete failed (${d.status || ''}): ${d.body?.errorMessage || d.error || JSON.stringify(d.body).slice(0,120)}</span>`;
+    }
+  } catch (e) {
+    el.innerHTML = `<span style="color:#c0392b">Error: ${e.message}</span>`;
+  }
 }
 
 async function verifyFubKey() {
