@@ -2,6 +2,27 @@ const fetch = require('node-fetch');
 const { Redis } = require('@upstash/redis');
 const { verifySession } = require('./auth');
 
+// Pull the target agent's stored FUB key from Redis. We do this server-side
+// to enforce that a deal is pushed to THE agent's FUB workspace, not whoever
+// happens to have a key pasted in the sidebar. Prevents accidental leakage
+// when admin operates on behalf of another agent.
+async function resolveFubKey(session, targetAgentId, sidebarKey) {
+  // Determine the effective owner of this push
+  const ownerAgentId = (session.role === 'admin' && targetAgentId) ? targetAgentId : session.agentId;
+  try {
+    const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+    const raw = await redis.get(`agent:id:${ownerAgentId}`);
+    if (raw) {
+      const agent = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (agent.fubApiKey) {
+        return { key: agent.fubApiKey, source: 'stored', ownerAgentId, ownerName: agent.name };
+      }
+    }
+  } catch (e) { console.warn('resolveFubKey: redis lookup failed', e.message); }
+  // No stored key for the owner — fall back to sidebar (and clearly flag it)
+  return { key: sidebarKey, source: 'sidebar', ownerAgentId, ownerName: null };
+}
+
 async function recordDebug(agentId, payload) {
   try {
     const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
@@ -114,14 +135,24 @@ module.exports = async (req, res) => {
   const session = await verifySession(req, res);
   if (!session) return;
 
-  const { trade, fubApiKey } = req.body;
+  const { trade, fubApiKey: sidebarKey, targetAgentId } = req.body;
   if (!trade) return res.status(400).json({ error: 'Trade required' });
-  if (!fubApiKey) return res.status(400).json({ error: 'FUB API key required (paste it in the sidebar)' });
+
+  // Resolve the FUB key from the target agent's stored value — NOT from the
+  // sidebar. This is the privacy guardrail: a deal is always pushed to the
+  // owning agent's FUB workspace, regardless of who's currently logged in.
+  const keyResult = await resolveFubKey(session, targetAgentId, sidebarKey);
+  if (!keyResult.key) {
+    return res.status(400).json({
+      error: `No FUB API key on file for the target agent (${keyResult.ownerAgentId}). Admin: edit that agent and add their FUB API key.`,
+    });
+  }
+  const fubApiKey = keyResult.key;
 
   const encoded = Buffer.from(fubApiKey + ':').toString('base64');
   const headers = { 'Content-Type': 'application/json', 'Authorization': `Basic ${encoded}` };
 
-  const outcome = { steps: [] };
+  const outcome = { steps: [], key_source: keyResult.source, owner_agent_id: keyResult.ownerAgentId, owner_agent_name: keyResult.ownerName };
 
   try {
     // 0) Whoami — log which FUB account this API key writes to.

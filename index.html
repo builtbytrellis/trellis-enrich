@@ -1485,7 +1485,8 @@ async function handleTradeFiles(e) {
 
 async function loadSavedTrades() {
   try {
-    const res = await fetch('/api/get-trades?limit=500', { headers: { 'x-session-token': getToken() } });
+    const url = impersonating ? `/api/get-trades?limit=500&agentId=${impersonating.agentId}` : '/api/get-trades?limit=500';
+    const res = await fetch(url, { headers: { 'x-session-token': getToken() } });
     const data = await res.json();
     if (Array.isArray(data.trades) && data.trades.length) {
       tradeResults = data.trades;
@@ -1532,10 +1533,12 @@ async function processTradeFiles(files) {
         // (and so the user isn't paying for re-OCR every reload).
         for (const r of data.results) {
           if (!r.error) {
+            const body = { trade: r };
+            if (impersonating) body.targetAgentId = impersonating.agentId;
             fetch('/api/save-trade', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
-              body: JSON.stringify({ trade: r })
+              body: JSON.stringify(body)
             }).catch(e => console.warn('auto-save failed for', r.filename, e));
           }
         }
@@ -1738,10 +1741,12 @@ async function pushTradeToFub(idx, ev) {
 
   try {
     // Step 1 — save the trade record to Redis
+    const saveBody = { trade };
+    if (impersonating) saveBody.targetAgentId = impersonating.agentId;
     const saveRes = await fetch('/api/save-trade', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
-      body: JSON.stringify({ trade })
+      body: JSON.stringify(saveBody)
     });
     const saveData = await saveRes.json();
     if (!saveRes.ok || !saveData.success) {
@@ -1751,10 +1756,12 @@ async function pushTradeToFub(idx, ev) {
     if (msg) msg.textContent = 'Saved. Pushing to FUB...';
 
     // Step 2 — push to FUB (deal create + address update or note)
+    const pushBody = { trade, fubApiKey: fubKey };
+    if (impersonating) pushBody.targetAgentId = impersonating.agentId;
     const pushRes = await fetch('/api/push-trade-to-fub', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
-      body: JSON.stringify({ trade, fubApiKey: fubKey })
+      body: JSON.stringify(pushBody)
     });
     const pushData = await pushRes.json();
     console.log('[push-trade-to-fub response]', pushData);
