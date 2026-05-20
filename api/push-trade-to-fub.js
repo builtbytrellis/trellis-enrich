@@ -25,15 +25,61 @@ async function fubFetch(path, method, headers, body) {
 
 // Try to find a reasonable FUB deal stage. Workspaces have custom pipelines —
 // look for one whose name suggests a closed/won state, fall back to first stage.
+// Returns { stage, debug } so failure modes are surfaced in the debug log.
 async function findClosedStage(headers) {
   const r = await fubFetch('/dealStages', 'GET', headers);
-  if (!r.ok || !Array.isArray(r.body?.dealStages)) return null;
-  const stages = r.body.dealStages;
-  const byWon = stages.find(s => /\bwon\b/i.test(s.name));
-  if (byWon) return byWon;
-  const byClosed = stages.find(s => /\bclosed\b/i.test(s.name) && !/lost/i.test(s.name));
-  if (byClosed) return byClosed;
-  return stages[0] || null;
+  const debug = { status: r.status, ok: r.ok, body_keys: r.body && typeof r.body === 'object' ? Object.keys(r.body) : null };
+
+  // The response shape varies across FUB API versions. Try every container.
+  let stages = null;
+  if (Array.isArray(r.body)) stages = r.body;
+  else if (Array.isArray(r.body?.dealStages)) stages = r.body.dealStages;
+  else if (Array.isArray(r.body?.deal_stages)) stages = r.body.deal_stages;
+  else if (Array.isArray(r.body?.stages)) stages = r.body.stages;
+  else if (r.body && typeof r.body === 'object') {
+    for (const k of Object.keys(r.body)) {
+      if (Array.isArray(r.body[k]) && r.body[k][0]?.id) { stages = r.body[k]; break; }
+    }
+  }
+
+  debug.stage_count = stages?.length || 0;
+  debug.stage_names = stages?.map(s => s.name || s.title || s.label).slice(0, 30) || null;
+  if (!r.ok) debug.body_preview = JSON.stringify(r.body).slice(0, 400);
+
+  if (!stages || !stages.length) return { stage: null, debug };
+
+  const nameOf = s => s.name || s.title || s.label || '';
+  const byWon = stages.find(s => /\bwon\b/i.test(nameOf(s)));
+  const byClosed = stages.find(s => /\bclosed\b/i.test(nameOf(s)) && !/lost/i.test(nameOf(s)));
+  // Fall back to first stage so deal create at least succeeds; user can recategorize in FUB.
+  return { stage: byWon || byClosed || stages[0], debug };
+}
+
+// Search FUB for a person with multiple name variants, since exact full names
+// from trade docs (e.g. "CARLY SARAH ALBAUM") may not match how they're stored
+// in FUB (e.g. "Carly Albaum"). Returns first hit across all variants.
+async function findFubPersonRobust(name, headers) {
+  if (!name) return { person: null, tried: [] };
+  const tokens = name.trim().split(/\s+/).filter(Boolean);
+  const variants = [name];
+  if (tokens.length >= 2) variants.push(`${tokens[0]} ${tokens[tokens.length - 1]}`);
+  if (tokens.length >= 2) variants.push(tokens[tokens.length - 1]);
+  if (tokens.length >= 1) variants.push(tokens[0]);
+  // De-dup while preserving order
+  const seen = new Set();
+  const tried = [];
+  for (const v of variants) {
+    const key = v.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const r = await fubFetch(`/people?q=${encodeURIComponent(v)}&limit=5`, 'GET', headers);
+    const people = r.body?.people || [];
+    tried.push({ q: v, found: people.length, ids: people.slice(0, 3).map(p => p.id) });
+    if (people.length) {
+      return { person: people[0], tried };
+    }
+  }
+  return { person: null, tried };
 }
 
 // Find a FUB person by name (and optionally address). Returns first match.
@@ -78,13 +124,22 @@ module.exports = async (req, res) => {
 
     let fubPerson = null;
     if (clientName) {
-      fubPerson = await findFubPerson(clientName, headers);
-      outcome.steps.push({ step: 'find_person', name: clientName, found: !!fubPerson, fubId: fubPerson?.id });
+      const personResult = await findFubPersonRobust(clientName, headers);
+      fubPerson = personResult.person;
+      outcome.steps.push({ step: 'find_person', name: clientName, found: !!fubPerson, fubId: fubPerson?.id, tried: personResult.tried });
     }
 
     // 2) Find a deal stage to put the deal under.
-    const stage = await findClosedStage(headers);
-    outcome.steps.push({ step: 'find_stage', stage: stage?.name, stageId: stage?.id });
+    const stageResult = await findClosedStage(headers);
+    const stage = stageResult.stage;
+    outcome.steps.push({ step: 'find_stage', stage: stage?.name || null, stageId: stage?.id || null, debug: stageResult.debug });
+    if (!stage) {
+      const errMsg = stageResult.debug?.status === 404
+        ? 'FUB workspace has no deal stages — Deals feature may not be enabled, or the API key lacks permission. Check: FUB → Settings → Deals.'
+        : `Could not find a deal stage in FUB (status ${stageResult.debug?.status}). Body keys: ${stageResult.debug?.body_keys?.join(',') || 'none'}.`;
+      await recordDebug(session.agentId, { trade, outcome, error: errMsg });
+      return res.status(200).json({ success: false, error: errMsg, outcome });
+    }
 
     // 3) Create the deal.
     const dealName = `${trade.property_address || 'Property'} — ${clientName || 'Unknown party'}`;
