@@ -155,17 +155,45 @@ module.exports = async (req, res) => {
   const outcome = { steps: [], key_source: keyResult.source, owner_agent_id: keyResult.ownerAgentId, owner_agent_name: keyResult.ownerName };
 
   try {
-    // 0) Whoami — log which FUB account this API key writes to.
+    // 0) Whoami — log which FUB account this API key writes to AND enforce
+    //    that it matches the target agent. Closes the leak path that put
+    //    Lorry's Glenholme client data into David Speedie's workspace.
     const meRes = await fubFetch('/identity', 'GET', headers);
+    const accountName = meRes.body?.account?.name || meRes.body?.account || null;
+    const userName = meRes.body?.name || null;
+    const userEmail = meRes.body?.email || null;
     outcome.steps.push({
       step: 'whoami',
       ok: meRes.ok,
       status: meRes.status,
-      account: meRes.body?.account?.name || meRes.body?.account || null,
-      user: meRes.body?.name || meRes.body?.email || null,
+      account: accountName,
+      user: userName || userEmail,
       user_id: meRes.body?.id || null,
       body_keys: meRes.body && typeof meRes.body === 'object' ? Object.keys(meRes.body) : null
     });
+
+    // Strict identity check: if we have a name on file for the owning agent
+    // and the FUB key resolves to a clearly different person, refuse to push.
+    if (keyResult.ownerName && (userName || accountName)) {
+      const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const owner = normalize(keyResult.ownerName);
+      const fubUser = normalize(userName);
+      const fubAccount = normalize(accountName);
+      const ownerTokens = owner.match(/[a-z]+/gi) || (keyResult.ownerName || '').toLowerCase().split(/\s+/);
+
+      const userMatches = fubUser && (fubUser.includes(owner) || owner.includes(fubUser));
+      const accountMatches = fubAccount && (fubAccount.includes(owner) || owner.includes(fubAccount));
+      // Also accept partial — at least one significant token of the owner's name appears in the FUB user/account
+      const tokenMatch = ownerTokens.some(t => t.length >= 4 && ((fubUser && fubUser.includes(t)) || (fubAccount && fubAccount.includes(t))));
+
+      if (!userMatches && !accountMatches && !tokenMatch) {
+        const msg = `FUB key identity mismatch — refusing to push. Stored key for ${keyResult.ownerName} resolves to FUB user "${userName || '(none)'}" / account "${accountName || '(none)'}". Update the agent's stored key (sidebar → Save key) to one that actually belongs to ${keyResult.ownerName}.`;
+        outcome.steps.push({ step: 'identity_check', ok: false, error: msg });
+        await recordDebug(session.agentId, { trade, outcome, blocked: true, error: msg });
+        return res.status(200).json({ success: false, error: msg, outcome });
+      }
+      outcome.steps.push({ step: 'identity_check', ok: true, matched_on: userMatches ? 'user' : accountMatches ? 'account' : 'token' });
+    }
 
     const isLease = trade.deal_type === 'lease' || trade.deal_type === 'lease_renewal';
     const isSale = trade.deal_type === 'sale';
