@@ -44,11 +44,18 @@ async function fubFetch(path, method, headers, body) {
   return { ok: r.ok, status: r.status, body: j };
 }
 
-// FUB's stages live inside pipelines: GET /v1/pipelines returns {pipelines: [{id, name, stages: [...]}, ...]}.
-// We flatten all stages across all pipelines, prefer one whose name says
-// Won/Closed, and fall back to the first stage so the deal at least gets
-// created (user can recategorize in FUB).
-async function findClosedStage(headers) {
+// FUB's stages live inside pipelines: GET /v1/pipelines returns
+// {pipelines: [{id, name, stages: [...]}, ...]}.
+//
+// Pick a stage that's appropriate for THIS deal:
+//   - Buy-side trade (agent represented buyer/tenant) → Buyers pipeline
+//   - List-side trade (agent represented seller/landlord) → Sellers pipeline
+//   - Past close_date (today or earlier) → "Closed" / "Won" stage in that pipeline
+//   - Future close_date (or none) → "Pending" / "Under Contract" / "Active" stage
+//
+// Falls back gracefully if the workspace has only one pipeline or the named
+// stages don't match — user can always recategorize in FUB after the fact.
+async function findStageForTrade(headers, trade) {
   const r = await fubFetch('/pipelines', 'GET', headers);
   const debug = { status: r.status, ok: r.ok, body_keys: r.body && typeof r.body === 'object' ? Object.keys(r.body) : null };
 
@@ -68,26 +75,60 @@ async function findClosedStage(headers) {
     return { stage: null, debug };
   }
 
-  // Flatten all stages
-  const stages = [];
-  for (const p of pipelines) {
-    const pipelineStages = p.stages || p.dealStages || [];
-    for (const s of pipelineStages) {
-      stages.push({ ...s, pipelineName: p.name, pipelineId: p.id });
-    }
-  }
-
   debug.pipeline_count = pipelines.length;
   debug.pipeline_names = pipelines.map(p => p.name).slice(0, 10);
-  debug.stage_count = stages.length;
-  debug.stage_names = stages.map(s => s.name || s.title || s.label).slice(0, 30);
+
+  // Pick pipeline by agent_side
+  const buySide = ['buyer', 'tenant'].includes(trade.agent_side);
+  const listSide = ['seller', 'landlord'].includes(trade.agent_side);
+  let pipeline = null;
+  if (buySide) {
+    pipeline = pipelines.find(p => /\bbuyer/i.test(p.name)) || pipelines[0];
+  } else if (listSide) {
+    pipeline = pipelines.find(p => /\bseller|\blisting/i.test(p.name)) || pipelines[0];
+  } else {
+    pipeline = pipelines[0]; // double-ended or unknown — first pipeline
+  }
+  debug.picked_pipeline = pipeline?.name;
+
+  const stages = (pipeline.stages || pipeline.dealStages || []).map(s => ({ ...s, pipelineName: pipeline.name, pipelineId: pipeline.id }));
+  debug.stage_names = stages.map(s => s.name || s.title || s.label);
 
   if (!stages.length) return { stage: null, debug };
 
-  const nameOf = s => s.name || s.title || s.label || '';
-  const byWon = stages.find(s => /\bwon\b/i.test(nameOf(s)));
-  const byClosed = stages.find(s => /\bclosed\b/i.test(nameOf(s)) && !/lost/i.test(nameOf(s)));
-  return { stage: byWon || byClosed || stages[0], debug };
+  // Decide stage based on close_date relative to today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let closeDate = null;
+  if (trade.close_date) {
+    const d = new Date(trade.close_date);
+    if (!isNaN(d.getTime())) closeDate = d;
+  }
+  const isPastClose = closeDate && closeDate < today;
+  debug.close_date = trade.close_date || null;
+  debug.close_state = isPastClose ? 'past (use closed stage)' : 'future or unknown (use pending stage)';
+
+  const nameOf = s => (s.name || s.title || s.label || '').toLowerCase();
+
+  let stage;
+  if (isPastClose) {
+    stage =
+      stages.find(s => /\bwon\b/.test(nameOf(s))) ||
+      stages.find(s => /\bclosed\b/.test(nameOf(s)) && !/lost/.test(nameOf(s))) ||
+      stages.find(s => /\bsold\b/.test(nameOf(s))) ||
+      stages[stages.length - 1]; // last stage in pipeline as fallback
+  } else {
+    stage =
+      stages.find(s => /\bpending\b/.test(nameOf(s))) ||
+      stages.find(s => /\bunder\s*contract\b/.test(nameOf(s))) ||
+      stages.find(s => /\bactive\b/.test(nameOf(s))) ||
+      stages.find(s => /\bbuyer\s*contract\b/.test(nameOf(s))) ||
+      stages.find(s => /\boffer\b/.test(nameOf(s))) ||
+      stages[0]; // first stage in pipeline as fallback
+  }
+  debug.picked_stage = stage?.name || null;
+
+  return { stage, debug };
 }
 
 // Search FUB for a person with multiple name variants, since exact full names
@@ -221,8 +262,9 @@ module.exports = async (req, res) => {
       outcome.steps.push({ step: 'find_person', name: clientName, found: !!fubPerson, fubId: fubPerson?.id, tried: personResult.tried });
     }
 
-    // 2) Find a deal stage to put the deal under.
-    const stageResult = await findClosedStage(headers);
+    // 2) Find a deal stage to put the deal under — uses trade.agent_side
+    //    to pick pipeline, trade.close_date to pick stage (pending vs closed).
+    const stageResult = await findStageForTrade(headers, trade);
     const stage = stageResult.stage;
     outcome.steps.push({ step: 'find_stage', stage: stage?.name || null, stageId: stage?.id || null, debug: stageResult.debug });
     if (!stage) {
