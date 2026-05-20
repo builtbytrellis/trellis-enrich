@@ -1,5 +1,13 @@
 const fetch = require('node-fetch');
+const { Redis } = require('@upstash/redis');
 const { verifySession } = require('./auth');
+
+async function recordDebug(agentId, payload) {
+  try {
+    const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+    await redis.set(`last_push_debug:${agentId}`, JSON.stringify({ at: new Date().toISOString(), ...payload }), { ex: 86400 });
+  } catch (e) { console.warn('debug record failed:', e.message); }
+}
 
 async function fubFetch(path, method, headers, body) {
   const url = `https://api.followupboss.com/v1${path}`;
@@ -94,10 +102,13 @@ module.exports = async (req, res) => {
       }
     };
 
+    outcome.dealPayload = dealPayload;
     const dealRes = await fubFetch('/deals', 'POST', headers, dealPayload);
     outcome.steps.push({ step: 'create_deal', ok: dealRes.ok, status: dealRes.status, dealId: dealRes.body?.id, error: dealRes.ok ? null : dealRes.body });
     if (!dealRes.ok) {
-      return res.status(200).json({ success: false, error: `FUB deal create failed (${dealRes.status})`, outcome });
+      const fubError = typeof dealRes.body === 'object' ? JSON.stringify(dealRes.body).slice(0, 400) : String(dealRes.body).slice(0, 400);
+      await recordDebug(session.agentId, { trade, outcome, fubStatus: dealRes.status, fubError });
+      return res.status(200).json({ success: false, error: `FUB deal create failed (${dealRes.status}): ${fubError}`, outcome });
     }
 
     // 4) Address update OR sold/leased note, per the rule.
@@ -133,6 +144,7 @@ module.exports = async (req, res) => {
       outcome.steps.push({ step: 'address_update_skipped', reason: 'no FUB person matched — deal created unlinked' });
     }
 
+    await recordDebug(session.agentId, { trade, outcome, success: true, dealId: dealRes.body?.id });
     return res.status(200).json({
       success: true,
       dealId: dealRes.body?.id,
@@ -141,6 +153,7 @@ module.exports = async (req, res) => {
     });
   } catch (e) {
     console.error('push-trade-to-fub error:', e);
+    await recordDebug(session.agentId, { trade, outcome, exception: e.message, stack: e.stack });
     return res.status(500).json({ error: e.message, outcome });
   }
 };

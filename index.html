@@ -1694,8 +1694,14 @@ async function pushTradeToFub(idx, ev) {
       body: JSON.stringify({ trade, fubApiKey: fubKey })
     });
     const pushData = await pushRes.json();
+    console.log('[push-trade-to-fub response]', pushData);
     if (!pushData.success) {
-      throw new Error(pushData.error || 'FUB push failed');
+      // Show the full failure (FUB's error body) so it's visible without DevTools
+      const detail = pushData.error || 'FUB push failed';
+      const stepsText = (pushData.outcome?.steps || []).map(s =>
+        `${s.step}: ${s.ok === false ? 'FAIL ' + (typeof s.error === 'object' ? JSON.stringify(s.error).slice(0,200) : s.error || s.status) : 'ok'}`
+      ).join('  |  ');
+      throw new Error(detail + (stepsText ? '  ::  ' + stepsText : ''));
     }
 
     const parts = [];
