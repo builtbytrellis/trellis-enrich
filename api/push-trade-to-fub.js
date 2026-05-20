@@ -144,6 +144,28 @@ module.exports = async (req, res) => {
       outcome.steps.push({ step: 'address_update_skipped', reason: 'no FUB person matched — deal created unlinked' });
     }
 
+    // 5) Annual closing-anniversary reminders (5 years out) on the agent's
+    //    client's profile. FUB doesn't have native recurring tasks, so we
+    //    create individual tasks at +1, +2, ... +5 years from the close date.
+    if (fubPerson?.id && trade.close_date) {
+      const [yStr, mStr, dStr] = trade.close_date.split('-');
+      const baseYear = parseInt(yStr);
+      if (Number.isFinite(baseYear) && mStr && dStr) {
+        for (let yearsOut = 1; yearsOut <= 5; yearsOut++) {
+          const dueDate = `${baseYear + yearsOut}-${mStr}-${dStr}`;
+          const verb = isLease ? 'leasing' : 'closing';
+          const taskPayload = {
+            name: `${yearsOut}-Year ${isLease ? 'Lease' : 'Closing'} Anniversary — ${trade.property_address || 'their property'}`,
+            personId: fubPerson.id,
+            dueDate,
+            description: `${yearsOut}-year anniversary of ${verb} on ${trade.property_address || 'this property'} (${trade.close_date}). Reach out — congrats / housewarming check-in / referral ask.`,
+          };
+          const taskRes = await fubFetch('/tasks', 'POST', headers, taskPayload);
+          outcome.steps.push({ step: `anniversary_y${yearsOut}`, ok: taskRes.ok, status: taskRes.status, taskId: taskRes.body?.id, dueDate, error: taskRes.ok ? null : taskRes.body });
+        }
+      }
+    }
+
     await recordDebug(session.agentId, { trade, outcome, success: true, dealId: dealRes.body?.id });
     return res.status(200).json({
       success: true,
