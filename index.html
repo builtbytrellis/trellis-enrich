@@ -624,6 +624,7 @@ function showPanel(id, el) {
   if (el) el.classList.add('active');
   if (id === 'history') loadHistory();
   if (id === 'queue' && !queue.length) loadPersistentQueue();
+  if (id === 'trades' && !tradeResults.length) loadSavedTrades();
 }
 
 function switchEnrichTab(t) {
@@ -1480,10 +1481,22 @@ async function handleTradeFiles(e) {
   await processTradeFiles(files);
 }
 
+async function loadSavedTrades() {
+  try {
+    const res = await fetch('/api/get-trades?limit=500', { headers: { 'x-session-token': getToken() } });
+    const data = await res.json();
+    if (Array.isArray(data.trades) && data.trades.length) {
+      tradeResults = data.trades;
+      renderTradeResults();
+    }
+  } catch(e) { console.warn('loadSavedTrades failed:', e); }
+}
+
 async function processTradeFiles(files) {
   document.getElementById('trade-status').style.display = 'block';
   document.getElementById('trade-results').style.display = 'none';
-  tradeResults = [];
+  // Start with whatever's already saved so re-uploads merge with history
+  if (!tradeResults.length) await loadSavedTrades();
 
   const BATCH = 3;
   let processed = 0;
@@ -1511,7 +1524,20 @@ async function processTradeFiles(files) {
         body: JSON.stringify({ pdfs })
       });
       const data = await res.json();
-      if (data.results) tradeResults.push(...data.results);
+      if (data.results) {
+        tradeResults.push(...data.results);
+        // Auto-persist successful extractions so a refresh doesn't lose them
+        // (and so the user isn't paying for re-OCR every reload).
+        for (const r of data.results) {
+          if (!r.error) {
+            fetch('/api/save-trade', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+              body: JSON.stringify({ trade: r })
+            }).catch(e => console.warn('auto-save failed for', r.filename, e));
+          }
+        }
+      }
     } catch(e) { console.error('Trade batch error:', e); }
 
     processed += batch.length;
