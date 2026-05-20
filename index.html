@@ -558,6 +558,7 @@ async function loadAdminPanel() {
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
               <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin's trades here</button>
+              <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name.replace(/'/g, \"\\\\'\")}')">Update FUB key</button>
               <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
             ` : ''}
           </div>
@@ -581,6 +582,38 @@ async function createAgent() {
     msg.textContent = `${name} created successfully`; msg.className = 'push-msg ok';
     setTimeout(() => loadAdminPanel(), 1000);
   } catch(e) { msg.textContent = e.message; msg.className = 'push-msg err'; }
+}
+
+async function updateAgentFubKey(agentId, agentName) {
+  const newKey = prompt(`Paste ${agentName}'s actual FUB API key.\n\nThis replaces whatever is stored on their agent record. Push to FUB for their trades will then use this key.`);
+  if (newKey === null) return;
+  const trimmed = newKey.trim();
+  if (!trimmed) { alert('Empty key — nothing changed.'); return; }
+  try {
+    const res = await fetch('/api/create-agent', {
+      method: 'PUT',
+      headers: authHeaders(),
+      body: JSON.stringify({ agentId, fubApiKey: trimmed })
+    });
+    const d = await res.json();
+    if (!res.ok || !d.success) throw new Error(d.error || res.status);
+
+    // Verify the new key by calling check-fub-key
+    const vres = await fetch('/api/check-fub-key', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ fubApiKey: trimmed })
+    });
+    const vd = await vres.json();
+    if (!vd.valid) {
+      alert(`Key saved, but FUB rejected it on verify: ${vd.error || vd.status}\n\nThe key may be wrong or expired.`);
+      return;
+    }
+    alert(`✓ Saved ${agentName}'s FUB key.\n\nWrites to: ${vd.account || '(no account name)'}\nUser: ${vd.user_name || '(unknown)'} ${vd.user_email ? '<' + vd.user_email + '>' : ''}\n\nIf that's not ${agentName}'s workspace, run this again with the correct key.`);
+    loadAdminPanel();
+  } catch (e) {
+    alert('Failed to update key: ' + e.message);
+  }
 }
 
 async function migrateAdminTrades(toAgentId, toName) {
