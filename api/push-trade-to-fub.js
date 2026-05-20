@@ -124,6 +124,18 @@ module.exports = async (req, res) => {
   const outcome = { steps: [] };
 
   try {
+    // 0) Whoami — log which FUB account this API key writes to.
+    const meRes = await fubFetch('/identity', 'GET', headers);
+    outcome.steps.push({
+      step: 'whoami',
+      ok: meRes.ok,
+      status: meRes.status,
+      account: meRes.body?.account?.name || meRes.body?.account || null,
+      user: meRes.body?.name || meRes.body?.email || null,
+      user_id: meRes.body?.id || null,
+      body_keys: meRes.body && typeof meRes.body === 'object' ? Object.keys(meRes.body) : null
+    });
+
     const isLease = trade.deal_type === 'lease' || trade.deal_type === 'lease_renewal';
     const isSale = trade.deal_type === 'sale';
     const partyName = trade.buyer_or_tenant_name;
