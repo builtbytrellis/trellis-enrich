@@ -558,7 +558,7 @@ async function loadAdminPanel() {
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
               <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin's trades here</button>
-              <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name.replace(/'/g, \"\\\\'\")}')">Update FUB key</button>
+              <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}')">Update FUB key</button>
               <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
             ` : ''}
           </div>
