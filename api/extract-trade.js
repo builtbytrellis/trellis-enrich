@@ -12,11 +12,30 @@ Apply these rules IN ORDER (first one that matches wins):
   5. Class / Type / Category labels — "RENTAL OR LEASING FEE" = lease, "RESIDENTIAL SALE" / "COMPETITOR'S LISTING" / "OUR LISTING" = sale
   6. Else: deal_type = "unknown"
 
-STEP 2 — IDENTIFY AGENT SIDE
-The agent named in the document (usually under "Agents:" or similar) earned the commission. Determine which side:
-  - "Listing Comm. Rate > 0" / "Listing Side" / "Listing Agent: <name>" → agent_side = "seller" (sale) or "landlord" (lease)
-  - "Selling Comm. Rate > 0" / "Co-op Side" / "Buyer Agent: <name>" / "Selling Agent: <name>" → agent_side = "buyer" (sale) or "tenant" (lease)
-  - Both > 0 → "both" (double-ended)
+STEP 2 — IDENTIFY AGENT SIDE (CRITICAL — easy to get wrong)
+
+⚠️ Real-estate jargon trap: "Selling" does NOT mean "represents the seller". It means "brought the buyer" (i.e., the side that sold the property TO their buyer client). Apply these rules to the AGENT'S OWN TP — the agent earned whichever commission their TP shows as non-zero:
+
+  CASE A — "Listing Comm. Rate" > 0% AND "Selling Comm. Rate" = 0%:
+    The agent was the LISTING agent. They represented the SELLER (or LANDLORD on a lease).
+    → agent_side = "seller" (sale) or "landlord" (lease)
+
+  CASE B — "Selling Comm. Rate" > 0% AND "Listing Comm. Rate" = 0%:
+    The agent was the SELLING/CO-OPERATING agent. They brought the BUYER (or TENANT on a lease).
+    → agent_side = "buyer" (sale) or "tenant" (lease)
+    Common misread: do NOT label this "seller" just because the column is called "Selling". The agent brought the BUYER.
+
+  CASE C — Both > 0%:
+    Double-ended. Agent represented both sides.
+    → agent_side = "both"
+
+If commission percentages are not visible, fall back to other signals:
+  - "Listing Brokerage: [agent's brokerage]" with no "Co-op Brokerage" of the agent → agent_side = seller/landlord
+  - "Co-operating Brokerage: [agent's brokerage]" or "Outside Brokerage: [other brokerage]" + agent's brokerage in the selling/buying position → agent_side = buyer/tenant
+  - "Buyer Agent: [agent name]" / "Selling Agent: [agent name]" → agent_side = buyer/tenant (agent brought the buyer)
+  - "Listing Agent: [agent name]" → agent_side = seller/landlord
+
+Sanity check before finalizing: if the OUTSIDE BROKERAGE is on the LISTING side, then the agent must be on the BUYER side (CASE B). If the outside brokerage is on the SELLING/CO-OP side, the agent is on the LISTING side (CASE A).
 
 STEP 3 — EXTRACT NAMES (critical rules)
 
