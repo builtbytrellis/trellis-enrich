@@ -172,27 +172,34 @@ module.exports = async (req, res) => {
       body_keys: meRes.body && typeof meRes.body === 'object' ? Object.keys(meRes.body) : null
     });
 
-    // Strict identity check: if we have a name on file for the owning agent
-    // and the FUB key resolves to a clearly different person, refuse to push.
-    if (keyResult.ownerName && (userName || accountName)) {
-      const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      const owner = normalize(keyResult.ownerName);
-      const fubUser = normalize(userName);
-      const fubAccount = normalize(accountName);
-      const ownerTokens = owner.match(/[a-z]+/gi) || (keyResult.ownerName || '').toLowerCase().split(/\s+/);
-
-      const userMatches = fubUser && (fubUser.includes(owner) || owner.includes(fubUser));
-      const accountMatches = fubAccount && (fubAccount.includes(owner) || owner.includes(fubAccount));
-      // Also accept partial — at least one significant token of the owner's name appears in the FUB user/account
-      const tokenMatch = ownerTokens.some(t => t.length >= 4 && ((fubUser && fubUser.includes(t)) || (fubAccount && fubAccount.includes(t))));
-
-      if (!userMatches && !accountMatches && !tokenMatch) {
-        const msg = `FUB key identity mismatch — refusing to push. Stored key for ${keyResult.ownerName} resolves to FUB user "${userName || '(none)'}" / account "${accountName || '(none)'}". Update the agent's stored key (sidebar → Save key) to one that actually belongs to ${keyResult.ownerName}.`;
-        outcome.steps.push({ step: 'identity_check', ok: false, error: msg });
+    // Identity check: only block when the FUB key clearly resolves to a
+    // DIFFERENT named individual than the owning agent. Specifically:
+    //   - If FUB user.name is set (personal API key) → it must contain any
+    //     significant token from the owning agent's name. If not, block —
+    //     this is the David-Speedie-leak path (key returned user "davidspeedie"
+    //     for an agent named "Lorry Greenspan").
+    //   - If FUB user.name is empty (brokerage-level / account-level API key,
+    //     e.g. Forest Hill Real Estate Inc.'s shared key) → allow. We can't
+    //     attribute the key to a person, but the agent has read/write access
+    //     to that workspace by virtue of working at the brokerage. The user
+    //     has the Verify button to sanity-check before they ever push.
+    //   - Always surface the resolved identity in outcome.steps so it's
+    //     visible regardless of which path we took.
+    if (keyResult.ownerName && userName && userName.trim()) {
+      const owner = keyResult.ownerName.toLowerCase();
+      const fubUser = userName.toLowerCase().replace(/[^a-z]/g, '');
+      const ownerTokens = (owner.match(/[a-z]+/g) || []).filter(t => t.length >= 4);
+      const matches = ownerTokens.some(t => fubUser.includes(t));
+      if (!matches) {
+        const msg = `FUB key identity mismatch — refusing to push. Stored key for ${keyResult.ownerName} resolves to FUB user "${userName}" / account "${accountName || '(none)'}". This looks like a different person's key. Update the agent's stored key (Admin → Update FUB key on the agent's row) to one that actually belongs to ${keyResult.ownerName}.`;
+        outcome.steps.push({ step: 'identity_check', ok: false, error: msg, resolved_user: userName, resolved_account: accountName });
         await recordDebug(session.agentId, { trade, outcome, blocked: true, error: msg });
         return res.status(200).json({ success: false, error: msg, outcome });
       }
-      outcome.steps.push({ step: 'identity_check', ok: true, matched_on: userMatches ? 'user' : accountMatches ? 'account' : 'token' });
+      outcome.steps.push({ step: 'identity_check', ok: true, matched_on: 'user_name', resolved_user: userName, resolved_account: accountName });
+    } else {
+      // Account-level / brokerage key (no user attached). Allow but record.
+      outcome.steps.push({ step: 'identity_check', ok: true, matched_on: 'account_level_key', resolved_user: userName || null, resolved_account: accountName || null });
     }
 
     const isLease = trade.deal_type === 'lease' || trade.deal_type === 'lease_renewal';
