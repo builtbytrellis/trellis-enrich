@@ -23,35 +23,49 @@ async function fubFetch(path, method, headers, body) {
   return { ok: r.ok, status: r.status, body: j };
 }
 
-// Try to find a reasonable FUB deal stage. Workspaces have custom pipelines —
-// look for one whose name suggests a closed/won state, fall back to first stage.
-// Returns { stage, debug } so failure modes are surfaced in the debug log.
+// FUB's stages live inside pipelines: GET /v1/pipelines returns {pipelines: [{id, name, stages: [...]}, ...]}.
+// We flatten all stages across all pipelines, prefer one whose name says
+// Won/Closed, and fall back to the first stage so the deal at least gets
+// created (user can recategorize in FUB).
 async function findClosedStage(headers) {
-  const r = await fubFetch('/dealStages', 'GET', headers);
+  const r = await fubFetch('/pipelines', 'GET', headers);
   const debug = { status: r.status, ok: r.ok, body_keys: r.body && typeof r.body === 'object' ? Object.keys(r.body) : null };
 
-  // The response shape varies across FUB API versions. Try every container.
-  let stages = null;
-  if (Array.isArray(r.body)) stages = r.body;
-  else if (Array.isArray(r.body?.dealStages)) stages = r.body.dealStages;
-  else if (Array.isArray(r.body?.deal_stages)) stages = r.body.deal_stages;
-  else if (Array.isArray(r.body?.stages)) stages = r.body.stages;
+  let pipelines = null;
+  if (Array.isArray(r.body)) pipelines = r.body;
+  else if (Array.isArray(r.body?.pipelines)) pipelines = r.body.pipelines;
   else if (r.body && typeof r.body === 'object') {
     for (const k of Object.keys(r.body)) {
-      if (Array.isArray(r.body[k]) && r.body[k][0]?.id) { stages = r.body[k]; break; }
+      if (Array.isArray(r.body[k])) { pipelines = r.body[k]; break; }
     }
   }
 
-  debug.stage_count = stages?.length || 0;
-  debug.stage_names = stages?.map(s => s.name || s.title || s.label).slice(0, 30) || null;
   if (!r.ok) debug.body_preview = JSON.stringify(r.body).slice(0, 400);
 
-  if (!stages || !stages.length) return { stage: null, debug };
+  if (!pipelines || !pipelines.length) {
+    debug.pipeline_count = 0;
+    return { stage: null, debug };
+  }
+
+  // Flatten all stages
+  const stages = [];
+  for (const p of pipelines) {
+    const pipelineStages = p.stages || p.dealStages || [];
+    for (const s of pipelineStages) {
+      stages.push({ ...s, pipelineName: p.name, pipelineId: p.id });
+    }
+  }
+
+  debug.pipeline_count = pipelines.length;
+  debug.pipeline_names = pipelines.map(p => p.name).slice(0, 10);
+  debug.stage_count = stages.length;
+  debug.stage_names = stages.map(s => s.name || s.title || s.label).slice(0, 30);
+
+  if (!stages.length) return { stage: null, debug };
 
   const nameOf = s => s.name || s.title || s.label || '';
   const byWon = stages.find(s => /\bwon\b/i.test(nameOf(s)));
   const byClosed = stages.find(s => /\bclosed\b/i.test(nameOf(s)) && !/lost/i.test(nameOf(s)));
-  // Fall back to first stage so deal create at least succeeds; user can recategorize in FUB.
   return { stage: byWon || byClosed || stages[0], debug };
 }
 
@@ -147,18 +161,18 @@ module.exports = async (req, res) => {
     const dealPayload = {
       name: dealName,
       ...(stage?.id ? { stageId: stage.id } : {}),
-      ...(trade.close_date ? { closeDate: trade.close_date } : {}),
-      ...(dealValue ? { value: dealValue } : {}),
+      ...(trade.close_date ? { projectedCloseDate: trade.close_date } : {}),
+      ...(dealValue ? { price: dealValue } : {}),
       ...(trade.gross_commission ? { commissionValue: trade.gross_commission } : {}),
-      ...(fubPerson?.id ? { personIds: [fubPerson.id] } : {}),
-      customFields: {
-        ...(trade.deal_type ? { 'Deal Type': trade.deal_type } : {}),
-        ...(trade.mls_number ? { 'MLS Number': trade.mls_number } : {}),
-        ...(trade.property_address ? { 'Property Address': trade.property_address } : {}),
-        ...(trade.agent_side ? { 'Agent Side': trade.agent_side } : {}),
-        ...(trade.agent_share_pretax ? { 'Agent Share': String(trade.agent_share_pretax) } : {}),
-        ...(isLease && trade.monthly_rent ? { 'Monthly Rent': String(trade.monthly_rent) } : {}),
-      }
+      ...(fubPerson?.id ? { peopleIds: [fubPerson.id] } : {}),
+      description: [
+        trade.deal_type ? `Type: ${trade.deal_type}` : null,
+        trade.mls_number ? `MLS: ${trade.mls_number}` : null,
+        trade.property_address ? `Property: ${trade.property_address}` : null,
+        trade.agent_side ? `Lorry rep'd: ${trade.agent_side}` : null,
+        trade.agent_share_pretax ? `Agent share (pretax): $${trade.agent_share_pretax}` : null,
+        isLease && trade.monthly_rent ? `Monthly rent: $${trade.monthly_rent}` : null,
+      ].filter(Boolean).join('\n')
     };
 
     outcome.dealPayload = dealPayload;
