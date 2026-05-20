@@ -173,6 +173,8 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="fub-label">Follow Up Boss</div>
       <input class="fub-input" type="password" id="fub-key" placeholder="Paste API key..." oninput="checkFUB()"/>
       <div class="fub-status" id="fub-status">Not connected</div>
+      <button onclick="verifyFubKey()" style="margin-top:6px;background:none;border:.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;font-family:'DM Sans',sans-serif">Verify account</button>
+      <div id="fub-verify-result" style="font-size:11px;color:rgba(255,255,255,.7);margin-top:6px;line-height:1.4"></div>
     </div>
   </div>
 
@@ -1688,6 +1690,28 @@ function renderTradeResults() {
     </div>` : '';
 
   document.getElementById('trade-list').innerHTML = cards + errorRows;
+}
+
+async function verifyFubKey() {
+  const key = document.getElementById('fub-key').value.trim();
+  const el = document.getElementById('fub-verify-result');
+  if (!key) { el.innerHTML = '<span style="color:#d4ae72">Paste a key first.</span>'; return; }
+  el.innerHTML = 'Checking...';
+  try {
+    const res = await fetch('/api/check-fub-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify({ fubApiKey: key })
+    });
+    const d = await res.json();
+    if (!d.valid) {
+      el.innerHTML = `<span style="color:#c0392b">✗ Invalid key (${d.status || ''}): ${d.error || ''}</span>`;
+      return;
+    }
+    el.innerHTML = `<span style="color:#7bc67e">✓ Writes to:</span><br><b style="color:white">${d.account || '(no account name)'}</b><br>${d.user_name || ''}${d.user_email ? ' &lt;' + d.user_email + '&gt;' : ''}${d.role ? ' • ' + d.role : ''}`;
+  } catch (e) {
+    el.innerHTML = `<span style="color:#c0392b">Error: ${e.message}</span>`;
+  }
 }
 
 async function pushTradeToFub(idx, ev) {
