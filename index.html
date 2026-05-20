@@ -1526,11 +1526,18 @@ async function processTradeFiles(files) {
 
 function findContactMatch(name) {
   if (!name || !historyContacts.length) return null;
-  const n = name.toLowerCase();
+  // Whole-token match: every token in the contact's name must appear as a
+  // whole token in the trade-party name. Avoids substring false positives
+  // like 'Eli' matching 'hermELIn'.
+  const tokens = name.toLowerCase().split(/[\s,&]+/).filter(t => t.length >= 3);
+  if (!tokens.length) return null;
+  const tokenSet = new Set(tokens);
   return historyContacts.find(c => {
     const cn = (c.full_name || c.name || '').toLowerCase();
     if (!cn) return false;
-    return cn === n || n.includes(cn.split(' ')[0]) || cn.includes(n.split(' ')[0]);
+    const ctokens = cn.split(/[\s,&]+/).filter(t => t.length >= 3);
+    if (!ctokens.length) return false;
+    return ctokens.every(ct => tokenSet.has(ct));
   });
 }
 
@@ -1627,7 +1634,10 @@ function renderTradeResults() {
         ${preview.map(p => `<div style="font-size:12px;color:var(--ink);padding:2px 0">• ${p}</div>`).join('')}
       </div>` : ''}
 
-      <div id="trade-push-msg-${idx}" style="font-size:12px;margin-top:10px;min-height:16px"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
+        <button class="btn btn-green btn-sm" onclick="pushTradeToFub(${idx}, event)">Push to FUB</button>
+        <div id="trade-push-msg-${idx}" style="font-size:12px;min-height:16px;flex:1"></div>
+      </div>
     </div>`;
   }).join('');
 
@@ -1643,6 +1653,64 @@ function renderTradeResults() {
     </div>` : '';
 
   document.getElementById('trade-list').innerHTML = cards + errorRows;
+}
+
+async function pushTradeToFub(idx, ev) {
+  const valid = tradeResults.filter(r => !r.error);
+  const trade = valid[idx];
+  if (!trade) return;
+
+  const fubKey = document.getElementById('fub-key').value.trim();
+  if (!fubKey) {
+    const msg = document.getElementById('trade-push-msg-' + idx);
+    if (msg) { msg.textContent = '⚠ Paste your FUB API key in the sidebar first.'; msg.style.color = 'var(--red)'; }
+    return;
+  }
+
+  const btn = ev && ev.target;
+  const originalText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Pushing...'; }
+  const msg = document.getElementById('trade-push-msg-' + idx);
+  if (msg) { msg.textContent = 'Saving trade...'; msg.style.color = 'var(--ink-muted)'; }
+
+  try {
+    // Step 1 — save the trade record to Redis
+    const saveRes = await fetch('/api/save-trade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify({ trade })
+    });
+    const saveData = await saveRes.json();
+    if (!saveRes.ok || !saveData.success) {
+      throw new Error('Save failed: ' + (saveData.error || saveRes.status));
+    }
+
+    if (msg) msg.textContent = 'Saved. Pushing to FUB...';
+
+    // Step 2 — push to FUB (deal create + address update or note)
+    const pushRes = await fetch('/api/push-trade-to-fub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify({ trade, fubApiKey: fubKey })
+    });
+    const pushData = await pushRes.json();
+    if (!pushData.success) {
+      throw new Error(pushData.error || 'FUB push failed');
+    }
+
+    const parts = [];
+    if (pushData.dealId) parts.push(`Deal #${pushData.dealId} created`);
+    if (pushData.fubPersonId) parts.push(`linked to FUB person #${pushData.fubPersonId}`);
+    else parts.push('deal unlinked (no FUB person matched — link manually in FUB)');
+    const addrStep = pushData.outcome?.steps?.find(s => s.step === 'update_address' || s.step === 'add_note');
+    if (addrStep?.ok) parts.push(addrStep.step === 'update_address' ? 'address updated' : 'note added');
+
+    if (msg) { msg.innerHTML = '✓ ' + parts.join(' • '); msg.style.color = 'var(--green)'; }
+    if (btn) { btn.textContent = '✓ Pushed'; }
+  } catch (e) {
+    if (msg) { msg.textContent = '✗ ' + e.message; msg.style.color = 'var(--red)'; }
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+  }
 }
 
 // ── DocuSign ──────────────────────────────────────────────────────────
