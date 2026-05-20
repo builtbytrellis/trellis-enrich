@@ -1,6 +1,101 @@
 const { verifySession } = require('./auth');
 const fetch = require('node-fetch');
 
+const TRADE_EXTRACTION_PROMPT = `You are extracting deal data from a real estate brokerage Trade Package / Commission Statement. Layouts differ by brokerage; do not assume any specific labels.
+
+STEP 1 — IDENTIFY DEAL TYPE
+Apply these rules IN ORDER (first one that matches wins):
+  1. If the document is short (<1500 chars) AND has no Buyer/Seller/Tenant/Landlord section AND only shows commission/fees → deal_type = "lease_renewal". Renewal slips often just list "Commission, $X" then deductions then "Balance Due on Closing" with no party info.
+  2. If the main monetary amount is BETWEEN $500 AND $20,000 → deal_type = "lease" (this is monthly rent; sale prices in Toronto/GTA are always ≥ $100K). Half-month or partial commission amounts (e.g. $1,337.50) appearing as the price also indicate lease (likely renewal — re-check rule 1).
+  3. If "LEASE", "RENTAL", "LEASING", "Monthly Rent", "Tenant", "Landlord", "Lessee", "Lessor" appears anywhere → deal_type = "lease"
+  4. If main monetary amount ≥ $100,000 → deal_type = "sale"
+  5. Class / Type / Category labels — "RENTAL OR LEASING FEE" = lease, "RESIDENTIAL SALE" / "COMPETITOR'S LISTING" / "OUR LISTING" = sale
+  6. Else: deal_type = "unknown"
+
+STEP 2 — IDENTIFY AGENT SIDE
+The agent named in the document (usually under "Agents:" or similar) earned the commission. Determine which side:
+  - "Listing Comm. Rate > 0" / "Listing Side" / "Listing Agent: <name>" → agent_side = "seller" (sale) or "landlord" (lease)
+  - "Selling Comm. Rate > 0" / "Co-op Side" / "Buyer Agent: <name>" / "Selling Agent: <name>" → agent_side = "buyer" (sale) or "tenant" (lease)
+  - Both > 0 → "both" (double-ended)
+
+STEP 3 — EXTRACT NAMES (critical rules)
+
+CRITICAL: The agent_name is whoever earned the commission (Agents/Agent: section, often with a code like "(A) 2666 - GREENSPAN, LORRY"). This person is NEVER the buyer, seller, tenant, or landlord. Never put the agent's name in any party field. If the only candidate name is the agent, return null for that party.
+
+Names sometimes have a single-letter side-marker prefix to STRIP:
+  - "BuyerSMARCO PICCOLO" — S is selling-end marker; name is MARCO PICCOLO
+  - "SellerLDIANA BATALEVICH" — L is listing-end marker; name is DIANA BATALEVICH
+  - "SellerL576922 ONTARIO LTD" — L is the side marker; actual name is 576922 ONTARIO LTD
+
+Rule: when a Buyer/Seller/Tenant/Landlord label is immediately followed by a SINGLE letter (S, L, or B) before the actual name, that letter is the side-marker — drop it.
+
+STEP 4 — PRICES
+  - Sale → "sale_price" field; "monthly_rent" stays null
+  - Lease → "monthly_rent" field; "sale_price" stays null
+
+Return ONLY valid JSON. Numbers as numbers (no dollar signs/commas). Dates as YYYY-MM-DD.
+
+{
+  "deal_type": "'sale' | 'lease' | 'lease_renewal' | 'unknown'",
+  "mls_number": "string or null",
+  "property_address": "street + unit (e.g. '35 Bastion Street, Unit 1920') or null",
+  "property_city": "string or null",
+  "property_province": "two-letter province or null",
+  "property_postal": "postal code or null",
+  "property_type": "'Residential' / 'Commercial' / null",
+  "agent_name": "the agent who earned the commission",
+  "agent_code": "string or null",
+  "agent_side": "'buyer' | 'seller' | 'tenant' | 'landlord' | 'both' | null",
+  "buyer_or_tenant_name": "full name (strip side-marker prefix) or null",
+  "buyer_or_tenant_current_address": "their address as shown (BEFORE the move) or null",
+  "seller_or_landlord_name": "full name (strip side-marker prefix) or null",
+  "seller_or_landlord_current_address": "address as shown or null",
+  "sale_price": "numeric or null",
+  "monthly_rent": "numeric or null",
+  "lease_term_months": "numeric or null",
+  "deposit": "numeric or null",
+  "deposit_held_by": "string or null",
+  "offer_date": "YYYY-MM-DD or null",
+  "firm_date": "YYYY-MM-DD or null",
+  "close_date": "YYYY-MM-DD or null",
+  "status": "string or null",
+  "listing_commission_pct": "numeric or null",
+  "selling_commission_pct": "numeric or null",
+  "gross_commission": "numeric or null",
+  "agent_share_pretax": "numeric or null",
+  "agent_share_after_hst": "numeric or null",
+  "outside_brokerage": "string or null",
+  "outside_brokerage_agent": "string or null"
+}
+If this is not a brokerage trade package or commission statement return: {"not_trade_package": true}`;
+
+async function extractWithAnthropic(pdfBuffer) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error('ANTHROPIC_API_KEY not set. Add it to Vercel env vars to enable OCR of scanned PDFs.');
+  }
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const base64 = pdfBuffer.toString('base64');
+  const response = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1500,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+        { type: 'text', text: TRADE_EXTRACTION_PROMPT }
+      ]
+    }]
+  });
+
+  const text = response.content?.find(b => b.type === 'text')?.text || '';
+  // Claude sometimes wraps JSON in code fences — strip them.
+  const m = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  const json = m ? m[1] : text;
+  return JSON.parse(json);
+}
+
 async function withRetry(fn, label, maxAttempts = 3) {
   let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -42,11 +137,21 @@ module.exports = async (req, res) => {
         const pdfData = await pdfParse(pdfBuffer);
         const text = (pdfData.text || '').trim();
 
+        // SCANNED-PDF PATH: pdf-parse couldn't extract real text. Use Claude
+        // Haiku with native PDF input (handles Authentisign-wrapped scans, etc).
         if (text.length < 200) {
-          results.push({
-            filename: pdf.filename,
-            error: 'PDF has minimal extractable text (likely scanned image / Authentisign-wrapped). OCR support is needed for this brokerage\'s format.'
-          });
+          try {
+            const extracted = await extractWithAnthropic(pdfBuffer);
+            if (extracted.not_trade_package) {
+              results.push({ filename: pdf.filename, error: 'PDF did not look like a brokerage trade package / commission statement' });
+            } else if (!extracted.property_address && !extracted.sale_price && !extracted.monthly_rent) {
+              results.push({ filename: pdf.filename, error: 'OCR ran but no property/price extracted — form may be unreadable', ...extracted, _via: 'anthropic' });
+            } else {
+              results.push({ filename: pdf.filename, ...extracted, _via: 'anthropic' });
+            }
+          } catch (ocrErr) {
+            results.push({ filename: pdf.filename, error: `OCR failed: ${ocrErr.message}` });
+          }
           continue;
         }
 
@@ -64,84 +169,7 @@ module.exports = async (req, res) => {
             response_format: { type: 'json_object' },
             messages: [{
               role: 'user',
-              content: `You are extracting deal data from a real estate brokerage Trade Package / Commission Statement. Layouts differ by brokerage; do not assume any specific labels.
-
-STEP 1 — IDENTIFY DEAL TYPE
-Apply these rules IN ORDER (first one that matches wins):
-  1. If the document is short (<1500 chars) AND has no Buyer/Seller/Tenant/Landlord section AND only shows commission/fees → deal_type = "lease_renewal". Renewal slips often just list "Commission, \$X" then deductions then "Balance Due on Closing" with no party info.
-  2. If the main monetary amount is BETWEEN \$500 AND \$20,000 → deal_type = "lease" (this is monthly rent; sale prices in Toronto/GTA are always ≥ \$100K). Half-month or partial commission amounts (e.g. \$1,337.50) appearing as the price also indicate lease (likely renewal — re-check rule 1).
-  3. If "LEASE", "RENTAL", "LEASING", "Monthly Rent", "Tenant", "Landlord", "Lessee", "Lessor" appears anywhere → deal_type = "lease"
-  4. If main monetary amount ≥ \$100,000 → deal_type = "sale"
-  5. Class / Type / Category labels — "RENTAL OR LEASING FEE" = lease, "RESIDENTIAL SALE" / "COMPETITOR'S LISTING" / "OUR LISTING" = sale
-  6. Else: deal_type = "unknown"
-
-STEP 2 — IDENTIFY AGENT SIDE
-The agent named in the document (usually under "Agents:" or similar) earned the commission. Determine which side:
-  - "Listing Comm. Rate > 0" / "Listing Side" / "Listing Agent: <name>" → agent_side = "seller" (sale) or "landlord" (lease)
-  - "Selling Comm. Rate > 0" / "Co-op Side" / "Buyer Agent: <name>" / "Selling Agent: <name>" → agent_side = "buyer" (sale) or "tenant" (lease)
-  - Both > 0 → "both" (double-ended)
-
-STEP 3 — EXTRACT NAMES (critical rules)
-
-CRITICAL: The "agent_name" you extract is the agent who earned the commission (usually listed under "Agents:" or "Agent:" with a code like "(A) 2666 - GREENSPAN, LORRY"). This person is NEVER the buyer, seller, tenant, or landlord — they are a third party. Never put the agent's name in any party field. If the only name you can find for one of the parties happens to be the agent, return null for that party.
-
-Names sometimes have a single-letter side-marker prefix to STRIP:
-  - "BuyerSMARCO PICCOLO" — the S is a Selling-end marker; actual name is MARCO PICCOLO
-  - "SellerLDIANA BATALEVICH" — the L is a Listing-end marker; actual name is DIANA BATALEVICH
-  - "SellerL576922 ONTARIO LTD" — the L is the side marker; actual name is "576922 ONTARIO LTD" (numbered corporation)
-  - "SellerLLANDLORD PROPERTY..." — strip the side-marker L, actual name is "LANDLORD PROPERTY..."
-
-Rule: when a Buyer/Seller/Tenant/Landlord label is immediately followed by a SINGLE letter (S, L, or sometimes B) before the actual name, that letter is the side-marker — drop it. The actual name starts right after.
-
-Different brokerages use different role labels:
-  - Sale: Buyer / Purchaser / Vendor / Seller
-  - Lease: Tenant / Lessee / Landlord / Lessor
-
-The "current address" shown for a buyer/tenant is where they live BEFORE this transaction (we'll use the property address as their new home after).
-
-STEP 4 — PRICES
-  - Sale → "sale_price" field; "monthly_rent" stays null
-  - Lease → "monthly_rent" field; "sale_price" stays null
-  - "Selling Price" labeled values map to whichever applies based on deal_type
-
-Extracted text:
-${textForModel}
-
-Return ONLY valid JSON. Numbers as numbers (no dollar signs/commas). Dates as YYYY-MM-DD.
-
-{
-  "deal_type": "'sale' | 'lease' | 'lease_renewal' | 'unknown'",
-  "mls_number": "string or null",
-  "property_address": "street + unit (e.g. '35 Bastion Street, Unit 1920') or null",
-  "property_city": "string or null",
-  "property_province": "two-letter province or null",
-  "property_postal": "postal code or null",
-  "property_type": "'Residential' / 'Commercial' / null",
-  "agent_name": "the agent who earned the commission",
-  "agent_code": "string or null",
-  "agent_side": "'buyer' (sale-buy), 'seller' (sale-list), 'tenant' (lease-rep-tenant), 'landlord' (lease-rep-landlord), 'both' (double-ended), or null",
-  "buyer_or_tenant_name": "full name (strip side-marker prefix) or null",
-  "buyer_or_tenant_current_address": "their address as shown (BEFORE the move) or null",
-  "seller_or_landlord_name": "full name (strip side-marker prefix) or null",
-  "seller_or_landlord_current_address": "address as shown or null",
-  "sale_price": numeric_or_null,
-  "monthly_rent": numeric_or_null,
-  "lease_term_months": numeric_or_null,
-  "deposit": numeric_or_null,
-  "deposit_held_by": "string or null",
-  "offer_date": "YYYY-MM-DD or null",
-  "firm_date": "YYYY-MM-DD or null",
-  "close_date": "YYYY-MM-DD or null",
-  "status": "string or null",
-  "listing_commission_pct": numeric_or_null,
-  "selling_commission_pct": numeric_or_null,
-  "gross_commission": numeric_or_null,
-  "agent_share_pretax": numeric_or_null,
-  "agent_share_after_hst": numeric_or_null,
-  "outside_brokerage": "the OTHER brokerage on the deal or null",
-  "outside_brokerage_agent": "the OTHER agent or null"
-}
-If this is not a brokerage trade package or commission statement return: {"not_trade_package": true}`
+              content: `${TRADE_EXTRACTION_PROMPT}\n\nExtracted text:\n${textForModel}`
             }]
           })
         }).then(async r => {
@@ -158,7 +186,7 @@ If this is not a brokerage trade package or commission statement return: {"not_t
         } else if (!extracted.property_address && !extracted.sale_price && !extracted.monthly_rent) {
           results.push({ filename: pdf.filename, error: 'No property address or price extracted — form may be unreadable', ...extracted });
         } else {
-          results.push({ filename: pdf.filename, ...extracted });
+          results.push({ filename: pdf.filename, ...extracted, _via: 'openai' });
         }
       } catch (fileErr) {
         console.error('Error on', pdf.filename, fileErr.message);
