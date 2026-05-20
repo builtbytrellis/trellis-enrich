@@ -557,6 +557,7 @@ async function loadAdminPanel() {
             <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
+              <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin's trades here</button>
               <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
             ` : ''}
           </div>
@@ -580,6 +581,22 @@ async function createAgent() {
     msg.textContent = `${name} created successfully`; msg.className = 'push-msg ok';
     setTimeout(() => loadAdminPanel(), 1000);
   } catch(e) { msg.textContent = e.message; msg.className = 'push-msg err'; }
+}
+
+async function migrateAdminTrades(toAgentId, toName) {
+  if (!confirm(`Move all trades currently saved under admin_trellis → ${toName}?\n\nThis updates the agentId on each trade and moves them to ${toName}'s Past Trades view. Cannot be undone (but can be reversed by running it the other direction).`)) return;
+  try {
+    const res = await fetch('/api/migrate-trades', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ fromAgentId: 'admin_trellis', toAgentId })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || res.status);
+    alert(`✓ Migrated ${d.migrated} trade${d.migrated !== 1 ? 's' : ''} from admin → ${toName}.${d.totalIds !== d.migrated ? ` (${d.totalIds} ids in list, ${d.migrated} record updates — non-fatal)` : ''}`);
+  } catch (e) {
+    alert('Migration failed: ' + e.message);
+  }
 }
 
 async function deleteAgent(agentId, name) {
