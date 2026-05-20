@@ -14,11 +14,17 @@ module.exports = async (req, res) => {
   try {
     const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
 
-    // GET — list all agents (admin) or get own FUB key (agent)
+    // GET — list all agents (admin) or get FUB key (agent gets own, admin
+    // can get any via ?targetAgentId=)
     if (req.method === 'GET') {
-      // Agent requesting their own FUB key
       if (req.query.fubKey === 'true') {
-        const raw = await redis.get(`agent:id:${session.agentId}`);
+        // Admin can request any agent's key (used by 'Enrich as Agent' to load
+        // the impersonated agent's stored FUB key into the sidebar). Agents
+        // can only request their own.
+        const targetId = (session.role === 'admin' && req.query.targetAgentId)
+          ? req.query.targetAgentId
+          : session.agentId;
+        const raw = await redis.get(`agent:id:${targetId}`);
         if (!raw) return res.status(404).json({ error: 'Agent not found' });
         const agent = typeof raw === 'string' ? JSON.parse(raw) : raw;
         return res.status(200).json({ fubApiKey: agent.fubApiKey || '' });
