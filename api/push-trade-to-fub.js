@@ -222,8 +222,22 @@ module.exports = async (req, res) => {
   const session = await verifySession(req, res);
   if (!session) return;
 
-  const { trade, fubApiKey: sidebarKey, targetAgentId } = req.body;
+  const { trade, fubApiKey: sidebarKey, targetAgentId, tradeId } = req.body;
   if (!trade) return res.status(400).json({ error: 'Trade required' });
+
+  // Helper to update the saved trade record with the push outcome so the
+  // history view can show 'pushed / failed / pending' per trade.
+  const updateTradeRecord = async (patch) => {
+    if (!tradeId) return;
+    try {
+      const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+      const raw = await redis.get(tradeId);
+      if (!raw) return;
+      const existing = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const updated = { ...existing, ...patch, _lastPushAttemptAt: new Date().toISOString() };
+      await redis.set(tradeId, JSON.stringify(updated));
+    } catch (e) { console.warn('updateTradeRecord failed:', e.message); }
+  };
 
   // Resolve the FUB key from the target agent's stored value — NOT from the
   // sidebar. This is the privacy guardrail: a deal is always pushed to the
@@ -352,6 +366,12 @@ module.exports = async (req, res) => {
         existing_deal_name: dupCheck.found.name,
         tried: dupCheck.tried,
       });
+      await updateTradeRecord({
+        _pushStatus: 'duplicate',
+        _fubDealId: dupCheck.found.id,
+        _fubDealName: dupCheck.found.name,
+        _lastPushError: null,
+      });
       await recordDebug(session.agentId, { trade, outcome, success: true, dealId: dupCheck.found.id, duplicate: true });
       return res.status(200).json({
         success: true,
@@ -369,6 +389,7 @@ module.exports = async (req, res) => {
     outcome.steps.push({ step: 'create_deal', ok: dealRes.ok, status: dealRes.status, dealId: dealRes.body?.id, error: dealRes.ok ? null : dealRes.body });
     if (!dealRes.ok) {
       const fubError = typeof dealRes.body === 'object' ? JSON.stringify(dealRes.body).slice(0, 400) : String(dealRes.body).slice(0, 400);
+      await updateTradeRecord({ _pushStatus: 'failed', _lastPushError: `FUB ${dealRes.status}: ${fubError}` });
       await recordDebug(session.agentId, { trade, outcome, fubStatus: dealRes.status, fubError });
       return res.status(200).json({ success: false, error: `FUB deal create failed (${dealRes.status}): ${fubError}`, outcome });
     }
@@ -428,6 +449,14 @@ module.exports = async (req, res) => {
       }
     }
 
+    await updateTradeRecord({
+      _pushStatus: 'pushed',
+      _fubDealId: dealRes.body?.id,
+      _fubDealName: dealRes.body?.name || dealName,
+      _fubAccount: keyResult.ownerName,
+      _fubPersonId: fubPerson?.id || null,
+      _lastPushError: null,
+    });
     await recordDebug(session.agentId, { trade, outcome, success: true, dealId: dealRes.body?.id });
     return res.status(200).json({
       success: true,
@@ -437,6 +466,7 @@ module.exports = async (req, res) => {
     });
   } catch (e) {
     console.error('push-trade-to-fub error:', e);
+    await updateTradeRecord({ _pushStatus: 'failed', _lastPushError: e.message });
     await recordDebug(session.agentId, { trade, outcome, exception: e.message, stack: e.stack });
     return res.status(500).json({ error: e.message, outcome });
   }

@@ -19,9 +19,14 @@ module.exports = async (req, res) => {
     if (!ids || !ids.length) return res.status(200).json({ trades: [] });
 
     const raws = await Promise.all(ids.map(id => redis.get(id)));
-    const trades = raws
+    const trades = ids
+      .map((id, i) => {
+        const raw = raws[i];
+        if (!raw) return null;
+        const t = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return { ...t, _tradeId: id };
+      })
       .filter(Boolean)
-      .map(t => typeof t === 'string' ? JSON.parse(t) : t)
       .sort((a, b) => new Date(b.savedAt || 0) - new Date(a.savedAt || 0));
 
     return res.status(200).json({ trades });

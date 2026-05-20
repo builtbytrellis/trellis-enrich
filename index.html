@@ -1596,11 +1596,16 @@ async function processTradeFiles(files) {
           if (!r.error) {
             const body = { trade: r };
             if (impersonating) body.targetAgentId = impersonating.agentId;
-            fetch('/api/save-trade', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
-              body: JSON.stringify(body)
-            }).catch(e => console.warn('auto-save failed for', r.filename, e));
+            // Await save so we can capture the tradeId for later push-status tracking
+            try {
+              const sr = await fetch('/api/save-trade', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+                body: JSON.stringify(body)
+              });
+              const sd = await sr.json();
+              if (sd.tradeId) r._tradeId = sd.tradeId;
+            } catch (e) { console.warn('auto-save failed for', r.filename, e); }
           }
         }
       }
@@ -1613,6 +1618,12 @@ async function processTradeFiles(files) {
   }
 
   document.getElementById('trade-status').style.display = 'none';
+  renderTradeResults();
+}
+
+let tradeFilter = 'all';
+function filterTrades(which) {
+  tradeFilter = which;
   renderTradeResults();
 }
 
@@ -1640,11 +1651,28 @@ function fmtMoney(v) {
 }
 
 function renderTradeResults() {
-  const valid = tradeResults.filter(r => !r.error);
+  const allValid = tradeResults.filter(r => !r.error);
   const errors = tradeResults.filter(r => r.error);
+  // Apply filter for the visible list (but counts in the header reflect ALL)
+  const valid = tradeFilter === 'pending' ? allValid.filter(r => !r._pushStatus)
+              : tradeFilter === 'failed'  ? allValid.filter(r => r._pushStatus === 'failed')
+              : tradeFilter === 'pushed'  ? allValid.filter(r => r._pushStatus === 'pushed' || r._pushStatus === 'duplicate')
+              : allValid;
 
-  document.getElementById('trade-count').textContent =
-    `${valid.length} trade${valid.length !== 1 ? 's' : ''} extracted${errors.length ? ', ' + errors.length + ' error' + (errors.length>1?'s':'') : ''}`;
+  const pushed = allValid.filter(r => r._pushStatus === 'pushed' || r._pushStatus === 'duplicate').length;
+  const failed = allValid.filter(r => r._pushStatus === 'failed').length;
+  const pending = allValid.length - pushed - failed;
+  document.getElementById('trade-count').innerHTML =
+    `${allValid.length} trade${allValid.length !== 1 ? 's' : ''} extracted` +
+    (pushed ? ` • <span style="color:var(--green)">✓ ${pushed} pushed</span>` : '') +
+    (failed ? ` • <span style="color:var(--red)">✗ ${failed} failed</span>` : '') +
+    (pending ? ` • <span style="color:var(--amber)">${pending} pending push</span>` : '') +
+    (errors.length ? ` • ${errors.length} extraction error${errors.length>1?'s':''}` : '') +
+    ` &nbsp; <span style="font-size:11px;color:var(--ink-muted)">Filter:</span> ` +
+    `<a href="#" onclick="filterTrades('all');return false" style="font-size:11px;margin-left:4px">all</a> · ` +
+    `<a href="#" onclick="filterTrades('pending');return false" style="font-size:11px">pending</a> · ` +
+    `<a href="#" onclick="filterTrades('failed');return false" style="font-size:11px">failed</a> · ` +
+    `<a href="#" onclick="filterTrades('pushed');return false" style="font-size:11px">pushed</a>`;
   document.getElementById('trade-results').style.display = 'block';
 
   const cards = valid.map((r, idx) => {
@@ -1701,9 +1729,18 @@ function renderTradeResults() {
             ${r.status ? '• ' + r.status : ''}
           </div>
         </div>
-        ${(buyerMatch || sellerMatch)
-          ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ ${(buyerMatch||sellerMatch).full_name || (buyerMatch||sellerMatch).name} in contacts</div>`
-          : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          ${(buyerMatch || sellerMatch)
+            ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ ${(buyerMatch||sellerMatch).full_name || (buyerMatch||sellerMatch).name} in contacts</div>`
+            : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
+          ${r._pushStatus === 'pushed'
+            ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500" title="${r._fubAccount || ''}">✓ FUB Deal #${r._fubDealId}</div>`
+            : r._pushStatus === 'duplicate'
+            ? `<div style="background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">↺ Already in FUB #${r._fubDealId}</div>`
+            : r._pushStatus === 'failed'
+            ? `<div style="background:var(--red-light);color:var(--red);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500" title="${(r._lastPushError||'').replace(/"/g,'&quot;')}">✗ Push failed</div>`
+            : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">⌛ Not pushed</div>`}
+        </div>
       </div>
 
       <div class="field-grid">
@@ -1851,23 +1888,28 @@ async function pushTradeToFub(idx, ev) {
   if (msg) { msg.textContent = 'Saving trade...'; msg.style.color = 'var(--ink-muted)'; }
 
   try {
-    // Step 1 — save the trade record to Redis
-    const saveBody = { trade };
-    if (impersonating) saveBody.targetAgentId = impersonating.agentId;
-    const saveRes = await fetch('/api/save-trade', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
-      body: JSON.stringify(saveBody)
-    });
-    const saveData = await saveRes.json();
-    if (!saveRes.ok || !saveData.success) {
-      throw new Error('Save failed: ' + (saveData.error || saveRes.status));
+    // Step 1 — save the trade record to Redis (skip if we already have a tradeId from earlier auto-save)
+    let tradeId = trade._tradeId;
+    if (!tradeId) {
+      const saveBody = { trade };
+      if (impersonating) saveBody.targetAgentId = impersonating.agentId;
+      const saveRes = await fetch('/api/save-trade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+        body: JSON.stringify(saveBody)
+      });
+      const saveData = await saveRes.json();
+      if (!saveRes.ok || !saveData.success) {
+        throw new Error('Save failed: ' + (saveData.error || saveRes.status));
+      }
+      tradeId = saveData.tradeId;
+      trade._tradeId = tradeId;
     }
 
     if (msg) msg.textContent = 'Saved. Pushing to FUB...';
 
     // Step 2 — push to FUB (deal create + address update or note)
-    const pushBody = { trade, fubApiKey: fubKey };
+    const pushBody = { trade, fubApiKey: fubKey, tradeId };
     if (impersonating) pushBody.targetAgentId = impersonating.agentId;
     const pushRes = await fetch('/api/push-trade-to-fub', {
       method: 'POST',
@@ -1898,9 +1940,18 @@ async function pushTradeToFub(idx, ev) {
 
     if (msg) { msg.innerHTML = '✓ ' + parts.join(' • '); msg.style.color = 'var(--green)'; }
     if (btn) { btn.textContent = '✓ Pushed'; }
+
+    // Update local state so badge re-renders without a server reload
+    const target = tradeResults.find(t => t._tradeId === trade._tradeId);
+    if (target) {
+      target._pushStatus = pushData.duplicate ? 'duplicate' : 'pushed';
+      target._fubDealId = pushData.dealId;
+    }
   } catch (e) {
     if (msg) { msg.textContent = '✗ ' + e.message; msg.style.color = 'var(--red)'; }
     if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    const target = tradeResults.find(t => t._tradeId === trade._tradeId);
+    if (target) { target._pushStatus = 'failed'; target._lastPushError = e.message; }
   }
 }
 
