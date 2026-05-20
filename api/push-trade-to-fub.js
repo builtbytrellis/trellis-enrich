@@ -131,6 +131,52 @@ async function findStageForTrade(headers, trade) {
   return { stage, debug };
 }
 
+// Look for an existing FUB deal that matches this trade's property address —
+// avoids creating duplicates when the user re-pushes a trade, or when Lorry
+// already manually created the deal in FUB. Tries personId-scoped list first
+// (cheaper, more accurate) then a property-address keyword search.
+async function findExistingDealForTrade(headers, trade, fubPersonId) {
+  const address = (trade.property_address || '').trim();
+  if (!address) return { found: null, tried: [] };
+
+  // Normalize the address for comparison: lowercase, strip punctuation, collapse whitespace
+  const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const target = normalize(address);
+  const tokens = target.split(' ').filter(t => t.length >= 3);
+  if (!tokens.length) return { found: null, tried: [] };
+
+  const tried = [];
+
+  const matches = (deal) => {
+    const haystack = normalize(`${deal.name || ''} ${deal.description || ''}`);
+    if (!haystack) return false;
+    return tokens.every(t => haystack.includes(t));
+  };
+
+  // Strategy 1: list deals for this person (if matched)
+  if (fubPersonId) {
+    const r = await fubFetch(`/deals?personId=${fubPersonId}&limit=100`, 'GET', headers);
+    const deals = r.body?.deals || r.body || [];
+    tried.push({ q: `personId=${fubPersonId}`, count: Array.isArray(deals) ? deals.length : 0 });
+    if (Array.isArray(deals)) {
+      const m = deals.find(matches);
+      if (m) return { found: m, tried };
+    }
+  }
+
+  // Strategy 2: keyword search across all deals (use first 3 tokens as a phrase)
+  const q = encodeURIComponent(tokens.slice(0, 3).join(' '));
+  const r2 = await fubFetch(`/deals?q=${q}&limit=30`, 'GET', headers);
+  const deals2 = r2.body?.deals || r2.body || [];
+  tried.push({ q: `q=${tokens.slice(0, 3).join(' ')}`, count: Array.isArray(deals2) ? deals2.length : 0 });
+  if (Array.isArray(deals2)) {
+    const m = deals2.find(matches);
+    if (m) return { found: m, tried };
+  }
+
+  return { found: null, tried };
+}
+
 // Search FUB for a person with multiple name variants, since exact full names
 // from trade docs (e.g. "CARLY SARAH ALBAUM") may not match how they're stored
 // in FUB (e.g. "Carly Albaum"). Returns first hit across all variants.
@@ -294,6 +340,29 @@ module.exports = async (req, res) => {
         isLease && trade.monthly_rent ? `Monthly rent: $${trade.monthly_rent}` : null,
       ].filter(Boolean).join('\n')
     };
+
+    // 2.5) Duplicate check — don't create a deal if one already exists in FUB
+    //      for this property address (either from a prior push or a manual entry).
+    const dupCheck = await findExistingDealForTrade(headers, trade, fubPerson?.id);
+    if (dupCheck.found) {
+      outcome.steps.push({
+        step: 'duplicate_check',
+        found: true,
+        existing_deal_id: dupCheck.found.id,
+        existing_deal_name: dupCheck.found.name,
+        tried: dupCheck.tried,
+      });
+      await recordDebug(session.agentId, { trade, outcome, success: true, dealId: dupCheck.found.id, duplicate: true });
+      return res.status(200).json({
+        success: true,
+        duplicate: true,
+        dealId: dupCheck.found.id,
+        fubPersonId: fubPerson?.id || null,
+        message: `Deal already exists in FUB (#${dupCheck.found.id}: "${dupCheck.found.name}"). Skipped creation.`,
+        outcome,
+      });
+    }
+    outcome.steps.push({ step: 'duplicate_check', found: false, tried: dupCheck.tried });
 
     outcome.dealPayload = dealPayload;
     const dealRes = await fubFetch('/deals', 'POST', headers, dealPayload);

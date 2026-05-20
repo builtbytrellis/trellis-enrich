@@ -1886,9 +1886,13 @@ async function pushTradeToFub(idx, ev) {
     }
 
     const parts = [];
-    if (pushData.dealId) parts.push(`Deal #${pushData.dealId} created`);
+    if (pushData.duplicate) {
+      parts.push(`↺ Deal already in FUB (#${pushData.dealId}) — skipped creating duplicate`);
+    } else if (pushData.dealId) {
+      parts.push(`Deal #${pushData.dealId} created`);
+    }
     if (pushData.fubPersonId) parts.push(`linked to FUB person #${pushData.fubPersonId}`);
-    else parts.push('deal unlinked (no FUB person matched — link manually in FUB)');
+    else if (!pushData.duplicate) parts.push('deal unlinked (no FUB person matched — link manually in FUB)');
     const addrStep = pushData.outcome?.steps?.find(s => s.step === 'update_address' || s.step === 'add_note');
     if (addrStep?.ok) parts.push(addrStep.step === 'update_address' ? 'address updated' : 'note added');
 
