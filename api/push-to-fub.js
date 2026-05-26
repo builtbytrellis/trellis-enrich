@@ -55,7 +55,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { fubApiKey, contact } = req.body;
+  const { fubApiKey, contact, updateOnly } = req.body;
   if (!fubApiKey || !contact) return res.status(400).json({ error: 'Missing data' });
 
   const encoded = Buffer.from(fubApiKey + ':').toString('base64');
@@ -86,9 +86,24 @@ module.exports = async (req, res) => {
     if (contact.notes) backgroundParts.push(contact.notes);
     const newDescription = backgroundParts.join('\n') || null;
 
-    const existingId = contact.fub_data?.fub_id;
+    let existingId = contact.fub_data?.fub_id;
     let payload = {};
     let action = 'created';
+
+    // If no fub_id stored, search FUB by name first to avoid duplicates
+    if (!existingId && contact.full_name) {
+      try {
+        const searchRes = await fetch(
+          `https://api.followupboss.com/v1/people?q=${encodeURIComponent(contact.full_name)}&limit=1`,
+          { method: 'GET', headers }
+        );
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          const match = searchData.people?.[0];
+          if (match) existingId = match.id;
+        }
+      } catch(e) { console.warn('FUB name search failed:', e.message); }
+    }
 
     if (existingId) {
       // ── SMART UPDATE: fetch existing contact, only patch missing/changed fields ──
@@ -151,6 +166,8 @@ module.exports = async (req, res) => {
       console.log('[push-to-fub] FUB response:', updateRes.status, updateText.slice(0,200));
       if (!updateRes.ok) return res.status(400).json({ error: `FUB update error ${updateRes.status}: ${updateText}` });
 
+    } else if (updateOnly) {
+      return res.status(200).json({ success: true, action: 'skipped_no_fub_id', tags_applied: 0 });
     } else {
       // ── NEW CONTACT: build full payload ──
       if (contact.email) payload.emails = [{ value: contact.email, type: 'home' }];
