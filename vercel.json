@@ -6,6 +6,7 @@
   "functions": {
     "api/extract-fintrac.js": { "maxDuration": 60 },
     "api/deduplicate-contacts.js": { "maxDuration": 30 },
-    "api/fix-isp-contacts.js": { "maxDuration": 30 }
+    "api/fix-isp-contacts.js": { "maxDuration": 30 },
+    "api/bulk-tag.js": { "maxDuration": 60 }
   }
 }
