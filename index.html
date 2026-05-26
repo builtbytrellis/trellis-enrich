@@ -763,9 +763,13 @@ function toggleHistoryExpand(idx) {
     </div>
     <div class="section-label">Tags — click to approve / reject</div>
     <div class="tags-wrap" id="htags-${hid}">${tagsHtml}</div>
-    <div class="tag-adder" style="margin-bottom:12px">
-      <select id="htag-select-${hid}"><option value="">— add a tag —</option>${tagOptions}</select>
+    <div class="tag-adder" style="margin-bottom:6px">
+      <select id="htag-select-${hid}"><option value="">— add from list —</option>${tagOptions}</select>
       <button class="btn btn-outline btn-sm" onclick="addHistoryManualTag(${idx})">Add</button>
+    </div>
+    <div class="tag-adder" style="margin-bottom:12px">
+      <input type="text" id="htag-custom-${hid}" placeholder="Or type a custom tag..." style="flex:1;padding:7px 10px;font-size:12px;border:.5px solid var(--border);border-radius:4px;background:var(--cream);font-family:'DM Sans',sans-serif"/>
+      <button class="btn btn-outline btn-sm" onclick="addHistoryCustomTag(${idx})">+ Add</button>
     </div>
     <div class="action-row" style="margin-top:14px">
       <button class="btn btn-green" onclick="pushHistoryContact(${idx})">Push to FUB</button>
@@ -787,6 +791,20 @@ function toggleHistoryTag(idx, i) {
   }).join('');
 }
 
+function addHistoryCustomTag(idx) {
+  const hid = 'h' + idx;
+  const input = document.getElementById('htag-custom-' + hid);
+  const tag = input?.value?.trim(); if (!tag) return;
+  const c = historyContacts[idx]; if (!c) return;
+  if (!c.suggested_tags) c.suggested_tags = [];
+  if (!c.suggested_tags.find(t => t.tag === tag)) {
+    c.suggested_tags.push({ tag, confidence: 'high', reason: 'Manually added' });
+    tagStates[hid][c.suggested_tags.length - 1] = 'approved';
+  }
+  input.value = '';
+  toggleHistoryExpand(idx); toggleHistoryExpand(idx);
+}
+
 function addHistoryManualTag(idx) {
   const hid = 'h' + idx;
   const sel = document.getElementById('htag-select-' + hid);
@@ -805,7 +823,8 @@ async function pushHistoryContact(idx) {
   const fubKey = getFUBKey();
   if (!fubKey) { setHistMsg(hid, 'Add FUB key in sidebar', 'err'); return; }
   const c = historyContacts[idx]; if (!c) return;
-  const approved = (c.suggested_tags || []).filter((_, i) => tagStates[hid]?.[i] === 'approved').map(t => t.tag);
+  // Auto-approve pending tags on push — agent can reject explicitly
+  const approved = (c.suggested_tags || []).filter((_, i) => (tagStates[hid]?.[i] || 'approved') !== 'rejected').map(t => t.tag);
   const contact = {
     ...c,
     full_name: [document.getElementById('hf-first-'+hid)?.value||'', document.getElementById('hf-last-'+hid)?.value||''].filter(Boolean).join(' ') || c.full_name,
