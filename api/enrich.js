@@ -196,7 +196,7 @@ ${dataAvailable}
 
 RULES:
 1. Tags MUST be copied EXACTLY from the available list — character for character
-2. Always include an Age tag (Age: 20s / 30s / 40s / 50s / 60+) — estimate from any signal available
+2. Always include an Age tag (Age: 20s / 30s / 40s / 50s / 60+) — calculate from birth year if known. Current year is 2026. Born 1990-1999 = 27-36 = Age: 30s. Born 1987-1996 = 30-39 = Age: 30s. Born 1980-1986 = 40-46 = Age: 40s. Do not use decade of birth — use actual age in 2026.
 3. Always include a Life Stage tag when inferable
 4. Always include a Profession tag when inferable
 5. Use Relationship tag based on source/history (Past Client = Relationship: Past Client, sphere = Relationship: Sphere, etc.)
@@ -238,6 +238,21 @@ Return ONLY this JSON — no markdown:
     // Server-side filter: strip tags not in approved list
     if (result.suggested_tags) {
       result.suggested_tags = result.suggested_tags.filter(t => FUB_TAGS_SET.has(t.tag));
+    }
+
+    // Override age tag using actual birthday if available
+    const birthdayRaw = result.birthday || contact?.birthday || null;
+    if (birthdayRaw) {
+      try {
+        const bDate = new Date(birthdayRaw);
+        const now = new Date();
+        const age = now.getFullYear() - bDate.getFullYear() -
+          (now < new Date(now.getFullYear(), bDate.getMonth(), bDate.getDate()) ? 1 : 0);
+        const ageTag = age < 30 ? 'Age: 20s' : age < 40 ? 'Age: 30s' : age < 50 ? 'Age: 40s' : age < 60 ? 'Age: 50s' : 'Age: 60+';
+        // Remove any existing age tags and replace with correct one
+        result.suggested_tags = (result.suggested_tags || []).filter(t => !t.tag.startsWith('Age:'));
+        result.suggested_tags.push({ tag: ageTag, confidence: 'high', reason: `Born ${birthdayRaw} — age ${age}` });
+      } catch(e) {}
     }
 
     // Attach FUB data
