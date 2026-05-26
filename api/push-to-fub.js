@@ -116,14 +116,14 @@ module.exports = async (req, res) => {
       // Background/description — append new info if not already present
       const existingDesc = existing?.background || '';
       if (newDescription && !existingDesc.includes(newDescription.split('\n')[0])) {
-        // Prepend new info, keep existing notes below
+        // Append BELOW existing notes — never overwrite Lorry's custom notes
         payload.background = existingDesc
-          ? `${newDescription}\n\n${existingDesc}`
+          ? `${existingDesc}\n\n--- Trellis ---\n${newDescription}`
           : newDescription;
       }
 
       // Tags — merge, don't overwrite. Add only tags not already on contact.
-      const existingTags = (existing?.tags || []).map(t => typeof t === 'string' ? t : t.name);
+      const existingTags = (existing?.tags || []).map(t => typeof t === 'string' ? t : (t.name || t.label || ''));
       const newTags = approvedTags.filter(t => !existingTags.includes(t));
       if (newTags.length) {
         payload.tags = [...existingTags, ...newTags];
@@ -143,10 +143,12 @@ module.exports = async (req, res) => {
         return res.status(200).json({ success: true, fubId: existingId, action: 'no_changes', tags_applied: 0 });
       }
 
+      console.log('[push-to-fub] payload for', existingId, ':', JSON.stringify(payload));
       const updateRes = await fetch(`https://api.followupboss.com/v1/people/${existingId}`, {
         method: 'PUT', headers, body: JSON.stringify(payload)
       });
       const updateText = await updateRes.text();
+      console.log('[push-to-fub] FUB response:', updateRes.status, updateText.slice(0,200));
       if (!updateRes.ok) return res.status(400).json({ error: `FUB update error ${updateRes.status}: ${updateText}` });
 
     } else {
@@ -190,7 +192,8 @@ module.exports = async (req, res) => {
       return res.status(200).json({ success: true, fubId: contactId, action: 'created', tags_applied: approvedTags.length });
     }
 
-    return res.status(200).json({ success: true, fubId: existingId, action, tags_applied: approvedTags.length });
+    const tagsApplied = payload.tags ? (payload.tags.length - (existing?.tags||[]).length) : 0;
+    return res.status(200).json({ success: true, fubId: existingId, action, tags_applied: tagsApplied });
 
   } catch (err) {
     console.error(err);
