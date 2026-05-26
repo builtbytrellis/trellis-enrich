@@ -114,10 +114,10 @@ module.exports = async (req, res) => {
       }
 
       // Background/description — append new info if not already present
-      const existingDesc = existing?.description || '';
+      const existingDesc = existing?.background || '';
       if (newDescription && !existingDesc.includes(newDescription.split('\n')[0])) {
         // Prepend new info, keep existing notes below
-        payload.description = existingDesc
+        payload.background = existingDesc
           ? `${newDescription}\n\n${existingDesc}`
           : newDescription;
       }
@@ -129,16 +129,14 @@ module.exports = async (req, res) => {
         payload.tags = [...existingTags, ...newTags];
       }
 
-      // Birthday — only set if blank in FUB
-      const customFields = {};
-      const existingBirthday = existing?.customFields?.Birthday || existing?.birthday || '';
+      // Birthday + spouse — direct fields on FUB person object
+      const existingBirthday = existing?.birthday || '';
       if (contact.birthday && !existingBirthday) {
-        customFields['Birthday'] = contact.birthday;
+        payload.birthday = contact.birthday;
       }
-      if (contact.spouse_name && !existing?.customFields?.['Spouse Name']) {
-        customFields['Spouse Name'] = contact.spouse_name;
+      if (contact.spouse_name && !existing?.spouseName) {
+        payload.spouseName = contact.spouse_name;
       }
-      if (Object.keys(customFields).length) payload.customFields = customFields;
 
       // If nothing changed, skip the PUT
       if (!Object.keys(payload).length) {
@@ -156,13 +154,11 @@ module.exports = async (req, res) => {
       if (contact.email) payload.emails = [{ value: contact.email, type: 'home' }];
       if (contact.phone) payload.phones = [{ value: contact.phone, type: 'mobile' }];
       if (contact.stage) payload.stage = contact.stage;
-      if (newDescription) payload.description = newDescription;
+      if (newDescription) payload.background = newDescription;
       if (approvedTags.length) payload.tags = approvedTags;
 
-      const customFields = {};
-      if (contact.birthday) customFields['Birthday'] = contact.birthday;
-      if (contact.spouse_name) customFields['Spouse Name'] = contact.spouse_name;
-      if (Object.keys(customFields).length) payload.customFields = customFields;
+      if (contact.birthday) payload.birthday = contact.birthday;
+      if (contact.spouse_name) payload.spouseName = contact.spouse_name;
 
       payload.firstName = firstName;
       payload.lastName = lastName;
