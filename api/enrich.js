@@ -131,7 +131,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { name, city, fubApiKey, email, skip_web_search } = req.body;
+  const { name, city, fubApiKey, email, skip_web_search, agentId } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
 
   try {
@@ -250,6 +250,74 @@ Return ONLY this JSON — no markdown:
       existing_tags: fubContact.tags || [],
       fub_id: fubContact.id
     } : null;
+
+    // ── Auto-attach existing FINTRAC + trade data from Redis ──
+    try {
+      const { Redis } = require('@upstash/redis');
+      const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+
+      function normName(n) { return (n||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+      function nameMatch(a, b) {
+        const ta = normName(a).split(' ').filter(t=>t.length>=2);
+        const tb = normName(b).split(' ').filter(t=>t.length>=2);
+        return ta.length && tb.length && ta[0]===tb[0] && ta[ta.length-1]===tb[tb.length-1];
+      }
+
+      // Find matching contact in History for FINTRAC data
+      const contactIds = agentId ? await redis.lrange(`agent:${agentId}:contacts`, 0, 999) : [];
+      if (contactIds && contactIds.length) {
+        const raws = await Promise.all(contactIds.map(id => redis.get(id)));
+        for (const raw of raws) {
+          if (!raw) continue;
+          const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          if (nameMatch(result.full_name, c.full_name || c.name)) {
+            if (c.birthday && !result.birthday) result.birthday = c.birthday;
+            if (c.job_title && !result.job_title) result.job_title = c.job_title;
+            if (c.company && !result.company) result.company = c.company;
+            if (c.fintrac_verified) result.fintrac_verified = true;
+            break;
+          }
+        }
+      }
+
+      // Find matching trades
+      const tradeIds = agentId ? await redis.lrange(`agent:${agentId}:trades`, 0, 499) : [];
+      if (tradeIds && tradeIds.length) {
+        const tradeRaws = await Promise.all(tradeIds.map(id => redis.get(id)));
+        const matchedTrades = [];
+        for (const raw of tradeRaws) {
+          if (!raw) continue;
+          const t = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          const buyer = t.buyer_or_tenant_name || '';
+          const seller = t.seller_or_landlord_name || '';
+          if (nameMatch(result.full_name, buyer) || nameMatch(result.full_name, seller)) {
+            matchedTrades.push({
+              address: t.property_address,
+              close_date: t.close_date,
+              deal_type: t.deal_type,
+              side: nameMatch(result.full_name, buyer) ? (t.deal_type === 'lease' ? 'tenant' : 'buyer') : (t.deal_type === 'lease' ? 'landlord' : 'seller'),
+              sale_price: t.sale_price || t.monthly_rent
+            });
+          }
+        }
+        if (matchedTrades.length) {
+          result.trade_history = matchedTrades;
+          // Add Past Client tag if not already there
+          if (!result.suggested_tags.find(t => t.tag === 'Relationship: Past Client')) {
+            result.suggested_tags.push({ tag: 'Relationship: Past Client', confidence: 'high', reason: `Found ${matchedTrades.length} deal(s) in Past Trades` });
+          }
+          // Add buyer/seller tag based on most recent trade
+          const latest = matchedTrades[0];
+          if (latest.side === 'buyer' && !result.suggested_tags.find(t => t.tag === 'Client: Buyer')) {
+            result.suggested_tags.push({ tag: 'Client: Buyer', confidence: 'high', reason: `Purchased ${latest.address}` });
+          } else if (latest.side === 'seller' && !result.suggested_tags.find(t => t.tag === 'Client: Seller')) {
+            result.suggested_tags.push({ tag: 'Client: Seller', confidence: 'high', reason: `Sold ${latest.address}` });
+          }
+        }
+      }
+    } catch(e) {
+      console.warn('Auto-attach FINTRAC/trades failed (non-fatal):', e.message);
+    }
 
     res.status(200).json(result);
   } catch (err) {
