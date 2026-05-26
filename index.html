@@ -994,15 +994,28 @@ async function pushAllHistory() {
       approved_tags: approved
     };
 
+    // Skip realtors — don't push agent contacts
+    if (approved.includes('Profession: Real Estate Agent') || 
+        (c.job_title||'').toLowerCase().includes('realtor') ||
+        (c.job_title||'').toLowerCase().includes('real estate agent')) {
+      skipped++;
+      continue;
+    }
+    // Skip contacts with no FUB ID — Push All is update-only, never create
+    if (!c.fub_data?.fub_id) {
+      skipped++;
+      continue;
+    }
+
     try {
       const res = await fetch('/api/push-to-fub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fubApiKey: fubKey, contact })
+        body: JSON.stringify({ fubApiKey: fubKey, contact, updateOnly: true })
       });
       const result = await res.json();
       if (result.error) throw new Error(result.error);
-      if (result.action === 'no_changes') skipped++;
+      if (result.action === 'no_changes' || result.action === 'skipped_no_fub_id') skipped++;
       else done++;
     } catch(e) {
       console.error('Push failed for', c.full_name, e.message);
