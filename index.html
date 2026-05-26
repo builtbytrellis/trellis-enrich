@@ -302,7 +302,9 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="page-sub">All contacts enriched and pushed — persisted across sessions.</div>
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
         <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
+        <button class="btn btn-green btn-sm" id="history-push-all-btn" onclick="pushAllHistory()">Push All to FUB</button>
         <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
+        <span style="font-size:12px;color:var(--green);margin-left:4px" id="history-push-all-status"></span>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <div id="history-list"><div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div></div>
@@ -826,6 +828,62 @@ async function pushHistoryContact(idx) {
     await saveToHistory({...contact, pushed: true}, true);
     renderHistory();
   } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
+}
+
+async function pushAllHistory() {
+  const fubKey = getFUBKey();
+  if (!fubKey) { alert('Add FUB API key in sidebar first.'); return; }
+  if (!historyContacts.length) { alert('No contacts in History.'); return; }
+  if (!confirm(`Push all ${historyContacts.length} contacts to FUB?\n\nSmart update — only fills missing/changed fields. Won't overwrite existing data.`)) return;
+
+  const btn = document.getElementById('history-push-all-btn');
+  const status = document.getElementById('history-push-all-status');
+  btn.disabled = true;
+
+  let done = 0, skipped = 0, failed = 0;
+
+  for (let idx = 0; idx < historyContacts.length; idx++) {
+    const c = historyContacts[idx];
+    status.textContent = `Pushing ${idx + 1} of ${historyContacts.length}...`;
+
+    const approved = c.approved_tags || [];
+    const contact = {
+      ...c,
+      full_name: c.full_name || c.name || '',
+      email: c.email || c.fub_data?.email || '',
+      phone: c.phone || c.fub_data?.phone || '',
+      location: c.location || '',
+      birthday: c.birthday || '',
+      spouse_name: c.spouse_name || '',
+      stage: c.stage || '',
+      notes: c.notes || '',
+      job_title: c.job_title || '',
+      company: c.company || '',
+      approved_tags: approved
+    };
+
+    try {
+      const res = await fetch('/api/push-to-fub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fubApiKey: fubKey, contact })
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      if (result.action === 'no_changes') skipped++;
+      else done++;
+    } catch(e) {
+      console.error('Push failed for', c.full_name, e.message);
+      failed++;
+    }
+
+    // Small delay to avoid hammering FUB API
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  btn.disabled = false;
+  status.textContent = `✓ ${done} updated, ${skipped} unchanged${failed ? ', ' + failed + ' failed' : ''}`;
+  await loadHistory();
 }
 
 function setHistMsg(hid, text, type) {
