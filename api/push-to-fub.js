@@ -129,16 +129,13 @@ module.exports = async (req, res) => {
         payload.tags = [...existingTags, ...newTags];
       }
 
-      // Birthday + spouse — append to background if not already there
-      if (contact.birthday && !(existing?.background || '').includes(contact.birthday)) {
-        const bdLine = `Birthday: ${contact.birthday}`;
-        payload.background = payload.background
-          ? payload.background + '\n' + bdLine
-          : (existing?.background ? existing.background + '\n' + bdLine : bdLine);
+      // Birthday — write to FUB custom field customBirthday
+      const existingBirthday = existing?.customBirthday || '';
+      if (contact.birthday && !existingBirthday) {
+        payload.customBirthday = contact.birthday;
       }
       if (contact.spouse_name && !(existing?.background || '').includes(contact.spouse_name)) {
-        const spLine = `Spouse: ${contact.spouse_name}`;
-        payload.background = (payload.background || existing?.background || '') + '\n' + spLine;
+        payload.background = (payload.background || existing?.background || '') + '\nSpouse: ' + contact.spouse_name;
       }
 
       // If nothing changed, skip the PUT
@@ -160,10 +157,8 @@ module.exports = async (req, res) => {
       if (newDescription) payload.background = newDescription;
       if (approvedTags.length) payload.tags = approvedTags;
 
-      const extraLines = [];
-      if (contact.birthday) extraLines.push(`Birthday: ${contact.birthday}`);
-      if (contact.spouse_name) extraLines.push(`Spouse: ${contact.spouse_name}`);
-      if (extraLines.length) payload.background = [payload.background, ...extraLines].filter(Boolean).join('\n');
+      if (contact.birthday) payload.customBirthday = contact.birthday;
+      if (contact.spouse_name) payload.background = (payload.background ? payload.background + '\n' : '') + 'Spouse: ' + contact.spouse_name;
 
       payload.firstName = firstName;
       payload.lastName = lastName;
