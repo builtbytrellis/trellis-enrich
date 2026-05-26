@@ -824,7 +824,8 @@ async function pushHistoryContact(idx) {
   if (!fubKey) { setHistMsg(hid, 'Add FUB key in sidebar', 'err'); return; }
   const c = historyContacts[idx]; if (!c) return;
   // Auto-approve pending tags on push — agent can reject explicitly
-  const approved = (c.suggested_tags || []).filter((_, i) => (tagStates[hid]?.[i] || 'approved') !== 'rejected').map(t => t.tag);
+  // Strip old Profession: tags — server re-derives from job_title fresh
+  const approved = (c.suggested_tags || []).filter((_, i) => (tagStates[hid]?.[i] || 'approved') !== 'rejected').map(t => t.tag).filter(t => !t.startsWith('Profession:'));
   const contact = {
     ...c,
     full_name: [document.getElementById('hf-first-'+hid)?.value||'', document.getElementById('hf-last-'+hid)?.value||''].filter(Boolean).join(' ') || c.full_name,
@@ -867,7 +868,8 @@ async function pushAllHistory() {
     const c = historyContacts[idx];
     status.textContent = `Pushing ${idx + 1} of ${historyContacts.length}...`;
 
-    const approved = c.approved_tags || [];
+    // Strip old Profession: tags — server re-derives from job_title fresh
+    const approved = (c.approved_tags || []).filter(t => !t.startsWith('Profession:'));
     const contact = {
       ...c,
       full_name: c.full_name || c.name || '',
