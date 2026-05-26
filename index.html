@@ -304,6 +304,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
         <button class="btn btn-green btn-sm" id="history-push-all-btn" onclick="pushAllHistory()">Push All to FUB</button>
         <button class="btn btn-outline btn-sm" onclick="deduplicateHistory()">Deduplicate</button>
+        <button class="btn btn-outline btn-sm" onclick="fixISPContacts()">Fix ISP Data</button>
         <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
         <span style="font-size:12px;color:var(--green);margin-left:4px" id="history-push-all-status"></span>
       </div>
@@ -883,6 +884,30 @@ async function pushHistoryContact(idx) {
     await saveToHistory({...contact, pushed: true}, true);
     renderHistory();
   } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
+}
+
+async function fixISPContacts() {
+  // First do a dry run to show what will be fixed
+  try {
+    const body = { dryRun: true };
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/fix-isp-contacts', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (!data.count) { alert('No ISP data issues found.'); return; }
+    
+    const preview = data.fixed.slice(0, 10).map(f => `• ${f.name}: ${f.changes.join(', ')}`).join('\n');
+    const more = data.count > 10 ? `\n...and ${data.count - 10} more` : '';
+    if (!confirm(`Found ${data.count} contacts with ISP data issues:\n\n${preview}${more}\n\nFix all?`)) return;
+
+    // Now actually fix
+    body.dryRun = false;
+    const res2 = await fetch('/api/fix-isp-contacts', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+    alert(`✓ Fixed ${data2.count} contacts.`);
+    await loadHistory();
+  } catch(e) { alert('Failed: ' + e.message); }
 }
 
 async function deduplicateHistory() {
