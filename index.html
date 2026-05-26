@@ -347,16 +347,16 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
     <!-- FINTRAC -->
     <div class="panel" id="panel-fintrac">
       <div class="page-title">FINTRAC Import</div>
-      <div class="page-sub">Upload FINTRAC PDFs to automatically extract birthdays, occupations, and contact details.</div>
+      <div class="page-sub">Upload your FINTRAC CSV to match birthdays and occupations to contacts automatically.</div>
 
       <div class="card">
-        <div class="card-title">Upload FINTRAC forms</div>
-        <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Drop multiple PDFs at once. We'll extract birthday, occupation, address and match to your contacts automatically.</p>
-        <div class="drop-zone" id="fintrac-drop" onclick="document.getElementById('fintrac-inp').click()" style="padding:32px">
-          <input type="file" id="fintrac-inp" accept=".pdf" multiple style="display:none" onchange="handleFintracFiles(event)"/>
-          <div style="font-size:32px;margin-bottom:8px">📄</div>
-          <p>Drop FINTRAC PDFs here or click to browse</p>
-          <small>Accepts multiple files — scanned and digital PDFs supported</small>
+        <div class="card-title">Upload FINTRAC CSV</div>
+        <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Upload the combined fintrac_all.csv file. We'll match each person to your contacts and update their birthday and occupation automatically.</p>
+        <div class="drop-zone" id="fintrac-csv-drop" onclick="document.getElementById('fintrac-csv-inp').click()" style="padding:32px">
+          <input type="file" id="fintrac-csv-inp" accept=".csv" style="display:none" onchange="handleFintracCsv(event)"/>
+          <div style="font-size:32px;margin-bottom:8px">📋</div>
+          <p>Drop fintrac_all.csv here or click to browse</p>
+          <small>CSV with columns: filename, full_name, date_of_birth, occupation</small>
         </div>
         <div id="fintrac-status" style="display:none;margin-top:12px">
           <div style="font-size:13px;color:var(--ink-muted)" id="fintrac-progress">Processing...</div>
@@ -1349,6 +1349,81 @@ function clearVoice() {
 }
 
 
+
+// ── FINTRAC CSV Import ────────────────────────────────────────────────
+async function handleFintracCsv(e) {
+  const f = e.target?.files?.[0];
+  if (!f) return;
+  document.getElementById('fintrac-status').style.display = 'block';
+  document.getElementById('fintrac-results').style.display = 'none';
+  document.getElementById('fintrac-progress').textContent = 'Reading CSV...';
+  document.getElementById('fintrac-progress-bar').style.width = '30%';
+  const text = await f.text();
+  const lines = text.trim().split('\n');
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    const cols = [];
+    let cur = '', inQuote = false;
+    for (let j = 0; j < line.length; j++) {
+      if (line[j] === '"') { inQuote = !inQuote; }
+      else if (line[j] === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
+      else { cur += line[j]; }
+    }
+    cols.push(cur.trim());
+    if (!cols[1]) continue;
+    rows.push({ filename: cols[0]||'', full_name: cols[1]||'', date_of_birth: cols[2]||'', occupation: cols[3]||'' });
+  }
+  document.getElementById('fintrac-progress').textContent = `Matching ${rows.length} contacts...`;
+  document.getElementById('fintrac-progress-bar').style.width = '60%';
+  try {
+    const body = { rows };
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    const res = await fetch('/api/import-fintrac-csv', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    document.getElementById('fintrac-progress-bar').style.width = '100%';
+    document.getElementById('fintrac-status').style.display = 'none';
+    fintracResults = [
+      ...(data.matched||[]).map(m => ({ full_name: m.fintrac_name, date_of_birth: m.birthday, occupation: m.occupation, _matched_to: m.matched_to, _applied: true })),
+      ...(data.unmatched||[]).map(u => ({ full_name: u.full_name, date_of_birth: u.date_of_birth, occupation: u.occupation, _applied: false }))
+    ];
+    await loadHistory();
+    renderFintracCsvResults(data);
+  } catch(err) {
+    document.getElementById('fintrac-status').style.display = 'none';
+    alert('Import failed: ' + err.message);
+  }
+}
+
+function renderFintracCsvResults(data) {
+  const total = (data.matched?.length||0) + (data.unmatched?.length||0);
+  document.getElementById('fintrac-count').textContent = `${total} contacts processed — ✓ ${data.matched?.length||0} matched & updated, ${data.unmatched?.length||0} unmatched`;
+  document.getElementById('fintrac-results').style.display = 'block';
+  const matchedHtml = (data.matched||[]).map(m => `
+    <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:12px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${m.fintrac_name}</div>
+        <div style="font-size:11px;color:var(--ink-muted)">→ Matched to <b>${m.matched_to}</b> (${m.score}% match)</div>
+        ${m.birthday ? `<div style="font-size:11px;color:var(--green)">Birthday: ${m.birthday}</div>` : ''}
+        ${m.occupation ? `<div style="font-size:11px;color:var(--ink-muted)">Occupation: ${m.occupation}</div>` : ''}
+      </div>
+      <span class="pill pill-pushed">Updated</span>
+    </div>`).join('');
+  const unmatchedHtml = (data.unmatched||[]).map(u => `
+    <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:12px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${u.full_name||'—'}</div>
+        <div style="font-size:11px;color:var(--ink-muted)">No match in History</div>
+        ${u.date_of_birth ? `<div style="font-size:11px;color:var(--ink-muted)">DOB: ${u.date_of_birth}</div>` : ''}
+        ${u.occupation ? `<div style="font-size:11px;color:var(--ink-muted)">Occupation: ${u.occupation}</div>` : ''}
+      </div>
+      <span class="pill pill-pending">Unmatched</span>
+    </div>`).join('');
+  document.getElementById('fintrac-list').innerHTML = matchedHtml + unmatchedHtml;
+}
+
 // ── FINTRAC Upload ────────────────────────────────────────────────────
 let fintracResults = [];
 
@@ -2031,12 +2106,14 @@ document.getElementById('s-name').addEventListener('keydown', e => { if(e.key ==
 
 // FINTRAC drag and drop
 window.addEventListener('DOMContentLoaded', () => {
-  const fz = document.getElementById('fintrac-drop');
+  const fz = document.getElementById('fintrac-csv-drop');
   if (fz) {
     fz.addEventListener('dragover', e => { e.preventDefault(); fz.style.background = 'white'; });
     fz.addEventListener('dragleave', () => { fz.style.background = ''; });
     fz.addEventListener('drop', e => { 
       e.preventDefault(); fz.style.background = ''; 
+      const csvFiles = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+      if (csvFiles.length) { handleFintracCsv({target:{files:csvFiles}}); return; }
       const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
       if (files.length) processFintracFiles(files);
     });
