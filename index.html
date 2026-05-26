@@ -750,6 +750,8 @@ function toggleHistoryExpand(idx) {
       <div class="edit-field"><label>Phone</label><input id="hf-phone-${hid}" value="${c.phone||c.fub_data?.phone||''}"/></div>
       <div class="edit-field"><label>City</label><input id="hf-city-${hid}" value="${c.location||''}"/></div>
       <div class="edit-field"><label>Birthday</label><input id="hf-birthday-${hid}" placeholder="e.g. 1985-06-15" value="${c.birthday||''}"/></div>
+      <div class="edit-field"><label>Job title</label><input id="hf-jobtitle-${hid}" value="${c.job_title||''}"/></div>
+      <div class="edit-field"><label>Company / Employer</label><input id="hf-company-${hid}" value="${c.company||''}"/></div>
       <div class="edit-field"><label>Spouse name</label><input id="hf-spouse-${hid}" value="${c.spouse_name||''}"/></div>
       <div class="edit-field"><label>Stage</label>
         <select id="hf-stage-${hid}">
@@ -814,8 +816,8 @@ async function pushHistoryContact(idx) {
     spouse_name: document.getElementById('hf-spouse-'+hid)?.value || c.spouse_name || '',
     stage: document.getElementById('hf-stage-'+hid)?.value || c.stage || '',
     notes: document.getElementById('hf-notes-'+hid)?.value || c.notes || '',
-    job_title: c.job_title || '',
-    company: c.company || '',
+    job_title: document.getElementById('hf-jobtitle-'+hid)?.value || c.job_title || '',
+    company: document.getElementById('hf-company-'+hid)?.value || c.company || '',
     approved_tags: approved
   };
   setHistMsg(hid, 'Pushing...', '');
