@@ -128,7 +128,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
 
 <div id="impersonate-banner">
   <span id="impersonate-msg"></span>
-  <button onclick="stopImpersonating()" style="background:rgba(255,255,255,.2);border:none;color:white;padding:4px 12px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">← Back to Admin</button>
+  <button onclick="stopImpersonating()" style="background:rgba(255,255,255,.2);border:none;color:white;padding:4px 12px;border-radius:4px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif">â Back to Admin</button>
 </div>
 
 <!-- Auth screen -->
@@ -143,7 +143,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
     </div>
     <div style="margin-bottom:24px">
       <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8a8a80;display:block;margin-bottom:6px">Password</label>
-      <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
+      <input type="password" id="login-password" placeholder="â¢â¢â¢â¢â¢â¢â¢â¢" onkeydown="if(event.key==='Enter')doLogin()"
         style="width:100%;padding:10px 12px;font-size:14px;border:.5px solid rgba(26,26,24,0.15);border-radius:4px;background:#f8f5ef;color:#1a1a18;font-family:'DM Sans',sans-serif;outline:none"/>
     </div>
     <button onclick="doLogin()" id="login-btn" style="width:100%;padding:12px;background:#1a1a18;color:white;border:none;border-radius:4px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif">Sign in</button>
@@ -194,7 +194,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
     <!-- Enrich -->
     <div class="panel active" id="panel-enrich">
       <div class="page-title">Enrich contacts</div>
-      <div class="page-sub">Search, enrich, tag — then push directly to Follow Up Boss.</div>
+      <div class="page-sub">Search, enrich, tag â then push directly to Follow Up Boss.</div>
       <div class="tab-row">
         <div class="tab active" id="etab-single" onclick="switchEnrichTab('single')">Single</div>
         <div class="tab" id="etab-batch" onclick="switchEnrichTab('batch')">Batch</div>
@@ -261,7 +261,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         </div>
         <div class="transcript-box" id="transcript-box">Your transcript will appear here...</div>
         <div id="voice-tags-area" style="display:none">
-          <div class="section-label">Extracted tags — click to approve</div>
+          <div class="section-label">Extracted tags â click to approve</div>
           <div class="tags-wrap" id="voice-tags"></div>
           <div class="section-label" style="margin-top:12px">Extracted details</div>
           <div id="voice-details" class="field-grid"></div>
@@ -299,7 +299,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
     <!-- History -->
     <div class="panel" id="panel-history">
       <div class="page-title">History</div>
-      <div class="page-sub">All contacts enriched and pushed — persisted across sessions.</div>
+      <div class="page-sub">All contacts enriched and pushed â persisted across sessions.</div>
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
         <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
         <button class="btn btn-green btn-sm" id="history-push-all-btn" onclick="pushAllHistory()">Push All to FUB</button>
@@ -322,7 +322,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       </div>
       <div class="card" id="ds-connected" style="display:none">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-          <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:16px">✓</div>
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:16px">â</div>
           <div><div style="font-size:13px;font-weight:500">DocuSign Connected</div><div style="font-size:11px;color:var(--ink-muted)" id="ds-account-info"></div></div>
           <button class="btn btn-outline btn-sm" style="margin-left:auto" onclick="disconnectDocuSign()">Disconnect</button>
         </div>
@@ -356,7 +356,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Upload the combined fintrac_all.csv file. We'll match each person to your contacts and update their birthday and occupation automatically.</p>
         <div class="drop-zone" id="fintrac-csv-drop" onclick="document.getElementById('fintrac-csv-inp').click()" style="padding:32px">
           <input type="file" id="fintrac-csv-inp" accept=".csv" style="display:none" onchange="handleFintracCsv(event)"/>
-          <div style="font-size:32px;margin-bottom:8px">📋</div>
+          <div style="font-size:32px;margin-bottom:8px">ð</div>
           <p>Drop fintrac_all.csv here or click to browse</p>
           <small>CSV with columns: filename, full_name, date_of_birth, occupation</small>
         </div>
@@ -385,7 +385,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Drop merged APS PDFs. We'll extract buyers, sellers, property, sale price, deposit, closing date, and commission.</p>
         <div class="drop-zone" id="trade-drop" onclick="document.getElementById('trade-inp').click()" style="padding:32px">
           <input type="file" id="trade-inp" accept=".pdf" multiple style="display:none" onchange="handleTradeFiles(event)"/>
-          <div style="font-size:32px;margin-bottom:8px">🏠</div>
+          <div style="font-size:32px;margin-bottom:8px">ð </div>
           <p>Drop APS PDFs here or click to browse</p>
           <small>Accepts multiple files</small>
         </div>
@@ -425,7 +425,7 @@ let historyContacts = [];
 let dsAccessToken = null, dsAccountId = null, dsBaseUri = null, dsTransactions = [];
 let tradeResults = [];
 
-// ── Profession derivation (mirrors server logic) ──────────────────────────
+// ââ Profession derivation (mirrors server logic) ââââââââââââââââââââââââââ
 function deriveProf(jobTitle, company) {
   const text = ((jobTitle || '') + ' ' + (company || '')).toLowerCase();
   if (!text.trim()) return null;
@@ -444,7 +444,7 @@ function deriveProf(jobTitle, company) {
   return null;
 }
 
-// ── Auth ──────────────────────────────────────────────────────────────
+// ââ Auth ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function getToken() { return localStorage.getItem('trellis_token'); }
 function authHeaders() { return { 'Content-Type': 'application/json', 'x-session-token': getToken() }; }
 
@@ -538,7 +538,7 @@ async function signOut() {
   currentUserId = null; currentSession = null; impersonating = null;
 }
 
-// ── Admin ─────────────────────────────────────────────────────────────
+// ââ Admin âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function loadAdminPanel() {
   const panel = document.getElementById('panel-admin'); if (!panel) return;
   panel.innerHTML = '<div style="color:var(--ink-muted);font-size:13px">Loading...</div>';
@@ -573,10 +573,10 @@ async function loadAdminPanel() {
             <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--gold);flex-shrink:0">${a.name[0].toUpperCase()}</div>
             <div style="flex:1;min-width:120px">
               <div style="font-size:13px;font-weight:500">${a.name}</div>
-              <div style="font-size:11px;color:var(--ink-muted)">${a.email} · ${a.role}</div>
+              <div style="font-size:11px;color:var(--ink-muted)">${a.email} Â· ${a.role}</div>
             </div>
             <span class="pill ${a.role === 'admin' ? 'pill-review' : 'pill-done'}">${a.role}</span>
-            <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
+            <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB â' : 'No FUB key'}</span>
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
               <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin trades here</button>
@@ -607,12 +607,12 @@ async function createAgent() {
 }
 
 async function migrateAdminTrades(toAgentId, toName) {
-  if (!confirm(`Move all trades from admin_trellis → ${toName}?\n\nCannot be undone.`)) return;
+  if (!confirm(`Move all trades from admin_trellis â ${toName}?\n\nCannot be undone.`)) return;
   try {
     const res = await fetch('/api/migrate-trades', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ fromAgentId: 'admin_trellis', toAgentId }) });
     const d = await res.json();
     if (!res.ok) throw new Error(d.error || res.status);
-    alert(`✓ Migrated ${d.migrated} trade${d.migrated !== 1 ? 's' : ''} to ${toName}.`);
+    alert(`â Migrated ${d.migrated} trade${d.migrated !== 1 ? 's' : ''} to ${toName}.`);
   } catch(e) { alert('Migration failed: ' + e.message); }
 }
 
@@ -620,12 +620,12 @@ async function updateAgentFubKey(agentId, agentName) {
   const newKey = prompt(`Paste ${agentName}'s FUB API key:`);
   if (newKey === null) return;
   const trimmed = newKey.trim();
-  if (!trimmed) { alert('Empty key — nothing changed.'); return; }
+  if (!trimmed) { alert('Empty key â nothing changed.'); return; }
   try {
     const res = await fetch('/api/create-agent', { method: 'PUT', headers: authHeaders(), body: JSON.stringify({ agentId, fubApiKey: trimmed }) });
     const d = await res.json();
     if (!res.ok || !d.success) throw new Error(d.error || res.status);
-    alert(`✓ Saved ${agentName}'s FUB key.`);
+    alert(`â Saved ${agentName}'s FUB key.`);
     loadAdminPanel();
   } catch(e) { alert('Failed: ' + e.message); }
 }
@@ -676,7 +676,7 @@ function stopImpersonating() {
   loadAdminPanel();
 }
 
-// ── Navigation ────────────────────────────────────────────────────────
+// ââ Navigation ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function showPanel(id, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -695,7 +695,7 @@ function switchEnrichTab(t) {
   });
 }
 
-// ── FUB ──────────────────────────────────────────────────────────────
+// ââ FUB ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function checkFUB() {
   const v = document.getElementById('fub-key').value.trim();
   const s = document.getElementById('fub-status');
@@ -708,7 +708,7 @@ function checkFUB() {
 }
 function getFUBKey() { return document.getElementById('fub-key').value.trim(); }
 
-// ── History ───────────────────────────────────────────────────────────
+// ââ History âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function loadHistory() {
   if (!currentUserId) return;
   try {
@@ -735,8 +735,8 @@ function renderHistory() {
         <div class="history-avatar">${initials}</div>
         <div style="flex:1">
           <div class="history-name">${c.full_name || c.name || 'Unknown'}</div>
-          <div class="history-meta">${[c.job_title, c.location].filter(Boolean).join(' · ')}${date ? ' · ' + date : ''}</div>
-          ${(c.birthday || c.fintrac_verified) ? `<div style="font-size:11px;margin-top:2px;display:flex;gap:8px;align-items:center">${c.birthday ? '<span style="color:var(--gold)">🎂 ' + c.birthday + '</span>' : ''}${c.fintrac_verified ? '<span style="color:var(--green);font-size:10px">✓ FINTRAC</span>' : ''}</div>` : ''}
+          <div class="history-meta">${[c.job_title, c.location].filter(Boolean).join(' Â· ')}${date ? ' Â· ' + date : ''}</div>
+          ${(c.birthday || c.fintrac_verified) ? `<div style="font-size:11px;margin-top:2px;display:flex;gap:8px;align-items:center">${c.birthday ? '<span style="color:var(--gold)">ð ' + c.birthday + '</span>' : ''}${c.fintrac_verified ? '<span style="color:var(--green);font-size:10px">â FINTRAC</span>' : ''}</div>` : ''}
           ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
         </div>
         <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
@@ -787,16 +787,16 @@ function toggleHistoryExpand(idx) {
       <div class="edit-field"><label>Spouse name</label><input id="hf-spouse-${hid}" value="${c.spouse_name||''}"/></div>
       <div class="edit-field"><label>Stage</label>
         <select id="hf-stage-${hid}">
-          <option value="">— select —</option>
+          <option value="">â select â</option>
           ${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}" ${c.stage===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </div>
       <div class="edit-field full"><label>Notes</label><textarea id="hf-notes-${hid}">${c.notes||''}</textarea></div>
     </div>
-    <div class="section-label">Tags — click to approve / reject</div>
+    <div class="section-label">Tags â click to approve / reject</div>
     <div class="tags-wrap" id="htags-${hid}">${tagsHtml}</div>
     <div class="tag-adder" style="margin-bottom:6px">
-      <select id="htag-select-${hid}"><option value="">— add from list —</option>${tagOptions}</select>
+      <select id="htag-select-${hid}"><option value="">â add from list â</option>${tagOptions}</select>
       <button class="btn btn-outline btn-sm" onclick="addHistoryManualTag(${idx})">Add</button>
     </div>
     <div class="tag-adder" style="margin-bottom:12px">
@@ -855,8 +855,8 @@ async function pushHistoryContact(idx) {
   const fubKey = getFUBKey();
   if (!fubKey) { setHistMsg(hid, 'Add FUB key in sidebar', 'err'); return; }
   const c = historyContacts[idx]; if (!c) return;
-  // Auto-approve pending tags on push — agent can reject explicitly
-  // Strip old Profession: tags — server re-derives from job_title fresh
+  // Auto-approve pending tags on push â agent can reject explicitly
+  // Strip old Profession: tags â server re-derives from job_title fresh
   const approved = (c.suggested_tags || []).filter((_, i) => (tagStates[hid]?.[i] || 'approved') !== 'rejected').map(t => t.tag).filter(t => !t.startsWith('Profession:'));
   const contact = {
     ...c,
@@ -877,7 +877,7 @@ async function pushHistoryContact(idx) {
     const res = await fetch('/api/push-to-fub', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ fubApiKey: fubKey, contact }) });
     const result = await res.json();
     if (result.error) throw new Error(result.error);
-    setHistMsg(hid, `Pushed — ${approved.length} tags applied`, 'ok');
+    setHistMsg(hid, `Pushed â ${approved.length} tags applied`, 'ok');
     historyContacts[idx].pushed = true;
     await saveToHistory({...contact, pushed: true}, true);
     renderHistory();
@@ -888,7 +888,7 @@ async function pushAllHistory() {
   const fubKey = getFUBKey();
   if (!fubKey) { alert('Add FUB API key in sidebar first.'); return; }
   if (!historyContacts.length) { alert('No contacts in History.'); return; }
-  if (!confirm(`Push all ${historyContacts.length} contacts to FUB?\n\nSmart update — only fills missing/changed fields. Won't overwrite existing data.`)) return;
+  if (!confirm(`Push all ${historyContacts.length} contacts to FUB?\n\nSmart update â only fills missing/changed fields. Won't overwrite existing data.`)) return;
 
   const btn = document.getElementById('history-push-all-btn');
   const status = document.getElementById('history-push-all-status');
@@ -900,7 +900,7 @@ async function pushAllHistory() {
     const c = historyContacts[idx];
     status.textContent = `Pushing ${idx + 1} of ${historyContacts.length}...`;
 
-    // Strip old Profession: tags — server re-derives from job_title fresh
+    // Strip old Profession: tags â server re-derives from job_title fresh
     const approved = (c.approved_tags || []).filter(t => !t.startsWith('Profession:'));
     const contact = {
       ...c,
@@ -937,7 +937,7 @@ async function pushAllHistory() {
   }
 
   btn.disabled = false;
-  status.textContent = `✓ ${done} updated, ${skipped} unchanged${failed ? ', ' + failed + ' failed' : ''}`;
+  status.textContent = `â ${done} updated, ${skipped} unchanged${failed ? ', ' + failed + ' failed' : ''}`;
   await loadHistory();
 }
 
@@ -955,7 +955,7 @@ async function saveToHistory(contact, pushed) {
   } catch(e) { console.error('Save failed:', e); }
 }
 
-// ── Persistent Queue API ───────────────────────────────────────────────
+// ââ Persistent Queue API âââââââââââââââââââââââââââââââââââââââââââââââ
 async function saveQueueItem(item) {
   try {
     await fetch('/api/queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ contact: { id: item.id, name: item.name, city: item.city, email: item.email, status: item.status, result: item.result, approved_tags: item.approved_tags, addedAt: item.addedAt || new Date().toISOString() } }) });
@@ -976,7 +976,7 @@ async function loadPersistentQueue() {
     const res = await fetch(url, { headers: authHeaders() });
     const data = await res.json();
     const items = data.queue || [];
-    // Restore queue from Redis — skip already pushed items
+    // Restore queue from Redis â skip already pushed items
     queue = items.filter(i => i.status !== 'pushed').map(i => ({ ...i, expanded: false }));
     items.filter(i => i.status !== 'pushed').forEach(i => {
       tagStates[i.id] = {};
@@ -1000,7 +1000,35 @@ async function clearPersistentQueue() {
   } catch(e) { console.error('Clear queue failed:', e); }
 }
 
-// ── Single enrichment ─────────────────────────────────────────────────
+// ââ Single enrichment âââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Auto-approve / reject tags based on job title ──────────────────────────
+function autoDecideTags(data, id) {
+  const tags = data.suggested_tags;
+  if (!tags || !tags.length || !tagStates[id]) return;
+
+  const detectedProf = deriveProf(data.job_title, data.company);
+  if (!detectedProf) return;
+
+  let profTagFound = false;
+
+  tags.forEach((tagObj, i) => {
+    if (!tagObj.tag.startsWith('Profession: ')) return;
+    profTagFound = true;
+    if (tagObj.tag === detectedProf) {
+      tagStates[id][i] = 'approved';
+    } else {
+      tagStates[id][i] = 'rejected';
+    }
+  });
+
+  // If no profession tag was suggested, add the correct one and approve it
+  if (!profTagFound) {
+    const newIdx = tags.length;
+    tags.push({ tag: detectedProf, reason: 'Derived from job title: ' + (data.job_title || ''), confidence: 'high' });
+    tagStates[id][newIdx] = 'approved';
+  }
+}
+
 async function enrichSingle() {
   const name = document.getElementById('s-name').value.trim(); if (!name) return;
   const city = document.getElementById('s-city').value.trim();
@@ -1014,6 +1042,7 @@ async function enrichSingle() {
     const id = 'single_' + Date.now();
     tagStates[id] = {};
     (data.suggested_tags || []).forEach((_, i) => tagStates[id][i] = 'pending');
+    autoDecideTags(data, id);
     renderSingleResult(data, id);
     addToQueue(data, id, 'done');
     await saveToHistory(data, false);
@@ -1026,16 +1055,16 @@ async function enrichSingle() {
 function renderSingleResult(d, id) {
   const conf = d.confidence_overall;
   const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':'var(--red)';
-  const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB — editing will update existing contact</div>` : '';
+  const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB â editing will update existing contact</div>` : '';
   const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
   document.getElementById('single-result').innerHTML = `<div class="card">
     ${d.warning?`<div class="warning-box">${d.warning}</div>`:''}${fubInfo}
     <div class="result-header">
       <div class="avatar">${d.initials||'?'}</div>
-      <div><div class="result-name">${d.full_name}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' · ')||'No title found'}</div></div>
+      <div><div class="result-name">${d.full_name}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' Â· ')||'No title found'}</div></div>
       <div style="margin-left:auto;font-size:12px;font-weight:500;color:${confColor}">${conf} confidence</div>
     </div>
-    <div class="section-label">Contact details — edit before pushing</div>
+    <div class="section-label">Contact details â edit before pushing</div>
     <div class="edit-grid">
       <div class="edit-field"><label>First name</label><input id="ef-first-${id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
       <div class="edit-field"><label>Last name</label><input id="ef-last-${id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
@@ -1045,16 +1074,16 @@ function renderSingleResult(d, id) {
       <div class="edit-field"><label>Birthday</label><input id="ef-birthday-${id}" placeholder="e.g. 1985-06-15" value=""/></div>
       <div class="edit-field"><label>Spouse name</label><input id="ef-spouse-${id}" value=""/></div>
       <div class="edit-field"><label>Stage</label>
-        <select id="ef-stage-${id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+        <select id="ef-stage-${id}"><option value="">â select â</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
       </div>
       <div class="edit-field full"><label>Notes</label><textarea id="ef-notes-${id}">${d.notes||''}</textarea></div>
     </div>
     <hr class="divider"/>
-    <div class="section-label">Suggested tags — click to approve / reject</div>
+    <div class="section-label">Suggested tags â click to approve / reject</div>
     <div class="tags-wrap" id="tags-${id}"></div>
     <div class="section-label">Add a tag manually</div>
     <div class="tag-adder">
-      <select id="tag-select-${id}"><option value="">— choose a tag —</option>${tagOptions}</select>
+      <select id="tag-select-${id}"><option value="">â choose a tag â</option>${tagOptions}</select>
       <button class="btn btn-outline btn-sm" onclick="addManualTag('${id}')">Add</button>
     </div>
     <div class="action-row" style="margin-top:16px">
@@ -1114,7 +1143,7 @@ async function pushSingleContact(id) {
     const res = await fetch('/api/push-to-fub', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ fubApiKey: fubKey, contact: editedContact }) });
     const result = await res.json();
     if (result.error) throw new Error(result.error);
-    setMsg(id, `Pushed — ${approved.length} tags applied`, 'ok');
+    setMsg(id, `Pushed â ${approved.length} tags applied`, 'ok');
     pushedCount++; updateQueueItem(id, 'pushed'); updateStats();
     await saveToHistory({...editedContact, pushed: true}, true); loadHistory();
   } catch(e) { setMsg(id, 'Failed: ' + e.message, 'err'); }
@@ -1122,7 +1151,7 @@ async function pushSingleContact(id) {
 
 function setMsg(id, text, type) { const el = document.getElementById('pmsg-'+id); if(el){el.textContent=text;el.className='push-msg'+(type?' '+type:'');} }
 
-// ── Batch & Excel ─────────────────────────────────────────────────────
+// ââ Batch & Excel âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function runBatch() {
   const raw = document.getElementById('batch-names').value.trim(); if(!raw) return;
   const contacts = raw.split('\n').map(l=>{const p=l.split(',');return{name:p[0].trim(),city:(p[1]||'').trim()};}).filter(c=>c.name);
@@ -1152,7 +1181,7 @@ function populateCols() {
   const hints = [['first','fname'],['last','lname','surname'],['city','area','location'],['email','mail']];
   ids.forEach((id, i) => {
     const sel = document.getElementById(id);
-    sel.innerHTML = '<option value="">— none —</option>' + excelHeaders.map((h,j) => `<option value="${j}">${h}</option>`).join('');
+    sel.innerHTML = '<option value="">â none â</option>' + excelHeaders.map((h,j) => `<option value="${j}">${h}</option>`).join('');
     const match = excelHeaders.findIndex(h => hints[i].some(hint => h.toLowerCase().includes(hint)));
     if(match >= 0) sel.value = match;
   });
@@ -1195,11 +1224,11 @@ function loadFromExcel() {
 
   if(!contacts.length) { alert('No contacts found.'); return; }
   const splitCount = contacts.length - rawContacts.length;
-  document.getElementById('row-count').textContent = rawContacts.length + ' rows → ' + contacts.length + ' contacts' + (splitCount > 0 ? ' (' + splitCount + ' couples split)' : '');
+  document.getElementById('row-count').textContent = rawContacts.length + ' rows â ' + contacts.length + ' contacts' + (splitCount > 0 ? ' (' + splitCount + ' couples split)' : '');
   startBatchQueue(contacts);
 }
 
-// ── Queue ─────────────────────────────────────────────────────────────
+// ââ Queue âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function startBatchQueue(contacts) {
   for (const c of contacts) {
     const id = 'q' + Date.now() + Math.random().toString(36).slice(2);
@@ -1234,6 +1263,7 @@ async function processNext() {
     if(data.error) throw new Error(data.error);
     next.result = data;
     (data.suggested_tags||[]).forEach((_,i) => tagStates[next.id][i] = 'pending');
+    autoDecideTags(data, next.id);
     next.status = (data.confidence_overall==='low' || !(data.suggested_tags||[]).length) ? 'review' : 'done';
     await updateQueueItemStatus(next.id, next.status, data, []);
     await saveToHistory(data, false);
@@ -1249,8 +1279,8 @@ function renderQueue() {
   if(!queue.length) { document.getElementById('queue-list').innerHTML = '<div class="empty-state"><div class="big">Nothing yet</div>Enrich some contacts to get started.</div>'; return; }
   document.getElementById('queue-list').innerHTML = queue.map(item => {
     const pillClass = {pending:'pill-pending',running:'pill-running',done:'pill-done',review:'pill-review',error:'pill-error',pushed:'pill-pushed'}[item.status]||'pill-pending';
-    const topTags = item.result ? item.result.suggested_tags?.slice(0,2).map(t=>`<span style="font-size:11px;color:var(--ink-muted)">${t.tag.split(':')[0]}</span>`).join(' · ') : '—';
-    const conf = item.result ? item.result.confidence_overall : '—';
+    const topTags = item.result ? item.result.suggested_tags?.slice(0,2).map(t=>`<span style="font-size:11px;color:var(--ink-muted)">${t.tag.split(':')[0]}</span>`).join(' Â· ') : 'â';
+    const conf = item.result ? item.result.confidence_overall : 'â';
     const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':conf==='low'?'var(--red)':'var(--ink-muted)';
     return `<div>
       <div class="queue-row" onclick="toggleQueueExpand('${item.id}')">
@@ -1282,14 +1312,14 @@ function renderExpandContent(item) {
     <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value=""/></div>
     <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value=""/></div>
     <div class="edit-field"><label>Stage</label>
-      <select id="qf-stage-${item.id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
+      <select id="qf-stage-${item.id}"><option value="">â select â</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
     </div>
     <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}">${d.notes||''}</textarea></div>
   </div>
-  <div class="section-label">Tags — click to approve</div>
+  <div class="section-label">Tags â click to approve</div>
   <div class="tags-wrap">${tagsHtml}</div>
   <div class="tag-adder" style="margin-bottom:12px">
-    <select id="qtag-select-${item.id}"><option value="">— add a tag —</option>${tagOptions}</select>
+    <select id="qtag-select-${item.id}"><option value="">â add a tag â</option>${tagOptions}</select>
     <button class="btn btn-outline btn-sm" onclick="addQueueManualTag('${item.id}')">Add</button>
   </div>
   <div class="action-row" style="margin-top:14px">
@@ -1332,7 +1362,7 @@ async function pushQueueItem(id) {
     const res = await fetch('/api/push-to-fub', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fubApiKey:fubKey, contact:editedContact})});
     const result = await res.json();
     if(result.error) throw new Error(result.error);
-    setMsg(id, `Pushed — ${approved.length} tags`, 'ok');
+    setMsg(id, `Pushed â ${approved.length} tags`, 'ok');
     item.status = 'pushed'; pushedCount++; updateStats(); renderQueue(); updateBadge();
     await updateQueueItemStatus(item.id, 'pushed', null, approved);
     await saveToHistory({...editedContact, pushed: true}, true); loadHistory();
@@ -1356,7 +1386,7 @@ function updateStats() {
 }
 function updateBadge() { const b = document.getElementById('queue-badge'); b.textContent = queue.length; b.style.display = queue.length ? 'inline' : 'none'; }
 
-// ── Voice ─────────────────────────────────────────────────────────────
+// ââ Voice âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function toggleRecord() {
   if(!isRecording) {
     try {
@@ -1442,7 +1472,7 @@ function clearVoice() {
 }
 
 
-// ── FINTRAC CSV Import ────────────────────────────────────────────────────
+// ââ FINTRAC CSV Import ââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let fintracResults = [];
 
 async function handleFintracCsv(e) {
@@ -1491,14 +1521,14 @@ async function handleFintracCsv(e) {
 
 function renderFintracCsvResults(data) {
   const total = (data.matched?.length||0) + (data.unmatched?.length||0);
-  document.getElementById('fintrac-count').textContent = `${total} contacts processed — ✓ ${data.matched?.length||0} matched & updated, ${data.unmatched?.length||0} unmatched`;
+  document.getElementById('fintrac-count').textContent = `${total} contacts processed â â ${data.matched?.length||0} matched & updated, ${data.unmatched?.length||0} unmatched`;
   document.getElementById('fintrac-results').style.display = 'block';
   const matchedHtml = (data.matched||[]).map(m => `
     <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
       <div style="flex:1">
         <div style="font-size:13px;font-weight:500">${m.fintrac_name}</div>
-        <div style="font-size:11px;color:var(--ink-muted)">→ Matched to <b>${m.matched_to}</b> (${m.score}% match)</div>
+        <div style="font-size:11px;color:var(--ink-muted)">â Matched to <b>${m.matched_to}</b> (${m.score}% match)</div>
         ${m.birthday ? `<div style="font-size:11px;color:var(--green)">Birthday: ${m.birthday}</div>` : ''}
         ${m.occupation ? `<div style="font-size:11px;color:var(--ink-muted)">Occupation: ${m.occupation}</div>` : ''}
       </div>
@@ -1508,7 +1538,7 @@ function renderFintracCsvResults(data) {
     <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:500">${u.full_name||'—'}</div>
+        <div style="font-size:13px;font-weight:500">${u.full_name||'â'}</div>
         <div style="font-size:11px;color:var(--ink-muted)">No match in History</div>
         ${u.date_of_birth ? `<div style="font-size:11px;color:var(--ink-muted)">DOB: ${u.date_of_birth}</div>` : ''}
         ${u.occupation ? `<div style="font-size:11px;color:var(--ink-muted)">Occupation: ${u.occupation}</div>` : ''}
@@ -1524,7 +1554,7 @@ async function applyAllFintracToContacts(ev) {
   alert('Import complete. All matched contacts have been updated in History.');
 }
 
-// ── Past Trades ────────────────────────────────────────────────────────
+// ââ Past Trades ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 async function handleTradeFiles(e) {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
@@ -1634,13 +1664,13 @@ function renderTradeResults() {
 
   document.getElementById('trade-count').innerHTML =
     `${allValid.length} trade${allValid.length !== 1 ? 's' : ''} extracted` +
-    (pushed ? ` • <span style="color:var(--green)">✓ ${pushed} pushed</span>` : '') +
-    (failed ? ` • <span style="color:var(--red)">✗ ${failed} failed</span>` : '') +
-    (pending ? ` • <span style="color:var(--amber)">${pending} pending</span>` : '') +
+    (pushed ? ` â¢ <span style="color:var(--green)">â ${pushed} pushed</span>` : '') +
+    (failed ? ` â¢ <span style="color:var(--red)">â ${failed} failed</span>` : '') +
+    (pending ? ` â¢ <span style="color:var(--amber)">${pending} pending</span>` : '') +
     ` &nbsp; <span style="font-size:11px;color:var(--ink-muted)">Filter:</span> ` +
-    `<a href="#" onclick="filterTrades('all');return false" style="font-size:11px;margin-left:4px">all</a> · ` +
-    `<a href="#" onclick="filterTrades('pending');return false" style="font-size:11px">pending</a> · ` +
-    `<a href="#" onclick="filterTrades('failed');return false" style="font-size:11px">failed</a> · ` +
+    `<a href="#" onclick="filterTrades('all');return false" style="font-size:11px;margin-left:4px">all</a> Â· ` +
+    `<a href="#" onclick="filterTrades('pending');return false" style="font-size:11px">pending</a> Â· ` +
+    `<a href="#" onclick="filterTrades('failed');return false" style="font-size:11px">failed</a> Â· ` +
     `<a href="#" onclick="filterTrades('pushed');return false" style="font-size:11px">pushed</a>`;
 
   document.getElementById('trade-results').style.display = 'block';
@@ -1650,7 +1680,7 @@ function renderTradeResults() {
     const partyName = r.buyer_or_tenant_name;
     const counterpartyName = r.seller_or_landlord_name;
     const buyerMatch = findContactMatch(partyName);
-    const dealTypeBadge = r.deal_type === 'sale' ? '🏠 Sale' : r.deal_type === 'lease' ? '🔑 Lease' : r.deal_type === 'lease_renewal' ? '🔄 Lease Renewal' : '❓ Unknown';
+    const dealTypeBadge = r.deal_type === 'sale' ? 'ð  Sale' : r.deal_type === 'lease' ? 'ð Lease' : r.deal_type === 'lease_renewal' ? 'ð Lease Renewal' : 'â Unknown';
     const sideLabel = r.agent_side === 'buyer' ? 'Buy side' : r.agent_side === 'seller' ? 'List side' : r.agent_side === 'tenant' ? 'Tenant side' : r.agent_side === 'landlord' ? 'Landlord side' : r.agent_side === 'both' ? 'Double-ended' : '';
 
     return `
@@ -1659,23 +1689,23 @@ function renderTradeResults() {
         <div style="flex:1">
           <div style="font-size:11px;color:var(--ink-muted);margin-bottom:2px">${dealTypeBadge}</div>
           <div style="font-size:15px;font-weight:500">${r.property_address || 'Address unknown'}</div>
-          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${r.filename}${sideLabel ? ' • ' + sideLabel : ''}</div>
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${r.filename}${sideLabel ? ' â¢ ' + sideLabel : ''}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-          ${buyerMatch ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ ${buyerMatch.full_name||buyerMatch.name} in contacts</div>` : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
-          ${r._pushStatus === 'pushed' ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ FUB Deal #${r._fubDealId}</div>`
-          : r._pushStatus === 'duplicate' ? `<div style="background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">↺ Already in FUB</div>`
-          : r._pushStatus === 'failed' ? `<div style="background:var(--red-light);color:var(--red);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✗ Push failed</div>`
-          : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">⌛ Not pushed</div>`}
+          ${buyerMatch ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">â ${buyerMatch.full_name||buyerMatch.name} in contacts</div>` : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
+          ${r._pushStatus === 'pushed' ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">â FUB Deal #${r._fubDealId}</div>`
+          : r._pushStatus === 'duplicate' ? `<div style="background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">âº Already in FUB</div>`
+          : r._pushStatus === 'failed' ? `<div style="background:var(--red-light);color:var(--red);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">â Push failed</div>`
+          : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">â Not pushed</div>`}
         </div>
       </div>
       <div class="field-grid">
-        <div class="field"><div class="field-key">${isLease ? 'Tenant' : 'Buyer'}</div><div class="field-val">${partyName||'—'}</div></div>
-        <div class="field"><div class="field-key">${isLease ? 'Landlord' : 'Seller'}</div><div class="field-val">${counterpartyName||'—'}</div></div>
+        <div class="field"><div class="field-key">${isLease ? 'Tenant' : 'Buyer'}</div><div class="field-val">${partyName||'â'}</div></div>
+        <div class="field"><div class="field-key">${isLease ? 'Landlord' : 'Seller'}</div><div class="field-val">${counterpartyName||'â'}</div></div>
         <div class="field"><div class="field-key">${isLease ? 'Monthly rent' : 'Sale price'}</div><div class="field-val">${fmtMoney(isLease ? r.monthly_rent : r.sale_price)}</div></div>
-        <div class="field"><div class="field-key">Close date</div><div class="field-val">${r.close_date||'—'}</div></div>
-        <div class="field"><div class="field-key">Agent share</div><div class="field-val">${fmtMoney(r.agent_share_pretax)||'—'}</div></div>
-        <div class="field"><div class="field-key">Deposit</div><div class="field-val">${fmtMoney(r.deposit)||'—'}</div></div>
+        <div class="field"><div class="field-key">Close date</div><div class="field-val">${r.close_date||'â'}</div></div>
+        <div class="field"><div class="field-key">Agent share</div><div class="field-val">${fmtMoney(r.agent_share_pretax)||'â'}</div></div>
+        <div class="field"><div class="field-key">Deposit</div><div class="field-val">${fmtMoney(r.deposit)||'â'}</div></div>
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
         <label style="font-size:11px;color:var(--ink-muted)">Side repped:
@@ -1726,12 +1756,12 @@ async function pushTradeToFub(idx, ev) {
     const pushRes = await fetch('/api/push-trade-to-fub', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() }, body: JSON.stringify(pushBody) });
     const pushData = await pushRes.json();
     if (!pushData.success) throw new Error(pushData.error || 'Push failed');
-    if (msg) { msg.textContent = pushData.duplicate ? `↺ Already in FUB #${pushData.dealId}` : `✓ Deal #${pushData.dealId} created`; msg.style.color = 'var(--green)'; }
-    if (btn) btn.textContent = '✓ Pushed';
+    if (msg) { msg.textContent = pushData.duplicate ? `âº Already in FUB #${pushData.dealId}` : `â Deal #${pushData.dealId} created`; msg.style.color = 'var(--green)'; }
+    if (btn) btn.textContent = 'â Pushed';
     const target = tradeResults.find(t => t._tradeId === trade._tradeId);
     if (target) { target._pushStatus = pushData.duplicate ? 'duplicate' : 'pushed'; target._fubDealId = pushData.dealId; }
   } catch(e) {
-    if (msg) { msg.textContent = '✗ ' + e.message; msg.style.color = 'var(--red)'; }
+    if (msg) { msg.textContent = 'â ' + e.message; msg.style.color = 'var(--red)'; }
     if (btn) { btn.disabled = false; btn.textContent = 'Push to FUB'; }
     const target = tradeResults.find(t => t._tradeId === trade._tradeId);
     if (target) target._pushStatus = 'failed';
@@ -1748,7 +1778,7 @@ async function saveFubKey() {
     if (impersonating) body.agentId = impersonating.agentId;
     const res = await fetch('/api/create-agent', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() }, body: JSON.stringify(body) });
     const d = await res.json();
-    el.innerHTML = d.success ? '<span style="color:#7bc67e">✓ Saved. Now click Verify.</span>' : `<span style="color:#c0392b">Save failed: ${d.error||res.status}</span>`;
+    el.innerHTML = d.success ? '<span style="color:#7bc67e">â Saved. Now click Verify.</span>' : `<span style="color:#c0392b">Save failed: ${d.error||res.status}</span>`;
   } catch(e) { el.innerHTML = `<span style="color:#c0392b">Error: ${e.message}</span>`; }
 }
 
@@ -1763,7 +1793,7 @@ async function deleteFubDeal() {
     if (impersonating) body.agentId = impersonating.agentId;
     const res = await fetch('/api/delete-fub-deal', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() }, body: JSON.stringify(body) });
     const d = await res.json();
-    el.innerHTML = d.success ? `<span style="color:#7bc67e">✓ Deleted deal ${dealId}</span>` : `<span style="color:#c0392b">Failed: ${d.error||''}</span>`;
+    el.innerHTML = d.success ? `<span style="color:#7bc67e">â Deleted deal ${dealId}</span>` : `<span style="color:#c0392b">Failed: ${d.error||''}</span>`;
   } catch(e) { el.innerHTML = `<span style="color:#c0392b">Error: ${e.message}</span>`; }
 }
 
@@ -1775,12 +1805,12 @@ async function verifyFubKey() {
   try {
     const res = await fetch('/api/check-fub-key', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() }, body: JSON.stringify({ fubApiKey: key }) });
     const d = await res.json();
-    if (!d.valid) { el.innerHTML = `<span style="color:#c0392b">✗ Invalid (${d.status||''}): ${d.error||''}</span>`; return; }
-    el.innerHTML = `<span style="color:#7bc67e">✓ Writes to:</span><br><b style="color:white">${d.account||'(no name)'}</b><br>${d.user_name||''}${d.user_email?' &lt;'+d.user_email+'&gt;':''}`;
+    if (!d.valid) { el.innerHTML = `<span style="color:#c0392b">â Invalid (${d.status||''}): ${d.error||''}</span>`; return; }
+    el.innerHTML = `<span style="color:#7bc67e">â Writes to:</span><br><b style="color:white">${d.account||'(no name)'}</b><br>${d.user_name||''}${d.user_email?' &lt;'+d.user_email+'&gt;':''}`;
   } catch(e) { el.innerHTML = `<span style="color:#c0392b">Error: ${e.message}</span>`; }
 }
 
-// ── DocuSign ──────────────────────────────────────────────────────────
+// ââ DocuSign ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function connectDocuSign() {
   const clientId = '2a98ce6b-99e2-4e4e-8f6a-6e9f4d141d7c';
   const redirectUri = encodeURIComponent(window.location.origin + '/api/docusign-callback');
@@ -1823,9 +1853,9 @@ function renderTransactions() {
     const fintracCount = (t.fintracData || []).length;
     return `<div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 80px;gap:8px;padding:14px 16px;border-bottom:.5px solid var(--border);align-items:center">
       <div><div style="font-size:13px;font-weight:500">${t.address||t.name||'Unknown'}</div>${t.city?`<div style="font-size:11px;color:var(--ink-muted)">${t.city}</div>`:''}</div>
-      <div style="font-size:12px;color:var(--ink-muted)">${(t.fintracData||[]).map(f=>f.full_name).filter(Boolean).join(', ')||'—'}</div>
-      <div style="font-size:12px">${t.closingDate?new Date(t.closingDate).toLocaleDateString('en-CA'):'—'}</div>
-      <div><span class="pill ${t.status==='Active'?'pill-done':'pill-pending'}">${t.status||'—'}</span></div>
+      <div style="font-size:12px;color:var(--ink-muted)">${(t.fintracData||[]).map(f=>f.full_name).filter(Boolean).join(', ')||'â'}</div>
+      <div style="font-size:12px">${t.closingDate?new Date(t.closingDate).toLocaleDateString('en-CA'):'â'}</div>
+      <div><span class="pill ${t.status==='Active'?'pill-done':'pill-pending'}">${t.status||'â'}</span></div>
       <div><span class="pill ${fintracCount>0?'pill-pushed':'pill-pending'}">${fintracCount>0?fintracCount+' found':'none'}</span></div>
     </div>`;
   }).join('');
@@ -1845,7 +1875,7 @@ function exportTransactions() {
   XLSX.writeFile(wb, 'trellis-transactions.xlsx');
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────
+// ââ Boot ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const dz = document.getElementById('drop-zone');
 if(dz) {
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.background = 'white'; });
