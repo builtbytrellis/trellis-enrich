@@ -425,6 +425,25 @@ let historyContacts = [];
 let dsAccessToken = null, dsAccountId = null, dsBaseUri = null, dsTransactions = [];
 let tradeResults = [];
 
+// ── Profession derivation (mirrors server logic) ──────────────────────────
+function deriveProf(jobTitle, company) {
+  const text = ((jobTitle || '') + ' ' + (company || '')).toLowerCase();
+  if (!text.trim()) return null;
+  if (/doctor|physician|surgeon|dentist|pharmacist|nurse|medical|psychologist|therapist|speech|pathologist|healthcare|clinical|optometrist|chiropractor|physiotherapist/.test(text)) return 'Profession: Healthcare';
+  if (/lawyer|attorney|legal|law |barrister|solicitor|paralegal|notary/.test(text)) return 'Profession: Legal';
+  if (/finance|financial|accountant|accounting|banker|investment|investor|analyst|cfo|controller|aml|mortgage|insurance|credit|auditor|actuary|wealth/.test(text)) return 'Profession: Finance';
+  if (/engineer|developer|software|tech|it |network|data |cyber|product manager|ux|ui|cto|programmer|devops|architect|qa |tester/.test(text)) return 'Profession: Tech';
+  if (/teacher|professor|educator|principal|school|education|tutor|academic|lecturer|instructor/.test(text)) return 'Profession: Education';
+  if (/contractor|electrician|plumber|carpenter|trades|construction|hvac|mechanical|millwright|welder|mason/.test(text)) return 'Profession: Trades';
+  if (/real estate agent|realtor|broker|property manager/.test(text)) return 'Profession: Real Estate Agent';
+  if (/mortgage broker|mortgage agent|mortgage specialist/.test(text)) return 'Profession: Mortgage Broker';
+  if (/marketing|brand|communications|advertising|pr|public relations|content|social media|copywriter|media buyer|growth/.test(text)) return 'Profession: Marketing';
+  if (/owner|entrepreneur|founder|ceo|president|self.employ/.test(text)) return 'Profession: Business Owner';
+  if (/director|vice president|vp|managing|executive|c[a-z]o/.test(text)) return 'Profession: Business Owner';
+  if (/chef|restauran|hospitality|hotel/.test(text)) return 'Profession: Business Owner';
+  return null;
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────
 function getToken() { return localStorage.getItem('trellis_token'); }
 function authHeaders() { return { 'Content-Type': 'application/json', 'x-session-token': getToken() }; }
@@ -734,7 +753,20 @@ function toggleHistoryExpand(idx) {
   const hid = 'h' + idx;
   if (!tagStates[hid]) {
     tagStates[hid] = {};
-    (c.suggested_tags || []).forEach((t, i) => { tagStates[hid][i] = (c.approved_tags || []).includes(t.tag) ? 'approved' : 'pending'; });
+    // Derive correct profession from job_title
+    const derivedProfession = deriveProf(c.job_title, c.company);
+    (c.suggested_tags || []).forEach((t, i) => {
+      if (c.approved_tags?.includes(t.tag)) {
+        tagStates[hid][i] = 'approved';
+      } else if (t.tag.startsWith('Profession:')) {
+        // Auto-approve if it matches derived profession, reject if it conflicts
+        if (derivedProfession && t.tag === derivedProfession) tagStates[hid][i] = 'approved';
+        else if (derivedProfession && t.tag !== derivedProfession) tagStates[hid][i] = 'rejected';
+        else tagStates[hid][i] = 'approved'; // no derived profession, keep it
+      } else {
+        tagStates[hid][i] = 'approved'; // auto-approve all non-profession tags
+      }
+    });
   }
   const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
   const tagsHtml = (c.suggested_tags || []).map((t, i) => {
