@@ -303,6 +303,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
         <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
         <button class="btn btn-green btn-sm" id="history-push-all-btn" onclick="pushAllHistory()">Push All to FUB</button>
+        <button class="btn btn-outline btn-sm" onclick="deduplicateHistory()">Deduplicate</button>
         <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
         <span style="font-size:12px;color:var(--green);margin-left:4px" id="history-push-all-status"></span>
       </div>
@@ -882,6 +883,25 @@ async function pushHistoryContact(idx) {
     await saveToHistory({...contact, pushed: true}, true);
     renderHistory();
   } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
+}
+
+async function deduplicateHistory() {
+  if (!confirm('Merge duplicate contacts by name?\n\nKeeps the record with the most data, merges the rest. Cannot be undone.')) return;
+  try {
+    const body = {};
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/deduplicate-contacts', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    alert(`✓ Done — ${data.deduped} groups merged, ${data.removed} duplicates removed.`);
+    await loadHistory();
+  } catch(e) {
+    alert('Failed: ' + e.message);
+  }
 }
 
 async function pushAllHistory() {
