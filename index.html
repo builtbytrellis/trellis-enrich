@@ -246,7 +246,19 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="page-sub">Record yourself talking about a contact. We'll transcribe it and extract the tags automatically.</div>
       <div class="card">
         <div class="card-title">Who is this memo about?</div>
-        <div class="input-row" style="margin-bottom:0"><input type="text" id="v-name" placeholder="Contact name"/></div>
+        <div id="v-link-chip" style="display:none;align-items:center;gap:10px;background:var(--cream);border:.5px solid var(--green);border-radius:6px;padding:10px 12px;margin-bottom:0">
+          <div class="history-avatar" id="v-link-avatar" style="width:34px;height:34px;font-size:12px"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:13px" id="v-link-name"></div>
+            <div style="font-size:11px;color:var(--ink-muted)" id="v-link-meta"></div>
+          </div>
+          <span style="font-size:10px;color:var(--green);font-weight:600;letter-spacing:.04em">✓ LINKED</span>
+          <button class="btn btn-outline btn-sm" onclick="unlinkVoiceContact()" style="padding:4px 10px">Unlink</button>
+        </div>
+        <div id="v-search-wrap" style="position:relative">
+          <div class="input-row" style="margin-bottom:0"><input type="text" id="v-name" placeholder="Start typing a name…" autocomplete="off" oninput="onVoiceNameInput()" onfocus="onVoiceNameInput()"/></div>
+          <div id="v-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:#fff;border:.5px solid var(--border);border-radius:6px;margin-top:4px;max-height:260px;overflow-y:auto;box-shadow:0 6px 24px rgba(0,0,0,.10)"></div>
+        </div>
       </div>
       <div class="card">
         <div class="card-title">Record or upload</div>
@@ -266,7 +278,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
           <div class="section-label" style="margin-top:12px">Extracted details</div>
           <div id="voice-details" class="field-grid"></div>
           <div class="action-row" style="margin-top:16px">
-            <button class="btn btn-green" onclick="saveVoiceMemo()">Save to queue</button>
+            <button class="btn btn-green" id="voice-save-btn" onclick="saveVoiceMemo()">Save to queue</button>
             <button class="btn btn-outline" onclick="clearVoice()">Clear</button>
             <span class="push-msg" id="voice-msg"></span>
           </div>
@@ -423,6 +435,7 @@ let queue = [], tagStates = {}, pushedCount = 0;
 let excelRows = [], excelHeaders = [];
 let mediaRecorder, audioChunks = [], isRecording = false;
 let currentVoiceTags = [], voiceTagStates = {};
+let selectedVoiceContact = null, voiceSearchTimer = null;
 let currentUserId = null, currentSession = null, impersonating = null;
 let historyContacts = [];
 let dsAccessToken = null, dsAccountId = null, dsBaseUri = null, dsTransactions = [];
@@ -743,6 +756,7 @@ function renderHistory() {
           ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
         </div>
         <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
+        ${c.needs_review ? '<span class="pill" style="background:#fcecd2;color:#a8730a">review</span>' : ''}
       </div>
       <div class="expand-panel" id="hexp-${idx}"></div>
     </div>`;
@@ -1055,11 +1069,12 @@ function setHistMsg(hid, text, type) {
   if (el) { el.textContent = text; el.className = 'push-msg' + (type ? ' ' + type : ''); }
 }
 
-async function saveToHistory(contact, pushed) {
+async function saveToHistory(contact, pushed, targetContactId) {
   if (!currentUserId) return;
   try {
     const body = { contact: { ...contact, pushed: pushed || false } };
     if (impersonating) body.targetAgentId = impersonating.agentId;
+    if (targetContactId) body.targetContactId = targetContactId;
     await fetch('/api/save-contact', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
   } catch(e) { console.error('Save failed:', e); }
 }
@@ -1466,6 +1481,84 @@ function updateStats() {
 function updateBadge() { const b = document.getElementById('queue-badge'); b.textContent = queue.length; b.style.display = queue.length ? 'inline' : 'none'; }
 
 // ── Voice ─────────────────────────────────────────────────────────────
+function onVoiceNameInput() {
+  // typing a fresh query invalidates any prior binding
+  if (selectedVoiceContact) unlinkVoiceContact(true);
+  clearTimeout(voiceSearchTimer);
+  voiceSearchTimer = setTimeout(renderVoiceSearch, 220);
+}
+
+function renderVoiceSearch() {
+  const box = document.getElementById('v-search-results');
+  const q = document.getElementById('v-name').value.trim().toLowerCase();
+  if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const matches = historyContacts.filter(c => {
+    const n = (c.full_name || c.name || '').toLowerCase();
+    return n.includes(q);
+  }).slice(0, 8);
+  if (!matches.length) {
+    box.innerHTML = `<div style="padding:12px 14px;font-size:12px;color:var(--ink-muted)">No match in History — saving will <strong>create a new contact</strong> flagged for review.</div>`;
+    box.style.display = 'block';
+    return;
+  }
+  box.innerHTML = matches.map(c => {
+    const idx = historyContacts.indexOf(c);
+    const initials = (c.full_name || c.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+    const meta = [c.job_title, c.location].filter(Boolean).join(' · ');
+    const tagCount = (c.approved_tags || []).length;
+    return `<div onclick="selectVoiceContact(${idx})" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:.5px solid var(--border)" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background='#fff'">
+      <div class="history-avatar" style="width:30px;height:30px;font-size:11px">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px">${c.full_name || c.name || 'Unknown'}</div>
+        <div style="font-size:11px;color:var(--ink-muted)">${meta || 'No details yet'}${tagCount ? ' · ' + tagCount + ' tags' : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+  box.style.display = 'block';
+}
+
+function selectVoiceContact(idx) {
+  const c = historyContacts[idx]; if (!c) return;
+  selectedVoiceContact = c;
+  document.getElementById('v-search-results').style.display = 'none';
+  document.getElementById('v-search-wrap').style.display = 'none';
+  const initials = (c.full_name || c.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('v-link-avatar').textContent = initials;
+  document.getElementById('v-link-name').textContent = c.full_name || c.name || 'Unknown';
+  document.getElementById('v-link-meta').textContent = [c.job_title, c.location].filter(Boolean).join(' · ') || 'Linked existing contact';
+  document.getElementById('v-link-chip').style.display = 'flex';
+  document.getElementById('v-name').value = c.full_name || c.name || '';
+  updateVoiceSaveLabel();
+}
+
+function unlinkVoiceContact(keepText) {
+  selectedVoiceContact = null;
+  document.getElementById('v-link-chip').style.display = 'none';
+  document.getElementById('v-search-wrap').style.display = 'block';
+  if (!keepText) { document.getElementById('v-name').value = ''; }
+  document.getElementById('v-search-results').style.display = 'none';
+  updateVoiceSaveLabel();
+}
+
+function updateVoiceSaveLabel() {
+  const btn = document.getElementById('voice-save-btn'); if (!btn) return;
+  if (selectedVoiceContact) {
+    btn.textContent = 'Save to ' + (selectedVoiceContact.full_name || selectedVoiceContact.name);
+  } else {
+    const name = document.getElementById('v-name').value.trim();
+    btn.textContent = name ? 'Save as new contact' : 'Save to queue';
+  }
+}
+
+// close dropdown on outside click
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('v-search-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const box = document.getElementById('v-search-results');
+    if (box) box.style.display = 'none';
+  }
+});
+
 async function toggleRecord() {
   if(!isRecording) {
     try {
@@ -1509,6 +1602,7 @@ async function extractVoiceTags(transcript) {
     currentVoiceTags.forEach((_, i) => voiceTagStates[i] = 'pending');
     renderVoiceTags(); renderVoiceDetails(data.extracted_details);
     document.getElementById('voice-tags-area').style.display = 'block';
+    updateVoiceSaveLabel();
   } catch(e) { console.error(e); }
 }
 
@@ -1531,14 +1625,30 @@ function renderVoiceDetails(details) {
 async function saveVoiceMemo() {
   const name = document.getElementById('v-name').value.trim() || 'Unknown contact';
   const approved = currentVoiceTags.filter((_, i) => voiceTagStates[i]==='approved').map(t => t.tag);
+  const linked = selectedVoiceContact;
+  const result = {
+    full_name: linked ? (linked.full_name || linked.name) : name,
+    initials: (linked ? (linked.full_name || linked.name) : name).split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+    suggested_tags: currentVoiceTags.map(t=>({...t})),
+    notes: document.getElementById('transcript-box').textContent,
+    confidence_overall: 'high',
+    warning: null,
+    approved_tags: approved
+  };
+  // new contact (no link, no name match) → flag for review
+  if (!linked) result.needs_review = true;
+
   const id = 'v' + Date.now();
-  const fakeResult = {full_name:name, initials:name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(), suggested_tags:currentVoiceTags.map(t=>({...t})), notes:document.getElementById('transcript-box').textContent, confidence_overall:'high', warning:null, approved_tags:approved};
   tagStates[id] = {};
   currentVoiceTags.forEach((_, i) => tagStates[id][i] = voiceTagStates[i]);
-  addToQueue(fakeResult, id, 'done');
-  await saveToHistory(fakeResult, false);
-  document.getElementById('voice-msg').textContent = 'Saved to queue';
-  document.getElementById('voice-msg').className = 'push-msg ok';
+  addToQueue(result, id, 'done');
+
+  // exact-bind: pass targetContactId so server merges into THIS record, skipping name-match
+  await saveToHistory(result, false, linked ? linked.id : null);
+
+  const msg = document.getElementById('voice-msg');
+  msg.textContent = linked ? ('Merged into ' + result.full_name) : 'Saved as new contact (flagged for review)';
+  msg.className = 'push-msg ok';
   loadHistory();
   await loadPersistentQueue();
 }
@@ -1548,6 +1658,8 @@ function clearVoice() {
   document.getElementById('voice-tags-area').style.display = 'none';
   document.getElementById('v-name').value = '';
   currentVoiceTags = []; voiceTagStates = {};
+  unlinkVoiceContact();
+  document.getElementById('voice-msg').textContent = '';
 }
 
 
