@@ -50,7 +50,7 @@ async function webSearchContact(openai, name, city, email) {
 
 Find: job title, employer/company, neighbourhood, approximate age, family situation, interests, community involvement, LinkedIn, social media, news mentions.
 
-If the email domain suggests a company (e.g. @rbc.com = RBC bank employee, @osler.com = Osler law firm), use that to infer profession.
+Do NOT infer profession from email domain unless it's a known corporate domain (e.g. @rbc.com, @osler.com). Consumer ISP emails like @rogers.com, @bell.ca, @gmail.com, @hotmail.com, @yahoo.com tell you nothing about where someone works.
 
 Be specific and concise — just facts you find.`
       }]
@@ -100,8 +100,7 @@ function inferFromEmail(email) {
     'sickkids.ca': 'Works at SickKids Hospital — Healthcare profession',
     // Tech
     'shopify.com': 'Works at Shopify — Tech profession',
-    'rogers.com': 'Works at Rogers — Tech/Telecom profession',
-    'bell.ca': 'Works at Bell — Tech/Telecom profession',
+    // rogers.com and bell.ca removed — used as personal ISP emails, not work emails
     // Real Estate
     'realtor.ca': 'Real estate agent',
     'century21.ca': 'Real estate agent at Century 21',
