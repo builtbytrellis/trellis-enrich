@@ -6,6 +6,9 @@
   "functions": {
     "api/extract-fintrac.js": {
       "maxDuration": 60
+    },
+    "api/deduplicate-contacts.js": {
+      "maxDuration": 30
     }
   }
 }
