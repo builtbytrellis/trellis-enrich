@@ -758,18 +758,37 @@ function toggleHistoryExpand(idx) {
     tagStates[hid] = {};
     // Derive correct profession from job_title
     const derivedProfession = deriveProf(c.job_title, c.company);
+    // Calculate correct age tag from birthday if available
+    let correctAgeTag = null;
+    if (c.birthday) {
+      try {
+        const bDate = new Date(c.birthday);
+        const age = new Date().getFullYear() - bDate.getFullYear() -
+          (new Date() < new Date(new Date().getFullYear(), bDate.getMonth(), bDate.getDate()) ? 1 : 0);
+        correctAgeTag = age < 30 ? 'Age: 20s' : age < 40 ? 'Age: 30s' : age < 50 ? 'Age: 40s' : age < 60 ? 'Age: 50s' : 'Age: 60+';
+      } catch(e) {}
+    }
     (c.suggested_tags || []).forEach((t, i) => {
       if (c.approved_tags?.includes(t.tag)) {
         tagStates[hid][i] = 'approved';
       } else if (t.tag.startsWith('Profession:')) {
-        // Auto-approve if it matches derived profession, reject if it conflicts
         if (derivedProfession && t.tag === derivedProfession) tagStates[hid][i] = 'approved';
         else if (derivedProfession && t.tag !== derivedProfession) tagStates[hid][i] = 'rejected';
-        else tagStates[hid][i] = 'approved'; // no derived profession, keep it
+        else tagStates[hid][i] = 'approved';
+      } else if (t.tag.startsWith('Age:')) {
+        // Only approve if it matches the correct age from birthday
+        if (correctAgeTag && t.tag !== correctAgeTag) tagStates[hid][i] = 'rejected';
+        else tagStates[hid][i] = 'approved';
       } else {
-        tagStates[hid][i] = 'approved'; // auto-approve all non-profession tags
+        tagStates[hid][i] = 'approved';
       }
     });
+    // If birthday gives us a correct age tag not in suggested_tags, add it
+    if (correctAgeTag && !(c.suggested_tags||[]).find(t => t.tag === correctAgeTag)) {
+      if (!c.suggested_tags) c.suggested_tags = [];
+      c.suggested_tags.push({ tag: correctAgeTag, confidence: 'high', reason: 'Calculated from birthday' });
+      tagStates[hid][c.suggested_tags.length - 1] = 'approved';
+    }
   }
   const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
   const tagsHtml = (c.suggested_tags || []).map((t, i) => {
