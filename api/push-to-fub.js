@@ -129,13 +129,16 @@ module.exports = async (req, res) => {
         payload.tags = [...existingTags, ...newTags];
       }
 
-      // Birthday + spouse — direct fields on FUB person object
-      const existingBirthday = existing?.birthday || '';
-      if (contact.birthday && !existingBirthday) {
-        payload.birthday = contact.birthday;
+      // Birthday + spouse — append to background if not already there
+      if (contact.birthday && !(existing?.background || '').includes(contact.birthday)) {
+        const bdLine = `Birthday: ${contact.birthday}`;
+        payload.background = payload.background
+          ? payload.background + '\n' + bdLine
+          : (existing?.background ? existing.background + '\n' + bdLine : bdLine);
       }
-      if (contact.spouse_name && !existing?.spouseName) {
-        payload.spouseName = contact.spouse_name;
+      if (contact.spouse_name && !(existing?.background || '').includes(contact.spouse_name)) {
+        const spLine = `Spouse: ${contact.spouse_name}`;
+        payload.background = (payload.background || existing?.background || '') + '\n' + spLine;
       }
 
       // If nothing changed, skip the PUT
@@ -157,8 +160,10 @@ module.exports = async (req, res) => {
       if (newDescription) payload.background = newDescription;
       if (approvedTags.length) payload.tags = approvedTags;
 
-      if (contact.birthday) payload.birthday = contact.birthday;
-      if (contact.spouse_name) payload.spouseName = contact.spouse_name;
+      const extraLines = [];
+      if (contact.birthday) extraLines.push(`Birthday: ${contact.birthday}`);
+      if (contact.spouse_name) extraLines.push(`Spouse: ${contact.spouse_name}`);
+      if (extraLines.length) payload.background = [payload.background, ...extraLines].filter(Boolean).join('\n');
 
       payload.firstName = firstName;
       payload.lastName = lastName;
