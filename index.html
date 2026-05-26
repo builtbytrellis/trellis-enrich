@@ -305,6 +305,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <button class="btn btn-green btn-sm" id="history-push-all-btn" onclick="pushAllHistory()">Push All to FUB</button>
         <button class="btn btn-outline btn-sm" onclick="deduplicateHistory()">Deduplicate</button>
         <button class="btn btn-outline btn-sm" onclick="fixISPContacts()">Fix ISP Data</button>
+        <button class="btn btn-gold btn-sm" onclick="bulkTagContacts()">Bulk Tag</button>
         <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
         <span style="font-size:12px;color:var(--green);margin-left:4px" id="history-push-all-status"></span>
       </div>
@@ -884,6 +885,37 @@ async function pushHistoryContact(idx) {
     await saveToHistory({...contact, pushed: true}, true);
     renderHistory();
   } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
+}
+
+async function bulkTagContacts() {
+  const fubKey = getFUBKey();
+  if (!fubKey) { alert('Add FUB API key in sidebar first.'); return; }
+
+  // Dry run first
+  try {
+    const body = { fubApiKey: fubKey, dryRun: true, operations: ['realtors', 'online_leads', 'not_enriched'] };
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/bulk-tag', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    const msg = `Bulk tag preview:\n\n` +
+      `🏠 Realtors to tag: ${data.realtors}\n` +
+      `💻 Online leads to tag: ${data.online_leads}\n` +
+      `❓ Not enriched to tag: ${data.not_enriched}\n\n` +
+      `Run now? This will update both Trellis and FUB.`;
+
+    if (!confirm(msg)) return;
+
+    // Actually run
+    body.dryRun = false;
+    const res2 = await fetch('/api/bulk-tag', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+
+    alert(`✓ Done!\n\n🏠 ${data2.realtors} realtors tagged\n💻 ${data2.online_leads} online leads tagged\n❓ ${data2.not_enriched} contacts tagged "Not Enriched"`);
+    await loadHistory();
+  } catch(e) { alert('Failed: ' + e.message); }
 }
 
 async function fixISPContacts() {
