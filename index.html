@@ -737,7 +737,8 @@ function renderHistory() {
         <div class="history-avatar">${initials}</div>
         <div style="flex:1">
           <div class="history-name">${c.full_name || c.name || 'Unknown'}</div>
-          <div class="history-meta">${[c.job_title, c.location].filter(Boolean).join(' · ')}${date ? ' · ' + date : ''}</div>
+          <div class="history-meta">${[c.job_title, c.company].filter(Boolean).join(' @ ')}${c.location ? ' · ' + c.location : ''}${date ? ' · ' + date : ''}</div>
+          ${(c.birthday || c.fintrac_verified) ? `<div style="font-size:11px;margin-top:2px;display:flex;gap:8px;align-items:center">${c.birthday ? '<span style="color:var(--gold)">🎂 ' + c.birthday + '</span>' : ''}${c.fintrac_verified ? '<span style="color:var(--green);font-size:10px">✓ FINTRAC</span>' : ''}</div>` : ''}
           ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
         </div>
         <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
