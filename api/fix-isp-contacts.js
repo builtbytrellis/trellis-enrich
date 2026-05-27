@@ -54,7 +54,8 @@ module.exports = async (req, res) => {
     for (let i = 0; i < ids.length; i++) {
       const raw = raws[i];
       if (!raw) continue;
-      const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      let c; try { c = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e) { continue; }
+      if (!c) continue;
       
       const changes = [];
       const updated = { ...c };
