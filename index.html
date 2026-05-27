@@ -246,19 +246,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="page-sub">Record yourself talking about a contact. We'll transcribe it and extract the tags automatically.</div>
       <div class="card">
         <div class="card-title">Who is this memo about?</div>
-        <div id="v-link-chip" style="display:none;align-items:center;gap:10px;background:var(--cream);border:.5px solid var(--green);border-radius:6px;padding:10px 12px;margin-bottom:0">
-          <div class="history-avatar" id="v-link-avatar" style="width:34px;height:34px;font-size:12px"></div>
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:13px" id="v-link-name"></div>
-            <div style="font-size:11px;color:var(--ink-muted)" id="v-link-meta"></div>
-          </div>
-          <span style="font-size:10px;color:var(--green);font-weight:600;letter-spacing:.04em">✓ LINKED</span>
-          <button class="btn btn-outline btn-sm" onclick="unlinkVoiceContact()" style="padding:4px 10px">Unlink</button>
-        </div>
-        <div id="v-search-wrap" style="position:relative">
-          <div class="input-row" style="margin-bottom:0"><input type="text" id="v-name" placeholder="Start typing a name…" autocomplete="off" oninput="onVoiceNameInput()" onfocus="onVoiceNameInput()"/></div>
-          <div id="v-search-results" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:20;background:#fff;border:.5px solid var(--border);border-radius:6px;margin-top:4px;max-height:260px;overflow-y:auto;box-shadow:0 6px 24px rgba(0,0,0,.10)"></div>
-        </div>
+        <div class="input-row" style="margin-bottom:0"><input type="text" id="v-name" placeholder="Contact name"/></div>
       </div>
       <div class="card">
         <div class="card-title">Record or upload</div>
@@ -278,7 +266,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
           <div class="section-label" style="margin-top:12px">Extracted details</div>
           <div id="voice-details" class="field-grid"></div>
           <div class="action-row" style="margin-top:16px">
-            <button class="btn btn-green" id="voice-save-btn" onclick="saveVoiceMemo()">Save to queue</button>
+            <button class="btn btn-green" onclick="saveVoiceMemo()">Save to queue</button>
             <button class="btn btn-outline" onclick="clearVoice()">Clear</button>
             <span class="push-msg" id="voice-msg"></span>
           </div>
@@ -312,14 +300,23 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
     <div class="panel" id="panel-history">
       <div class="page-title">History</div>
       <div class="page-sub">All contacts enriched and pushed — persisted across sessions.</div>
-      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center">
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-outline btn-sm" onclick="loadHistory()">Refresh</button>
         <button class="btn btn-green btn-sm" id="history-push-all-btn" onclick="pushAllHistory()">Push All to FUB</button>
         <button class="btn btn-outline btn-sm" onclick="deduplicateHistory()">Deduplicate</button>
         <button class="btn btn-outline btn-sm" onclick="fixISPContacts()">Fix ISP Data</button>
         <button class="btn btn-gold btn-sm" onclick="bulkTagContacts()">Bulk Tag</button>
-        <span style="font-size:12px;color:var(--ink-muted)" id="history-count"></span>
-        <span style="font-size:12px;color:var(--green);margin-left:4px" id="history-push-all-status"></span>
+        <button class="btn btn-outline btn-sm" onclick="fixAgeTags()">Fix Age Tags</button>
+        <span style="font-size:12px;color:var(--green);margin-left:auto" id="history-push-all-status"></span>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.08em">Filter:</span>
+        <button class="btn btn-outline btn-sm" id="hfilter-all" onclick="setHistoryFilter('all')" style="background:var(--ink);color:white">All</button>
+        <button class="btn btn-outline btn-sm" id="hfilter-needs-review" onclick="setHistoryFilter('needs_review')">Needs Review</button>
+        <button class="btn btn-outline btn-sm" id="hfilter-fintrac" onclick="setHistoryFilter('fintrac')">✓ FINTRAC</button>
+        <button class="btn btn-outline btn-sm" id="hfilter-pushed" onclick="setHistoryFilter('pushed')">Pushed</button>
+        <button class="btn btn-outline btn-sm" id="hfilter-not-pushed" onclick="setHistoryFilter('not_pushed')">Not Pushed</button>
+        <span style="font-size:12px;color:var(--ink-muted);margin-left:auto" id="history-count"></span>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <div id="history-list"><div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div></div>
@@ -435,9 +432,10 @@ let queue = [], tagStates = {}, pushedCount = 0;
 let excelRows = [], excelHeaders = [];
 let mediaRecorder, audioChunks = [], isRecording = false;
 let currentVoiceTags = [], voiceTagStates = {};
-let selectedVoiceContact = null, voiceSearchTimer = null;
 let currentUserId = null, currentSession = null, impersonating = null;
 let historyContacts = [];
+let historyFilter = 'all';
+let historyFiltered = [];
 let dsAccessToken = null, dsAccountId = null, dsBaseUri = null, dsTransactions = [];
 let tradeResults = [];
 
@@ -736,13 +734,41 @@ async function loadHistory() {
   } catch(e) { console.error(e); }
 }
 
+function setHistoryFilter(filter) {
+  historyFilter = filter;
+  // Update button styles
+  ['all','needs_review','fintrac','pushed','not_pushed'].forEach(f => {
+    const btn = document.getElementById('hfilter-' + f);
+    if (btn) {
+      btn.style.background = f === filter ? 'var(--ink)' : '';
+      btn.style.color = f === filter ? 'white' : '';
+    }
+  });
+  renderHistory();
+}
+
 function renderHistory() {
-  document.getElementById('history-count').textContent = historyContacts.length + ' contacts saved';
-  if (!historyContacts.length) {
-    document.getElementById('history-list').innerHTML = '<div class="empty-state"><div class="big">No history yet</div>Enriched contacts will appear here.</div>';
+  // Apply filter
+  historyFiltered = historyContacts.filter(c => {
+    if (historyFilter === 'all') return true;
+    if (historyFilter === 'needs_review') {
+      const hasData = (c.job_title && c.job_title !== 'unknown') ||
+        c.birthday || c.fintrac_verified ||
+        (c.approved_tags||[]).filter(t => t !== 'Not Enriched').length > 0;
+      return !hasData || (c.approved_tags||[]).includes('Not Enriched');
+    }
+    if (historyFilter === 'fintrac') return c.fintrac_verified;
+    if (historyFilter === 'pushed') return c.pushed;
+    if (historyFilter === 'not_pushed') return !c.pushed;
+    return true;
+  });
+
+  document.getElementById('history-count').textContent = `${historyFiltered.length} of ${historyContacts.length} contacts`;
+  if (!historyFiltered.length) {
+    document.getElementById('history-list').innerHTML = '<div class="empty-state"><div class="big">No contacts</div>No contacts match this filter.</div>';
     return;
   }
-  document.getElementById('history-list').innerHTML = historyContacts.map((c, idx) => {
+  document.getElementById('history-list').innerHTML = historyFiltered.map((c, idx) => {
     const approvedTags = c.approved_tags || [];
     const initials = (c.full_name || c.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
     const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
@@ -756,7 +782,6 @@ function renderHistory() {
           ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
         </div>
         <span class="pill ${c.pushed ? 'pill-pushed' : 'pill-done'}">${c.pushed ? 'pushed' : 'saved'}</span>
-        ${c.needs_review ? '<span class="pill" style="background:#fcecd2;color:#a8730a">review</span>' : ''}
       </div>
       <div class="expand-panel" id="hexp-${idx}"></div>
     </div>`;
@@ -766,7 +791,7 @@ function renderHistory() {
 function toggleHistoryExpand(idx) {
   const panel = document.getElementById('hexp-' + idx); if (!panel) return;
   if (panel.classList.contains('open')) { panel.classList.remove('open'); panel.innerHTML = ''; return; }
-  const c = historyContacts[idx]; if (!c) return;
+  const c = (historyFiltered.length ? historyFiltered : historyContacts)[idx]; if (!c) return;
   const hid = 'h' + idx;
   if (!tagStates[hid]) {
     tagStates[hid] = {};
@@ -920,6 +945,28 @@ async function pushHistoryContact(idx) {
   } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
 }
 
+async function fixAgeTags() {
+  const fubKey = getFUBKey();
+  if (!fubKey) { alert('Add FUB API key first.'); return; }
+  try {
+    const body = { fubApiKey: fubKey, dryRun: true };
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/fix-age-tags', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (!data.fixed) { alert('All age tags are correct.'); return; }
+    const preview = data.details.slice(0, 8).map(d => `• ${d.name} (${d.birthday}): ${d.wrong||'missing'} → ${d.correct}`).join('\n');
+    const more = data.fixed > 8 ? `\n...and ${data.fixed - 8} more` : '';
+    if (!confirm(`Fix ${data.fixed} incorrect age tags:\n\n${preview}${more}\n\nUpdate in Trellis + FUB?`)) return;
+    body.dryRun = false;
+    const res2 = await fetch('/api/fix-age-tags', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+    alert(`✓ Fixed ${data2.fixed} age tags in Trellis and FUB.`);
+    await loadHistory();
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
 async function bulkTagContacts() {
   const fubKey = getFUBKey();
   if (!fubKey) { alert('Add FUB API key in sidebar first.'); return; }
@@ -1069,12 +1116,11 @@ function setHistMsg(hid, text, type) {
   if (el) { el.textContent = text; el.className = 'push-msg' + (type ? ' ' + type : ''); }
 }
 
-async function saveToHistory(contact, pushed, targetContactId) {
+async function saveToHistory(contact, pushed) {
   if (!currentUserId) return;
   try {
     const body = { contact: { ...contact, pushed: pushed || false } };
     if (impersonating) body.targetAgentId = impersonating.agentId;
-    if (targetContactId) body.targetContactId = targetContactId;
     await fetch('/api/save-contact', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
   } catch(e) { console.error('Save failed:', e); }
 }
@@ -1481,84 +1527,6 @@ function updateStats() {
 function updateBadge() { const b = document.getElementById('queue-badge'); b.textContent = queue.length; b.style.display = queue.length ? 'inline' : 'none'; }
 
 // ── Voice ─────────────────────────────────────────────────────────────
-function onVoiceNameInput() {
-  // typing a fresh query invalidates any prior binding
-  if (selectedVoiceContact) unlinkVoiceContact(true);
-  clearTimeout(voiceSearchTimer);
-  voiceSearchTimer = setTimeout(renderVoiceSearch, 220);
-}
-
-function renderVoiceSearch() {
-  const box = document.getElementById('v-search-results');
-  const q = document.getElementById('v-name').value.trim().toLowerCase();
-  if (q.length < 2) { box.style.display = 'none'; box.innerHTML = ''; return; }
-  const matches = historyContacts.filter(c => {
-    const n = (c.full_name || c.name || '').toLowerCase();
-    return n.includes(q);
-  }).slice(0, 8);
-  if (!matches.length) {
-    box.innerHTML = `<div style="padding:12px 14px;font-size:12px;color:var(--ink-muted)">No match in History — saving will <strong>create a new contact</strong> flagged for review.</div>`;
-    box.style.display = 'block';
-    return;
-  }
-  box.innerHTML = matches.map(c => {
-    const idx = historyContacts.indexOf(c);
-    const initials = (c.full_name || c.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
-    const meta = [c.job_title, c.location].filter(Boolean).join(' · ');
-    const tagCount = (c.approved_tags || []).length;
-    return `<div onclick="selectVoiceContact(${idx})" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:.5px solid var(--border)" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background='#fff'">
-      <div class="history-avatar" style="width:30px;height:30px;font-size:11px">${initials}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:13px">${c.full_name || c.name || 'Unknown'}</div>
-        <div style="font-size:11px;color:var(--ink-muted)">${meta || 'No details yet'}${tagCount ? ' · ' + tagCount + ' tags' : ''}</div>
-      </div>
-    </div>`;
-  }).join('');
-  box.style.display = 'block';
-}
-
-function selectVoiceContact(idx) {
-  const c = historyContacts[idx]; if (!c) return;
-  selectedVoiceContact = c;
-  document.getElementById('v-search-results').style.display = 'none';
-  document.getElementById('v-search-wrap').style.display = 'none';
-  const initials = (c.full_name || c.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
-  document.getElementById('v-link-avatar').textContent = initials;
-  document.getElementById('v-link-name').textContent = c.full_name || c.name || 'Unknown';
-  document.getElementById('v-link-meta').textContent = [c.job_title, c.location].filter(Boolean).join(' · ') || 'Linked existing contact';
-  document.getElementById('v-link-chip').style.display = 'flex';
-  document.getElementById('v-name').value = c.full_name || c.name || '';
-  updateVoiceSaveLabel();
-}
-
-function unlinkVoiceContact(keepText) {
-  selectedVoiceContact = null;
-  document.getElementById('v-link-chip').style.display = 'none';
-  document.getElementById('v-search-wrap').style.display = 'block';
-  if (!keepText) { document.getElementById('v-name').value = ''; }
-  document.getElementById('v-search-results').style.display = 'none';
-  updateVoiceSaveLabel();
-}
-
-function updateVoiceSaveLabel() {
-  const btn = document.getElementById('voice-save-btn'); if (!btn) return;
-  if (selectedVoiceContact) {
-    btn.textContent = 'Save to ' + (selectedVoiceContact.full_name || selectedVoiceContact.name);
-  } else {
-    const name = document.getElementById('v-name').value.trim();
-    btn.textContent = name ? 'Save as new contact' : 'Save to queue';
-  }
-}
-
-// close dropdown on outside click
-document.addEventListener('click', e => {
-  const wrap = document.getElementById('v-search-wrap');
-  if (wrap && !wrap.contains(e.target)) {
-    const box = document.getElementById('v-search-results');
-    if (box) box.style.display = 'none';
-  }
-});
-
 async function toggleRecord() {
   if(!isRecording) {
     try {
@@ -1602,7 +1570,6 @@ async function extractVoiceTags(transcript) {
     currentVoiceTags.forEach((_, i) => voiceTagStates[i] = 'pending');
     renderVoiceTags(); renderVoiceDetails(data.extracted_details);
     document.getElementById('voice-tags-area').style.display = 'block';
-    updateVoiceSaveLabel();
   } catch(e) { console.error(e); }
 }
 
@@ -1625,30 +1592,14 @@ function renderVoiceDetails(details) {
 async function saveVoiceMemo() {
   const name = document.getElementById('v-name').value.trim() || 'Unknown contact';
   const approved = currentVoiceTags.filter((_, i) => voiceTagStates[i]==='approved').map(t => t.tag);
-  const linked = selectedVoiceContact;
-  const result = {
-    full_name: linked ? (linked.full_name || linked.name) : name,
-    initials: (linked ? (linked.full_name || linked.name) : name).split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
-    suggested_tags: currentVoiceTags.map(t=>({...t})),
-    notes: document.getElementById('transcript-box').textContent,
-    confidence_overall: 'high',
-    warning: null,
-    approved_tags: approved
-  };
-  // new contact (no link, no name match) → flag for review
-  if (!linked) result.needs_review = true;
-
   const id = 'v' + Date.now();
+  const fakeResult = {full_name:name, initials:name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(), suggested_tags:currentVoiceTags.map(t=>({...t})), notes:document.getElementById('transcript-box').textContent, confidence_overall:'high', warning:null, approved_tags:approved};
   tagStates[id] = {};
   currentVoiceTags.forEach((_, i) => tagStates[id][i] = voiceTagStates[i]);
-  addToQueue(result, id, 'done');
-
-  // exact-bind: pass targetContactId so server merges into THIS record, skipping name-match
-  await saveToHistory(result, false, linked ? linked.id : null);
-
-  const msg = document.getElementById('voice-msg');
-  msg.textContent = linked ? ('Merged into ' + result.full_name) : 'Saved as new contact (flagged for review)';
-  msg.className = 'push-msg ok';
+  addToQueue(fakeResult, id, 'done');
+  await saveToHistory(fakeResult, false);
+  document.getElementById('voice-msg').textContent = 'Saved to queue';
+  document.getElementById('voice-msg').className = 'push-msg ok';
   loadHistory();
   await loadPersistentQueue();
 }
@@ -1658,8 +1609,6 @@ function clearVoice() {
   document.getElementById('voice-tags-area').style.display = 'none';
   document.getElementById('v-name').value = '';
   currentVoiceTags = []; voiceTagStates = {};
-  unlinkVoiceContact();
-  document.getElementById('voice-msg').textContent = '';
 }
 
 
