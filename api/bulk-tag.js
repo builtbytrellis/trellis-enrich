@@ -51,8 +51,9 @@ module.exports = async (req, res) => {
     const raws = await Promise.all(ids.map(id => redis.get(id)));
     const contacts = ids.map((id, i) => {
       const raw = raws[i]; if (!raw) return null;
-      let c; try { c = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e) { continue; }
-      if (!c) continue;
+      let c;
+      try { c = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e) { return null; }
+      if (!c) return null;
       return { id, contact: c };
     }).filter(Boolean);
 
