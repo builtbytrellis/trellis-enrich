@@ -74,19 +74,30 @@ module.exports = async (req, res) => {
       const notes = (c.notes || '').toLowerCase();
       const existingTags = (c.approved_tags || c.suggested_tags?.map(t=>t.tag) || []);
       const fubId = c.fub_data?.fub_id;
+      // If no stored fub_id, search FUB by name
+      let resolvedFubId = fubId;
+      if (!resolvedFubId && name && !dryRun) {
+        try {
+          const sr = await fetch(`https://api.followupboss.com/v1/people?q=${encodeURIComponent(name)}&limit=1`, { headers });
+          if (sr.ok) {
+            const sd = await sr.json();
+            if (sd.people?.[0]) resolvedFubId = sd.people[0].id;
+          }
+        } catch(e) {}
+      }
 
       // ── Realtors ──
       if (ops.includes('realtors')) {
         const isRealtor = REALTOR_PATTERNS.test(jobTitle) || REALTOR_PATTERNS.test(company) ||
           REALTOR_PATTERNS.test(notes) || existingTags.includes('Profession: Real Estate Agent');
-        if (isRealtor && !existingTags.includes('Profession: Real Estate Agent')) {
+        if (isRealtor) {
           results.realtors.push({ name, fubId });
           if (!dryRun) {
             // Update Redis
             const updatedTags = [...new Set([...existingTags, 'Profession: Real Estate Agent'])];
             await redis.set(id, JSON.stringify({ ...c, approved_tags: updatedTags }));
             // Update FUB
-            if (fubId) await addTagToFubContact(fubId, 'Profession: Real Estate Agent', c.fub_data?.existing_tags || [], headers);
+            if (resolvedFubId) await addTagToFubContact(resolvedFubId, 'Profession: Real Estate Agent', c.fub_data?.existing_tags || [], headers);
           }
         }
       }
@@ -95,12 +106,12 @@ module.exports = async (req, res) => {
       if (ops.includes('online_leads')) {
         const isOnlineLead = ONLINE_LEAD_SOURCES.test(source) || ONLINE_LEAD_SOURCES.test(notes) ||
           existingTags.some(t => /online|web lead|zillow|zoocasa/i.test(t));
-        if (isOnlineLead && !existingTags.includes('Source: Online Lead')) {
+        if (isOnlineLead) {
           results.online_leads.push({ name, fubId });
           if (!dryRun) {
             const updatedTags = [...new Set([...existingTags, 'Source: Online Lead'])];
             await redis.set(id, JSON.stringify({ ...c, approved_tags: updatedTags }));
-            if (fubId) await addTagToFubContact(fubId, 'Source: Online Lead', c.fub_data?.existing_tags || [], headers);
+            if (resolvedFubId) await addTagToFubContact(resolvedFubId, 'Source: Online Lead', c.fub_data?.existing_tags || [], headers);
           }
         }
       }
@@ -112,12 +123,12 @@ module.exports = async (req, res) => {
           c.birthday || c.fintrac_verified ||
           (existingTags.length > 0 && !existingTags.every(t => t === 'Not Enriched')) ||
           (c.notes && c.notes.length > 20 && c.notes !== 'unknown');
-        if (!hasEnrichment && !existingTags.includes('Not Enriched')) {
+        if (!hasEnrichment) {
           results.not_enriched.push({ name, fubId });
           if (!dryRun) {
             const updatedTags = [...new Set([...existingTags, 'Not Enriched'])];
             await redis.set(id, JSON.stringify({ ...c, approved_tags: updatedTags }));
-            if (fubId) await addTagToFubContact(fubId, 'Not Enriched', c.fub_data?.existing_tags || [], headers);
+            if (resolvedFubId) await addTagToFubContact(resolvedFubId, 'Not Enriched', c.fub_data?.existing_tags || [], headers);
           }
         }
       }
