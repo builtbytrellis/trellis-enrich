@@ -57,8 +57,9 @@ module.exports = async (req, res) => {
     const contacts = ids.map((id, i) => {
       const raw = raws[i];
       if (!raw) return null;
-      let c; try { c = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e) { continue; }
-      if (!c) continue;
+      let c;
+      try { c = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e) { return null; }
+      if (!c) return null;
       return { id, contact: c, name: c.full_name || c.name || '' };
     }).filter(Boolean);
 
