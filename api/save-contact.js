@@ -21,13 +21,19 @@ function mergeContact(existing, incoming) {
   const merged = { ...existing };
   const fields = [
     'email', 'phone', 'location', 'job_title', 'company',
-    'birthday', 'spouse_name', 'stage', 'notes',
+    'birthday', 'spouse_name', 'stage',
     'likely_age_range', 'confidence_overall', 'fub_data',
     'fintrac_verified', 'interests'
   ];
   for (const f of fields) {
     if (!merged[f] && incoming[f]) merged[f] = incoming[f];
   }
+  // Notes: append incoming (voice memos are additive)
+  if (incoming.notes && incoming.notes !== merged.notes) {
+    merged.notes = merged.notes ? merged.notes + '\n\n' + incoming.notes : incoming.notes;
+  }
+  // Clear needs_review when a voice memo is merged in
+  if (incoming.has_voice_memo) merged.needs_review = false;
   // Merge suggested_tags — deduplicate by tag name
   const existingTags = existing.suggested_tags || [];
   const incomingTags = incoming.suggested_tags || [];
@@ -73,22 +79,43 @@ module.exports = async (req, res) => {
 
     const incomingName = contact.full_name || contact.name || '';
 
-    // ── Look for existing contact with same name ──
-    const ids = await redis.lrange(`agent:${agentId}:contacts`, 0, 999);
+    const { targetContactId } = req.body;
+
+    // ── Exact-bind path: targetContactId bypasses fuzzy matching ──
     let existingId = null;
     let existingContact = null;
 
-    if (ids && ids.length && incomingName) {
-      const raws = await Promise.all(ids.map(id => redis.get(id)));
-      for (let i = 0; i < ids.length; i++) {
-        const raw = raws[i];
-        if (!raw) continue;
-        const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        const cName = c.full_name || c.name || '';
-        if (namesMatch(incomingName, cName)) {
-          existingId = ids[i];
-          existingContact = c;
-          break;
+    if (targetContactId) {
+      try {
+        const raw = await redis.get(targetContactId);
+        if (raw) {
+          const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          // Ownership check
+          if (c.agentId === agentId || session.role === 'admin') {
+            existingId = targetContactId;
+            existingContact = c;
+          }
+        }
+      } catch(e) { console.warn('targetContactId lookup failed:', e.message); }
+    }
+
+    // ── Fuzzy name match (fallback when no targetContactId) ──
+    if (!existingId) {
+      const ids = await redis.lrange(`agent:${agentId}:contacts`, 0, 999);
+      if (ids && ids.length && incomingName) {
+        const raws = await Promise.all(ids.map(id => redis.get(id)));
+        for (let i = 0; i < ids.length; i++) {
+          const raw = raws[i];
+          if (!raw) continue;
+          let c;
+          try { c = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch(e) { continue; }
+          if (!c) continue;
+          const cName = c.full_name || c.name || '';
+          if (namesMatch(incomingName, cName)) {
+            existingId = ids[i];
+            existingContact = c;
+            break;
+          }
         }
       }
     }
