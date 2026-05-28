@@ -614,6 +614,7 @@ async function loadAdminPanel() {
             <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
+              <button class="btn btn-outline btn-sm" onclick="replicateActionPlans()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Replicate Action Plans → David</button>
               <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin trades here</button>
               <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}')">Update FUB key</button>
               <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
@@ -662,6 +663,25 @@ async function updateAgentFubKey(agentId, agentName) {
     if (!res.ok || !d.success) throw new Error(d.error || res.status);
     alert(`✓ Saved ${agentName}'s FUB key.`);
     loadAdminPanel();
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+async function replicateActionPlans() {
+  try {
+    const res = await fetch('/api/replicate-action-plans', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ dryRun: true })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    const preview = data.results.slice(0, 8).map(r => `• ${r.name} (${r.steps} steps)`).join('\n');
+    const more = data.total > 8 ? `\n...and ${data.total - 8} more` : '';
+    if (!confirm(`Replicate ${data.total} action plans from Lorry → David:\n\n${preview}${more}\n\nRequires LORRY_FUB_KEY + DAVID_FUB_KEY in Vercel env vars.\n\nProceed?`)) return;
+    const res2 = await fetch('/api/replicate-action-plans', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ dryRun: false })
+    });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+    alert(`✓ Created ${data2.created} action plans in David's FUB.${data2.failed ? '\n✗ ' + data2.failed + ' failed.' : ''}`);
   } catch(e) { alert('Failed: ' + e.message); }
 }
 
