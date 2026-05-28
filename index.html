@@ -614,8 +614,7 @@ async function loadAdminPanel() {
             <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
-              <button class="btn btn-outline btn-sm" onclick="replicateActionPlans()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Replicate Action Plans → David</button>
-              <button class="btn btn-outline btn-sm" onclick="createTenantPlans()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Add Tenant Plans → David</button>
+              <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}')" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
               <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin trades here</button>
               <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}')">Update FUB key</button>
               <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
@@ -667,6 +666,24 @@ async function updateAgentFubKey(agentId, agentName) {
   } catch(e) { alert('Failed: ' + e.message); }
 }
 
+async function createEmailTemplates() {
+  try {
+    const res = await fetch('/api/create-email-templates', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ dryRun: true })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    const preview = data.results.map(r => `• ${r.name}`).join('\n');
+    if (!confirm(`Create ${data.total} email templates in David's FUB:\n\n${preview}\n\nProceed?`)) return;
+    const res2 = await fetch('/api/create-email-templates', {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ dryRun: false })
+    });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+    alert(`✓ Created ${data2.created} email templates in David's FUB.${data2.failed ? '\n✗ ' + data2.failed + ' failed.' : ''}`);
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
 async function createTenantPlans() {
   try {
     const res = await fetch('/api/create-tenant-plans', {
@@ -685,6 +702,41 @@ async function createTenantPlans() {
   } catch(e) { alert('Failed: ' + e.message); }
 }
 
+async function setupAgent(agentId, agentName) {
+  try {
+    // Dry run first
+    const res = await fetch('/api/setup-agent', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ agentId, dryRun: true })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+
+    if (!confirm(`Setup ${agentName}:\n\n${data.steps.join('\n')}\n\nThis will create all action plans and email templates in their FUB account.\n\nProceed?`)) return;
+
+    const btn = event?.target;
+    if (btn) { btn.disabled = true; btn.textContent = 'Setting up...'; }
+
+    const res2 = await fetch('/api/setup-agent', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ agentId, dryRun: false })
+    });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+
+    const s = data2.summary;
+    alert(`✓ ${agentName} is set up!\n\nAction plans: ${s.actionPlans.created} created\nLease plans: ${s.leasePlans.created} created\nEmail templates: ${s.emailTemplates.created} created` +
+      (s.actionPlans.failed + s.leasePlans.failed + s.emailTemplates.failed > 0 ? `\n\n✗ Some failed — check Vercel logs` : ''));
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Setup Agent (Plans + Templates)'; }
+  } catch(e) {
+    alert('Failed: ' + e.message);
+    const btn = event?.target;
+    if (btn) { btn.disabled = false; btn.textContent = 'Setup Agent (Plans + Templates)'; }
+  }
+}
+
+// Keep these for backwards compatibility / individual use
 async function replicateActionPlans() {
   try {
     const res = await fetch('/api/replicate-action-plans', {
