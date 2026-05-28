@@ -1880,18 +1880,56 @@ async function handleFintracCsv(e) {
   const text = await f.text();
   const lines = text.trim().split('\n');
   const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    const cols = [];
-    let cur = '', inQuote = false;
+
+  // Parse header row to detect column format
+  function parseCsvLine(line) {
+    const cols = []; let cur = '', inQuote = false;
     for (let j = 0; j < line.length; j++) {
       if (line[j] === '"') { inQuote = !inQuote; }
       else if (line[j] === ',' && !inQuote) { cols.push(cur.trim()); cur = ''; }
       else { cur += line[j]; }
     }
     cols.push(cur.trim());
-    if (!cols[1]) continue;
-    rows.push({ filename: cols[0]||'', full_name: cols[1]||'', date_of_birth: cols[2]||'', occupation: cols[3]||'' });
+    return cols;
+  }
+
+  const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g,''));
+
+  // Build column index map — handles both formats
+  // Show detected headers in progress for debugging
+  document.getElementById('fintrac-progress').textContent = 'Headers: ' + headers.join(', ');
+
+  // Flexible column matching using partial string search
+  function findCol(patterns, fallback) {
+    for (const p of patterns) {
+      const idx = headers.findIndex(h => h.includes(p));
+      if (idx >= 0) return idx;
+    }
+    return fallback;
+  }
+
+  const colMap = {
+    full_name: findCol(['fullname','name','client','person','individual'], 1),
+    date_of_birth: findCol(['dateofbirth','dob','birthday','birthdate','born'], 2),
+    occupation: findCol(['occupation','job','profession','title','employer','work'], 3),
+    employer: headers.indexOf('employer') >= 0 ? headers.indexOf('employer')
+              : headers.indexOf('company') >= 0 ? headers.indexOf('company') : -1,
+    filename: headers.indexOf('filename') >= 0 ? headers.indexOf('filename') : 0,
+  };
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    if (!cols[colMap.full_name]) continue;
+    // Combine job + employer if both present
+    const job = colMap.occupation >= 0 ? (cols[colMap.occupation]||'') : '';
+    const employer = colMap.employer >= 0 ? (cols[colMap.employer]||'') : '';
+    const occupation = employer ? `${job}, ${employer}` : job;
+    rows.push({
+      filename: cols[colMap.filename]||'',
+      full_name: cols[colMap.full_name]||'',
+      date_of_birth: cols[colMap.date_of_birth]||'',
+      occupation: occupation
+    });
   }
   document.getElementById('fintrac-progress').textContent = `Matching ${rows.length} contacts...`;
   document.getElementById('fintrac-progress-bar').style.width = '60%';
