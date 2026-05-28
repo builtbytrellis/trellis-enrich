@@ -1,225 +1,154 @@
 const { Redis } = require('@upstash/redis');
 const { verifySession } = require('./auth');
 
-// ── Nickname map ──────────────────────────────────────────────────────
-const NICKNAMES = {
-  'maddy': ['madison','madeline','madeleine'],
-  'madison': ['maddy','madeline'],
-  'madeline': ['maddy','madison'],
-  'jon': ['jonathan','johnathan'],
-  'jonathan': ['jon','johnny'],
-  'johnny': ['john','jonathan'],
-  'john': ['johnny','jon','jonathan'],
-  'mike': ['michael'],
-  'michael': ['mike','mikey'],
-  'alex': ['alexander','alexandra','alexis'],
-  'alexander': ['alex','xander'],
-  'alexandra': ['alex','alexa'],
-  'sam': ['samuel','samantha','samara'],
-  'samuel': ['sam'],
-  'samantha': ['sam'],
-  'dan': ['daniel','danny'],
-  'daniel': ['dan','danny'],
-  'danny': ['dan','daniel'],
-  'dave': ['david'],
-  'david': ['dave'],
-  'rob': ['robert','robbie'],
-  'robert': ['rob','robbie','bob','bobby'],
-  'bob': ['robert','rob'],
-  'liz': ['elizabeth','lisa'],
-  'elizabeth': ['liz','beth','ellie','lisa','libby'],
-  'beth': ['elizabeth'],
-  'ben': ['benjamin'],
-  'benjamin': ['ben','benny'],
-  'andy': ['andrew'],
-  'andrew': ['andy','drew'],
-  'drew': ['andrew'],
-  'chris': ['christopher','christian'],
-  'christopher': ['chris'],
-  'matt': ['matthew'],
-  'matthew': ['matt'],
-  'nick': ['nicholas'],
-  'nicholas': ['nick','nico'],
-  'tom': ['thomas','tommy'],
-  'thomas': ['tom','tommy'],
-  'will': ['william','willy'],
-  'william': ['will','bill','billy'],
-  'bill': ['william','will'],
-  'kate': ['katherine','kathryn','kathy','katie'],
-  'katie': ['kate','katherine'],
-  'katherine': ['kate','katie','kathy','kat'],
-  'kathy': ['katherine','kate'],
-  'kat': ['katherine','katelyn'],
-  'jen': ['jennifer','jenny'],
-  'jennifer': ['jen','jenny'],
-  'jenny': ['jennifer','jen'],
-  'jess': ['jessica','jessie'],
-  'jessica': ['jess','jessie'],
-  'jessie': ['jessica','jess'],
-  'amy': ['amelia'],
-  'amelia': ['amy','millie'],
-  'millie': ['amelia','mildred'],
-  'steph': ['stephanie'],
-  'stephanie': ['steph'],
-  'nat': ['natalie','nathan','nathaniel'],
-  'natalie': ['nat'],
-  'syd': ['sydney','sydnee'],
-  'sydney': ['syd'],
-  'max': ['maxine','maxwell','maximilian'],
-  'jake': ['jacob'],
-  'jacob': ['jake'],
-  'josh': ['joshua'],
-  'joshua': ['josh'],
-  'zach': ['zachary'],
-  'zachary': ['zach','zak'],
-  'becca': ['rebecca'],
-  'rebecca': ['becca','becky'],
-  'becky': ['rebecca','becca'],
-  'abby': ['abigail'],
-  'abigail': ['abby'],
-  'ally': ['allison','alyssa'],
-  'allison': ['ally','allie'],
-  'lexi': ['alexis','alexandra'],
-  'dani': ['daniela','danielle'],
-  'danielle': ['dani'],
-  'jodi': ['jodie','judy','judith'],
-  'judy': ['judith','jodi'],
-  'pam': ['pamela'],
-  'pamela': ['pam'],
-  'sue': ['susan','suzanne'],
-  'susan': ['sue','suzy'],
-  'barb': ['barbara'],
-  'barbara': ['barb'],
-  'laurel': ['laura','lauren'],
-  'lauren': ['laurel','laura'],
-};
-
-function normName(n) {
-  return (n || '').toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim();
-}
-
-function getFirstLast(name) {
-  const parts = normName(name).split(' ').filter(t => t.length >= 2);
-  if (!parts.length) return { first: '', last: '' };
-  return { first: parts[0], last: parts[parts.length - 1] };
-}
-
-function getNicknames(name) {
-  return [name, ...(NICKNAMES[name] || [])];
-}
-
-// Score how well two names match (0 = no match, 1-3 = match strength)
-function scoreNameMatch(nameA, nameB) {
-  const a = getFirstLast(nameA);
-  const b = getFirstLast(nameB);
-  if (!a.first || !b.first || !a.last || !b.last) return 0;
-
-  // Last name must match exactly
-  if (a.last !== b.last) return 0;
-
-  // First name exact match
-  if (a.first === b.first) return 3;
-
-  // First name nickname match
-  const aNicks = getNicknames(a.first);
-  const bNicks = getNicknames(b.first);
-  if (aNicks.some(n => bNicks.includes(n))) return 2;
-
-  // First name starts with same letters (e.g. "Maddy" vs "Madison" both start with "mad")
-  const prefix = Math.min(a.first.length, b.first.length, 3);
-  if (prefix >= 3 && a.first.slice(0, prefix) === b.first.slice(0, prefix)) return 1;
-
-  return 0;
-}
-
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-session-token');
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const session = await verifySession(req, res);
   if (!session) return;
 
-  const { agentId: targetAgentId, dryRun } = req.body;
-  const agentId = (session.role === 'admin' && targetAgentId) ? targetAgentId : session.agentId;
+  const agentId = (session.role === 'admin' && req.body.targetAgentId)
+    ? req.body.targetAgentId
+    : session.agentId;
+
+  const { rows } = req.body; // [{full_name, date_of_birth, occupation, filename}]
+  if (!rows || !rows.length) return res.status(400).json({ error: 'No rows provided' });
 
   try {
     const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+
+    // Load all contacts for this agent
     const ids = await redis.lrange(`agent:${agentId}:contacts`, 0, 999);
-    if (!ids?.length) return res.status(200).json({ matched: [], total: 0 });
+    if (!ids || !ids.length) return res.status(200).json({ matched: [], unmatched: rows });
 
     const raws = await Promise.all(ids.map(id => redis.get(id)));
     const contacts = ids.map((id, i) => {
-      let c;
-      try { c = typeof raws[i] === 'string' ? JSON.parse(raws[i]) : raws[i]; } catch(e) { return null; }
-      if (!c) return null;
-      return { id, contact: c };
+      const raw = raws[i];
+      if (!raw) return null;
+      const c = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return { ...c, _contactId: id };
     }).filter(Boolean);
 
-    // Split into: contacts with FINTRAC data, contacts without
-    const withFintrac = contacts.filter(({ contact: c }) => c.fintrac_verified || c.birthday || c.job_title);
-    const needsFintrac = contacts.filter(({ contact: c }) => !c.fintrac_verified && !c.birthday && !c.job_title);
+    const normName = s => (s || '').toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
+
+    // Nickname map for fuzzy first-name matching
+    const NICKNAMES = {
+      'maddy':['madison','madeline'],'madison':['maddy','madeline'],'jon':['jonathan','johnathan'],
+      'jonathan':['jon','johnny'],'mike':['michael'],'michael':['mike'],
+      'alex':['alexander','alexandra','alexis'],'alexander':['alex'],
+      'sam':['samuel','samantha'],'samuel':['sam'],'samantha':['sam'],
+      'dan':['daniel','danny'],'daniel':['dan','danny'],'danny':['dan','daniel'],
+      'dave':['david'],'david':['dave'],'rob':['robert'],'robert':['rob','bob'],
+      'bob':['robert'],'liz':['elizabeth'],'elizabeth':['liz','beth','ellie'],
+      'ben':['benjamin'],'benjamin':['ben'],'andy':['andrew'],'andrew':['andy','drew'],
+      'chris':['christopher'],'christopher':['chris'],'matt':['matthew'],'matthew':['matt'],
+      'nick':['nicholas'],'nicholas':['nick'],'tom':['thomas'],'thomas':['tom'],
+      'will':['william'],'william':['will','bill'],'bill':['william'],
+      'kate':['katherine','kathryn','kathy','katie'],'katherine':['kate','katie','kathy'],
+      'jen':['jennifer'],'jennifer':['jen','jenny'],'jenny':['jennifer'],
+      'jess':['jessica'],'jessica':['jess'],'steph':['stephanie'],'stephanie':['steph'],
+      'syd':['sydney'],'sydney':['syd'],'jake':['jacob'],'jacob':['jake'],
+      'josh':['joshua'],'joshua':['josh'],'zach':['zachary'],'zachary':['zach'],
+      'becca':['rebecca'],'rebecca':['becca','becky'],'abby':['abigail'],'abigail':['abby'],
+      'dani':['danielle','daniela'],'danielle':['dani'],'nat':['natalie'],'natalie':['nat'],
+      'jodi':['jodie','judy'],'judy':['judith','jodi'],'pam':['pamela'],'pamela':['pam'],
+      'sue':['susan'],'susan':['sue'],'barb':['barbara'],'barbara':['barb'],
+      'lauren':['laurel','laura'],'laurel':['lauren'],
+      'lexi':['alexis','alexandra'],'ally':['allison'],'allison':['ally'],
+    };
+
+    function getNicks(name) { return [name, ...(NICKNAMES[name] || [])]; }
+
+    function scoreNames(rowName, contactName) {
+      const rTokens = normName(rowName).split(' ').filter(t => t.length >= 2);
+      const cTokens = normName(contactName).split(' ').filter(t => t.length >= 2);
+      if (!rTokens.length || !cTokens.length) return 0;
+      const rFirst = rTokens[0], rLast = rTokens[rTokens.length - 1];
+      const cFirst = cTokens[0], cLast = cTokens[cTokens.length - 1];
+      // Last name must match
+      if (rLast !== cLast) return 0;
+      // First name exact
+      if (rFirst === cFirst) return 3;
+      // First name nickname
+      if (getNicks(rFirst).includes(cFirst) || getNicks(cFirst).includes(rFirst)) return 2;
+      // First name prefix (min 3 chars)
+      const pre = Math.min(rFirst.length, cFirst.length, 3);
+      if (pre >= 3 && rFirst.slice(0,pre) === cFirst.slice(0,pre)) return 1;
+      return 0;
+    }
 
     const matched = [];
-    const updated = [];
+    const unmatched = [];
 
-    // For each contact needing FINTRAC, try to find a match in withFintrac
-    for (const { id: needsId, contact: needs } of needsFintrac) {
-      const needsName = needs.full_name || needs.name || '';
-      if (!needsName) continue;
+    for (const row of rows) {
+      if (!row.full_name) { unmatched.push(row); continue; }
 
-      let bestScore = 0;
       let bestMatch = null;
+      let bestScore = 0;
 
-      for (const { contact: has } of withFintrac) {
-        const hasName = has.full_name || has.name || '';
-        const score = scoreNameMatch(needsName, hasName);
+      for (const c of contacts) {
+        const score = scoreNames(row.full_name, c.full_name || c.name || '');
         if (score > bestScore) {
           bestScore = score;
-          bestMatch = has;
+          bestMatch = c;
         }
       }
 
-      if (bestScore >= 1 && bestMatch) {
-        matched.push({
-          needs_name: needsName,
-          matched_to: bestMatch.full_name || bestMatch.name,
-          score: bestScore,
-          score_label: bestScore === 3 ? 'exact' : bestScore === 2 ? 'nickname' : 'prefix',
-          birthday: bestMatch.birthday || null,
-          job_title: bestMatch.job_title || null,
-          company: bestMatch.company || null,
-          fintrac_verified: bestMatch.fintrac_verified || false
-        });
-
-        if (!dryRun && bestScore >= 2) { // Only auto-apply nickname/exact matches
-          const updated_contact = {
-            ...needs,
-            birthday: needs.birthday || bestMatch.birthday,
-            job_title: needs.job_title || bestMatch.job_title,
-            company: needs.company || bestMatch.company,
-            fintrac_verified: needs.fintrac_verified || bestMatch.fintrac_verified || false,
-          };
-          await redis.set(needsId, JSON.stringify(updated_contact));
-          updated.push(needsName);
+      if (bestMatch) {
+        // Convert MM/DD/YYYY to YYYY-MM-DD
+        let dob = row.date_of_birth || '';
+        if (dob && dob.includes('/')) {
+          const parts = dob.split('/');
+          if (parts.length === 3) dob = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
         }
+
+        // Update contact in Redis
+        // Parse occupation — may include employer after last comma
+        // e.g. "VP Technology, Bank of America" → job_title: VP Technology, company: Bank of America
+        let jobTitle = row.occupation || '';
+        let company = bestMatch.company || '';
+        if (row.occupation && row.occupation.includes(',')) {
+          const parts = row.occupation.split(',');
+          // Last part is likely employer if it looks like a proper noun (capitalized)
+          const lastPart = parts[parts.length - 1].trim();
+          if (lastPart && /^[A-Z]/.test(lastPart) && parts.length > 1) {
+            jobTitle = parts.slice(0, -1).join(',').trim();
+            company = lastPart;
+          }
+        }
+
+        const updated = {
+          ...bestMatch,
+          birthday: dob || bestMatch.birthday || '',
+          job_title: jobTitle || bestMatch.job_title || '',
+          company: company || bestMatch.company || '',
+          fintrac_verified: true,
+          fintrac_source: row.filename || '',
+          fintrac_occupation_full: row.occupation || '',
+        };
+        delete updated._contactId;
+        await redis.set(bestMatch._contactId, JSON.stringify(updated));
+
+        matched.push({
+          fintrac_name: row.full_name,
+          matched_to: bestMatch.full_name || bestMatch.name,
+          birthday: dob,
+          occupation: row.occupation,
+          score: Math.round(bestScore * 100),
+          contactId: bestMatch._contactId,
+        });
+      } else {
+        unmatched.push(row);
       }
     }
 
-    return res.status(200).json({
-      success: true,
-      dryRun: dryRun !== false,
-      total_contacts: contacts.length,
-      needs_fintrac: needsFintrac.length,
-      has_fintrac: withFintrac.length,
-      matched: matched.length,
-      auto_applied: updated.length,
-      details: matched
-    });
-
+    return res.status(200).json({ success: true, matched, unmatched, total: rows.length });
   } catch(e) {
-    console.error(e);
+    console.error('import-fintrac-csv error:', e);
     return res.status(500).json({ error: e.message });
   }
 };
