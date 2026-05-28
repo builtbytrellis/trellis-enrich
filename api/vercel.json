@@ -27,6 +27,9 @@
     },
     "api/rematch-fintrac.js": {
       "maxDuration": 30
+    },
+    "api/manual-corrections.js": {
+      "maxDuration": 30
     }
   }
 }
