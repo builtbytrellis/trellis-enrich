@@ -12,6 +12,11 @@ const CORRECTIONS = [
     name: 'Matt Prager',
     set: { birthday: '1990-11-26', job_title: 'Lawyer', fintrac_verified: true },
     reason: 'Correct FINTRAC data from Matthew William Prager'
+  },
+  {
+    name: 'Matthew Prager',
+    set: { birthday: '1990-11-26', job_title: 'Lawyer', fintrac_verified: true },
+    reason: 'Correct FINTRAC data from Matthew William Prager'
   }
 ];
 
