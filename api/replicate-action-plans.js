@@ -66,7 +66,6 @@ module.exports = async (req, res) => {
         // Build clean payload for target account
         const payload = {
           name: full.name,
-          status: full.status || 'Active',
           stopOnContacted: full.stopOnContacted || false,
           sendToAll: full.sendToAll || true,
           steps: full.steps.map(step => {
