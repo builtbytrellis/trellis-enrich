@@ -33,8 +33,53 @@ module.exports = async (req, res) => {
       return { ...c, _contactId: id };
     }).filter(Boolean);
 
-    // Normalize name for matching
     const normName = s => (s || '').toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
+
+    // Nickname map for fuzzy first-name matching
+    const NICKNAMES = {
+      'maddy':['madison','madeline'],'madison':['maddy','madeline'],'jon':['jonathan','johnathan'],
+      'jonathan':['jon','johnny'],'mike':['michael'],'michael':['mike'],
+      'alex':['alexander','alexandra','alexis'],'alexander':['alex'],
+      'sam':['samuel','samantha'],'samuel':['sam'],'samantha':['sam'],
+      'dan':['daniel','danny'],'daniel':['dan','danny'],'danny':['dan','daniel'],
+      'dave':['david'],'david':['dave'],'rob':['robert'],'robert':['rob','bob'],
+      'bob':['robert'],'liz':['elizabeth'],'elizabeth':['liz','beth','ellie'],
+      'ben':['benjamin'],'benjamin':['ben'],'andy':['andrew'],'andrew':['andy','drew'],
+      'chris':['christopher'],'christopher':['chris'],'matt':['matthew'],'matthew':['matt'],
+      'nick':['nicholas'],'nicholas':['nick'],'tom':['thomas'],'thomas':['tom'],
+      'will':['william'],'william':['will','bill'],'bill':['william'],
+      'kate':['katherine','kathryn','kathy','katie'],'katherine':['kate','katie','kathy'],
+      'jen':['jennifer'],'jennifer':['jen','jenny'],'jenny':['jennifer'],
+      'jess':['jessica'],'jessica':['jess'],'steph':['stephanie'],'stephanie':['steph'],
+      'syd':['sydney'],'sydney':['syd'],'jake':['jacob'],'jacob':['jake'],
+      'josh':['joshua'],'joshua':['josh'],'zach':['zachary'],'zachary':['zach'],
+      'becca':['rebecca'],'rebecca':['becca','becky'],'abby':['abigail'],'abigail':['abby'],
+      'dani':['danielle','daniela'],'danielle':['dani'],'nat':['natalie'],'natalie':['nat'],
+      'jodi':['jodie','judy'],'judy':['judith','jodi'],'pam':['pamela'],'pamela':['pam'],
+      'sue':['susan'],'susan':['sue'],'barb':['barbara'],'barbara':['barb'],
+      'lauren':['laurel','laura'],'laurel':['lauren'],
+      'lexi':['alexis','alexandra'],'ally':['allison'],'allison':['ally'],
+    };
+
+    function getNicks(name) { return [name, ...(NICKNAMES[name] || [])]; }
+
+    function scoreNames(rowName, contactName) {
+      const rTokens = normName(rowName).split(' ').filter(t => t.length >= 2);
+      const cTokens = normName(contactName).split(' ').filter(t => t.length >= 2);
+      if (!rTokens.length || !cTokens.length) return 0;
+      const rFirst = rTokens[0], rLast = rTokens[rTokens.length - 1];
+      const cFirst = cTokens[0], cLast = cTokens[cTokens.length - 1];
+      // Last name must match
+      if (rLast !== cLast) return 0;
+      // First name exact
+      if (rFirst === cFirst) return 3;
+      // First name nickname
+      if (getNicks(rFirst).includes(cFirst) || getNicks(cFirst).includes(rFirst)) return 2;
+      // First name prefix (min 3 chars)
+      const pre = Math.min(rFirst.length, cFirst.length, 3);
+      if (pre >= 3 && rFirst.slice(0,pre) === cFirst.slice(0,pre)) return 1;
+      return 0;
+    }
 
     const matched = [];
     const unmatched = [];
@@ -42,25 +87,20 @@ module.exports = async (req, res) => {
     for (const row of rows) {
       if (!row.full_name) { unmatched.push(row); continue; }
 
-      const rowNorm = normName(row.full_name);
-      const rowTokens = rowNorm.split(' ').filter(t => t.length >= 2);
-
-      // Find best matching contact — require first + last name match
       let bestMatch = null;
       let bestScore = 0;
 
       for (const c of contacts) {
-        const cNorm = normName(c.full_name || c.name || '');
-        const cTokens = cNorm.split(' ').filter(t => t.length >= 2);
-        const matchCount = rowTokens.filter(t => cTokens.includes(t)).length;
-        const score = matchCount / Math.max(rowTokens.length, cTokens.length);
-        if (matchCount >= 2 && score > bestScore) {
+        const score = scoreNames(row.full_name, c.full_name || c.name || '');
+        if (score > bestScore) {
           bestScore = score;
           bestMatch = c;
         }
       }
 
-      if (bestMatch) {
+      // Only auto-apply score 2+ (nickname or exact match)
+      // Score 1 (prefix) is too risky — shown as unmatched for human review
+      if (bestMatch && bestScore >= 2) {
         // Convert MM/DD/YYYY to YYYY-MM-DD
         let dob = row.date_of_birth || '';
         if (dob && dob.includes('/')) {
@@ -104,6 +144,11 @@ module.exports = async (req, res) => {
           contactId: bestMatch._contactId,
         });
       } else {
+        // Score 1 = possible match but too risky to auto-apply
+        if (bestScore === 1 && bestMatch) {
+          row._possible_match = bestMatch.full_name || bestMatch.name;
+          row._possible_score = 'prefix-only — needs human review';
+        }
         unmatched.push(row);
       }
     }
