@@ -21,12 +21,12 @@ function task(position, runAfterDays, taskName) {
   };
 }
 
-const LEASE_PLANS = [
+function buildPlans(stageMap) { return [
   {
     name: 'Tenant - Conditional',
     steps: [
       task(1,  0,   'Send Deposit Email'),
-      task(2,  0,   'Change status to Tenant - Conditional'),
+      stageStep(2, 0, 'Conditional Buyer', stageMap),
       task(3,  0,   'Create Trade aka "Deal Summary Sheet"'),
       task(4,  0,   'Change dates of conditions in checklist'),
       task(5,  0,   'Add conditions expiry date(s) into Google Calendars'),
@@ -36,13 +36,13 @@ const LEASE_PLANS = [
       task(9,  0,   'Add client to Instagram'),
       task(10, 0,   'Conditions removed? Prepare Notice of Fulfillment (NoF)'),
       task(11, 1,   'NoF Signed? Confirm both parties signed'),
-      task(12, 1,   'Change status to Tenant - Firm'),
+      stageStep(12, 1, 'Firm Buyer', stageMap),
       task(13, 1,   'Send Next Steps Email (Once deposit received + all conditions waived)'),
       task(14, 1,   'Send introduction email for tenant/listing agent to arrange key exchange'),
       task(15, 23,  'Send 1 week to closing email - hydro set up? Key deposit ready?'),
       task(16, 29,  'Send "Here to help" email 1 day before closing'),
       task(17, 30,  'Send text on closing day - good luck!'),
-      task(18, 30,  'Change status to Closed'),
+      stageStep(18, 30, 'Closed', stageMap),
       task(19, 30,  'Add tags: Past Client, Tenant, Potential First Time Buyer'),
       task(20, 30,  'Switch to Tenant - Closing action plan'),
       task(21, 31,  '1 day after closing - How did it go?'),
@@ -62,7 +62,7 @@ const LEASE_PLANS = [
       task(2,  0,   'Confirm key deposit amount delivered'),
       task(3,  0,   'Confirm utilities transferred (hydro, internet, tenant insurance)'),
       task(4,  0,   'Send final moving day checklist to tenant'),
-      task(5,  0,   'Change status to Closed'),
+      stageStep(5, 0, 'Closed', stageMap),
       task(6,  0,   'Add tags: Past Client, Tenant, Potential First Time Buyer'),
       task(7,  1,   'Send closing day text - Good luck today!'),
       task(8,  2,   'Check in - How did the move go?'),
@@ -95,7 +95,7 @@ const LEASE_PLANS = [
     name: 'Landlord - Conditional',
     steps: [
       task(1,  0,  'Receive deposit cheque from tenant (confirm with tenant agent)'),
-      task(2,  0,  'Change status to Landlord - Conditional'),
+      stageStep(2, 0, 'Conditional Listing', stageMap),
       task(3,  0,  'Run credit check on applicant(s)'),
       task(4,  0,  'Verify employment letter and pay stubs'),
       task(5,  0,  'Check references (previous landlord, employer)'),
@@ -105,7 +105,7 @@ const LEASE_PLANS = [
       task(9,  1,  'Prepare lease agreement for signing'),
       task(10, 1,  'Collect first and last month - confirm receipt'),
       task(11, 1,  'Send deposit receipt to both parties'),
-      task(12, 1,  'Change status to Landlord - Firm'),
+      stageStep(12, 1, 'Firm Listing', stageMap),
       task(13, 1,  'Create Trade aka "Deal Summary Sheet"'),
       task(14, 1,  'Add conditions expiry date into Google Calendar'),
     ]
@@ -118,7 +118,7 @@ const LEASE_PLANS = [
       task(3,  0,  'Confirm landlord has all signed documents'),
       task(4,  0,  'Arrange pre-closing walkthrough inspection with landlord'),
       task(5,  0,  'Send closing day reminder to landlord'),
-      task(6,  0,  'Change status to Closed'),
+      stageStep(6, 0, 'Closed', stageMap),
       task(7,  0,  'Add tags: Past Client, Landlord'),
       task(8,  1,  'Closing day check-in with landlord - how did key exchange go?'),
       task(9,  7,  "One week in - tenant settled ok?"),
@@ -128,6 +128,30 @@ const LEASE_PLANS = [
     ]
   }
 ];
+
+async function getStageMap(apiKey) {
+  const encoded = Buffer.from(apiKey + ':').toString('base64');
+  const res = await fetch('https://api.followupboss.com/v1/stages?limit=100', {
+    headers: { 'Authorization': `Basic ${encoded}` }
+  });
+  const d = await res.json();
+  const map = {};
+  for (const s of (d.stages || [])) {
+    map[s.name.toLowerCase()] = s.id;
+  }
+  return map;
+}
+
+function stageStep(position, runAfterDays, stageName, stageMap) {
+  const stageId = stageMap[stageName.toLowerCase()] || null;
+  return {
+    id: null, action: 'changeStage', position, runAfterDays,
+    stageId, taskName: null, taskType: null,
+    tags: [], collaborators: [],
+    assignedUserId: -1, emailTemplateId: null,
+    stopActionPlanId: null, noteDesc: null, noteNotifiers: null
+  };
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -142,6 +166,9 @@ module.exports = async (req, res) => {
   if (!targetKey) return res.status(500).json({ error: 'Missing env var: DAVID_FUB_KEY' });
 
   const { dryRun = true } = req.body;
+  const stageMap = await getStageMap(targetKey);
+  console.log('David stages:', JSON.stringify(stageMap));
+  const LEASE_PLANS = buildPlans(stageMap);
   const results = [];
 
   for (const plan of LEASE_PLANS) {
