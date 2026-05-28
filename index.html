@@ -327,6 +327,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <button class="btn btn-gold btn-sm" onclick="bulkTagContacts()">Bulk Tag</button>
         <button class="btn btn-outline btn-sm" onclick="fixAgeTags()">Fix Age Tags</button>
         <button class="btn btn-outline btn-sm" onclick="rematchFintrac()">Rematch FINTRAC</button>
+        <button class="btn btn-outline btn-sm" onclick="runCorrections()" style="color:var(--red);border-color:rgba(192,57,43,.3)">Fix Known Errors</button>
         <span style="font-size:12px;color:var(--green);margin-left:auto" id="history-push-all-status"></span>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
@@ -967,6 +968,25 @@ async function pushHistoryContact(idx) {
     await saveToHistory({...contact, pushed: true}, true);
     renderHistory();
   } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
+}
+
+async function runCorrections() {
+  try {
+    const body = { dryRun: true };
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/manual-corrections', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    const preview = data.results.map(r => `• ${r.name}: ${r.status} — ${r.changes || r.status}`).join('\n');
+    if (!confirm(`Known data corrections:\n\n${preview}\n\nApply?`)) return;
+    body.dryRun = false;
+    const res2 = await fetch('/api/manual-corrections', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+    const fixed = data2.results.filter(r => r.status === 'fixed').length;
+    alert(`✓ Fixed ${fixed} contacts.`);
+    await loadHistory();
+  } catch(e) { alert('Failed: ' + e.message); }
 }
 
 async function rematchFintrac() {
@@ -1897,8 +1917,9 @@ function renderFintracCsvResults(data) {
         <div style="font-size:11px;color:var(--ink-muted)">No match in History</div>
         ${u.date_of_birth ? `<div style="font-size:11px;color:var(--ink-muted)">DOB: ${u.date_of_birth}</div>` : ''}
         ${u.occupation ? `<div style="font-size:11px;color:var(--ink-muted)">Occupation: ${u.occupation}</div>` : ''}
+        ${u._possible_match ? `<div style="font-size:11px;color:var(--amber)">⚠️ Possible match: ${u._possible_match} (${u._possible_score})</div>` : ''}
       </div>
-      <span class="pill pill-pending">Unmatched</span>
+      <span class="pill ${u._possible_match ? 'pill-review' : 'pill-pending'}">${u._possible_match ? 'Review' : 'Unmatched'}</span>
     </div>`).join('');
   document.getElementById('fintrac-list').innerHTML = matchedHtml + unmatchedHtml;
 }
