@@ -1,12 +1,32 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "functions": {
-    "api/extract-fintrac.js": { "maxDuration": 60 },
-    "api/deduplicate-contacts.js": { "maxDuration": 30 },
-    "api/fix-isp-contacts.js": { "maxDuration": 30 },
-    "api/bulk-tag.js": { "maxDuration": 60 }
+    "api/extract-fintrac.js": {
+      "maxDuration": 60
+    },
+    "api/deduplicate-contacts.js": {
+      "maxDuration": 30
+    },
+    "api/fix-isp-contacts.js": {
+      "maxDuration": 30
+    },
+    "api/bulk-tag.js": {
+      "maxDuration": 60
+    },
+    "api/fix-age-tags.js": {
+      "maxDuration": 60
+    },
+    "api/rematch-fintrac.js": {
+      "maxDuration": 30
+    }
   }
 }
