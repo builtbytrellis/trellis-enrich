@@ -41,12 +41,19 @@ function stage(position, runAfterDays, stageName, stageMap) {
 
 // ── PART 1: Replicate action plans from source agent ──────────────────
 async function replicateActionPlans(sourceKey, targetKey) {
+  // Skip duplicates
+  const existing = await fubGet('/actionPlans?limit=100', targetKey);
+  const existingNames = new Set((existing.actionPlans || []).map(p => p.name.toLowerCase()));
   const sourcePlans = await fubGet('/actionPlans?limit=100', sourceKey);
   const plans = (sourcePlans.actionPlans || []).filter(p => p.createdById > 0);
   const results = [];
   for (const plan of plans) {
     const full = await fubGet(`/actionPlans/${plan.id}`, sourceKey);
     if (!full.steps?.length) continue;
+    if (existingNames.has(full.name.toLowerCase())) {
+      results.push({ name: plan.name, status: 'skipped (already exists)' });
+      continue;
+    }
     const payload = {
       name: full.name,
       stopOnContacted: full.stopOnContacted || false,
@@ -67,6 +74,9 @@ async function replicateActionPlans(sourceKey, targetKey) {
 
 // ── PART 2: Create lease plans ────────────────────────────────────────
 async function createLeasePlans(targetKey) {
+  // Skip duplicates
+  const existing = await fubGet('/actionPlans?limit=100', targetKey);
+  const existingNames = new Set((existing.actionPlans || []).map(p => p.name.toLowerCase()));
   const stageMap = await getStageMap(targetKey);
   const plans = [
     {
@@ -175,6 +185,10 @@ async function createLeasePlans(targetKey) {
 
   const results = [];
   for (const plan of plans) {
+    if (existingNames.has(plan.name.toLowerCase())) {
+      results.push({ name: plan.name, status: 'skipped (already exists)' });
+      continue;
+    }
     const r = await fubPost('/actionPlans', { name: plan.name, stopOnContacted: false, steps: plan.steps }, targetKey);
     results.push({ name: plan.name, status: r.status === 200 || r.status === 201 ? 'created' : 'failed', error: r.body?.errorMessage || null });
     await delay(200);
@@ -184,6 +198,9 @@ async function createLeasePlans(targetKey) {
 
 // ── PART 3: Create email templates ────────────────────────────────────
 async function createEmailTemplates(targetKey) {
+  // Skip duplicates
+  const existingTemplates = await fubGet('/templates?limit=100', targetKey);
+  const existingTemplateNames = new Set((existingTemplates.templates || []).map(t => t.name.toLowerCase()));
   const templates = [
     { name: "Next Steps: Tenant (Rental Accepted)", subject: "Next Steps: %property_address%", body: `<p>Hi %contact_rels_first_name%,</p><p>Congrats on getting your lease accepted! Here is what we need to tackle right away:</p><ol><li>Deposit cheque by [DEADLINE]</li><li>Arrange tenant insurance</li><li>Prepare post-dated cheques</li></ol><p><strong>Deposit Cheque</strong></p><p>We need a certified cheque or bank draft for $[AMOUNT] to the landlord's brokerage by [DEADLINE]. Make it out to "[LISTING BROKERAGE] Inc." and deliver to [Brokerage Address].</p><p><strong>Post-Dated Cheques</strong></p><p>[#] post-dated monthly cheques for $[AMOUNT] made out to "[LANDLORD NAME]" dated [SECOND MONTH] through [LAST MONTH].</p><p><strong>Lease Start Date</strong></p><p>[DAY, DATE]</p><p><strong>Tenant Insurance</strong></p><p>Required before move-in. Let me know if you need a recommendation.</p><p><strong>New Mailing Address</strong></p><p>[# Street Name], [City], ON [Postal Code]</p><p>Reach out any time with questions.</p><p>Talk soon,<br>%agent_first_name% %agent_last_name%<br>%agent_phone%<br>%agent_email%</p>` },
     { name: "Next Steps: Buyer - Freehold (Offer Accepted)", subject: "Next Steps: %property_address%", body: `<p>Hi %contact_rels_first_name%,</p><p>Congrats on your accepted offer on [PROPERTY ADDRESS]!</p><ol><li>Deposit cheque by [DEADLINE]</li><li>Financing condition fulfilled by [DEADLINE]</li><li>Home inspection condition fulfilled by [DEADLINE]</li></ol><p><strong>Deposit Cheque</strong></p><p>Certified cheque or bank draft for $[AMOUNT] to the selling brokerage by [DEADLINE].</p><p><strong>Financing</strong></p><p>Condition due [DATE]. I will prepare the Notice of Fulfillment once your broker confirms. Let me know if you need a recommendation.</p><p><strong>Home Inspection</strong></p><p>Condition due [DATE]. I recommend Carson Dunlop - let me know your preferred time and I will book it.<br>Sheila Corman | 416-964-9415 | info@carsondunlop.com</p><p><strong>Lawyer</strong></p><p>Send me your lawyer's contact info and I will forward all documents. Happy to recommend one if needed.</p><p>Talk soon,<br>%agent_first_name% %agent_last_name%<br>%agent_phone%<br>%agent_email%</p>` },
@@ -200,6 +217,10 @@ async function createEmailTemplates(targetKey) {
 
   const results = [];
   for (const t of templates) {
+    if (existingTemplateNames.has(t.name.toLowerCase())) {
+      results.push({ name: t.name, status: 'skipped (already exists)' });
+      continue;
+    }
     const r = await fubPost('/templates', t, targetKey);
     results.push({ name: t.name, status: r.status === 200 || r.status === 201 ? 'created' : 'failed', error: r.body?.errorMessage || null });
     await delay(150);
@@ -248,9 +269,9 @@ module.exports = async (req, res) => {
     ]);
 
     const summary = {
-      actionPlans: { created: actionPlans.filter(r => r.status === 'created').length, failed: actionPlans.filter(r => r.status === 'failed').length },
-      leasePlans: { created: leasePlans.filter(r => r.status === 'created').length, failed: leasePlans.filter(r => r.status === 'failed').length },
-      emailTemplates: { created: emailTemplates.filter(r => r.status === 'created').length, failed: emailTemplates.filter(r => r.status === 'failed').length },
+      actionPlans: { created: actionPlans.filter(r => r.status === 'created').length, skipped: actionPlans.filter(r => r.status?.includes('skipped')).length, failed: actionPlans.filter(r => r.status === 'failed').length },
+      leasePlans: { created: leasePlans.filter(r => r.status === 'created').length, skipped: leasePlans.filter(r => r.status?.includes('skipped')).length, failed: leasePlans.filter(r => r.status === 'failed').length },
+      emailTemplates: { created: emailTemplates.filter(r => r.status === 'created').length, skipped: emailTemplates.filter(r => r.status?.includes('skipped')).length, failed: emailTemplates.filter(r => r.status === 'failed').length },
     };
 
     return res.status(200).json({ success: true, dryRun: false, agent: agent.name || agentId, summary, actionPlans, leasePlans, emailTemplates });
