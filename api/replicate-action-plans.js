@@ -68,19 +68,22 @@ module.exports = async (req, res) => {
           name: full.name,
           stopOnContacted: full.stopOnContacted || false,
           sendToAll: full.sendToAll || true,
-          steps: full.steps.map(step => {
-            const s = {
-              action: step.action,
-              position: step.position,
-              runAfterDays: step.runAfterDays || 0,
-            };
-            if (step.taskName) s.taskName = step.taskName;
-            if (step.taskType) s.taskType = step.taskType;
-            if (step.noteDesc) s.noteDesc = step.noteDesc;
-            if (step.emailTemplateId) s.emailTemplateId = step.emailTemplateId;
-            // Don't copy stageId — stages are account-specific
-            return s;
-          })
+          steps: full.steps.map(step => ({
+            id: null,
+            action: step.action,
+            position: step.position,
+            runAfterDays: step.runAfterDays || 0,
+            taskName: step.taskName || null,
+            taskType: step.taskType || 'Follow Up',
+            tags: [],
+            collaborators: [],
+            stageId: null,  // Don't copy — stages are account-specific
+            assignedUserId: -1,
+            emailTemplateId: step.emailTemplateId || null,
+            stopActionPlanId: step.stopActionPlanId || null,
+            noteDesc: step.noteDesc || null,
+            noteNotifiers: step.noteNotifiers || null,
+          }))
         };
 
         if (dryRun) {
