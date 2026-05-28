@@ -326,6 +326,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <button class="btn btn-outline btn-sm" onclick="fixISPContacts()">Fix ISP Data</button>
         <button class="btn btn-gold btn-sm" onclick="bulkTagContacts()">Bulk Tag</button>
         <button class="btn btn-outline btn-sm" onclick="fixAgeTags()">Fix Age Tags</button>
+        <button class="btn btn-outline btn-sm" onclick="rematchFintrac()">Rematch FINTRAC</button>
         <span style="font-size:12px;color:var(--green);margin-left:auto" id="history-push-all-status"></span>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
@@ -966,6 +967,32 @@ async function pushHistoryContact(idx) {
     await saveToHistory({...contact, pushed: true}, true);
     renderHistory();
   } catch(e) { setHistMsg(hid, 'Failed: ' + e.message, 'err'); }
+}
+
+async function rematchFintrac() {
+  try {
+    const body = { dryRun: true };
+    if (impersonating) body.agentId = impersonating.agentId;
+    const res = await fetch('/api/rematch-fintrac', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (!data.matched) { alert('No FINTRAC matches found.'); return; }
+
+    const preview = data.details.slice(0, 10).map(d =>
+      `• ${d.needs_name} → ${d.matched_to} (${d.score_label})${d.birthday ? ' 🎂 ' + d.birthday : ''}${d.job_title ? ' · ' + d.job_title : ''}`
+    ).join('\n');
+    const more = data.matched > 10 ? `\n...and ${data.matched - 10} more` : '';
+    const autoApply = data.details.filter(d => d.score >= 2).length;
+
+    if (!confirm(`Found ${data.matched} FINTRAC matches:\n\n${preview}${more}\n\nWill auto-apply ${autoApply} nickname/exact matches. Prefix matches shown for review only.\n\nApply now?`)) return;
+
+    body.dryRun = false;
+    const res2 = await fetch('/api/rematch-fintrac', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2.error);
+    alert(`✓ Applied ${data2.auto_applied} FINTRAC matches.\n\nRun Push All to sync to FUB.`);
+    await loadHistory();
+  } catch(e) { alert('Failed: ' + e.message); }
 }
 
 async function fixAgeTags() {
