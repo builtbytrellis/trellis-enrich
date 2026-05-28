@@ -33,6 +33,15 @@
     },
     "api/replicate-action-plans.js": {
       "maxDuration": 60
+    },
+    "api/create-tenant-plans.js": {
+      "maxDuration": 30
+    },
+    "api/create-email-templates.js": {
+      "maxDuration": 30
+    },
+    "api/setup-agent.js": {
+      "maxDuration": 120
     }
   }
 }
