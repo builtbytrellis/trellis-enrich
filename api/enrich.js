@@ -272,7 +272,7 @@ Return ONLY this JSON — no markdown:
     }
 
     // Override age tag using actual birthday if available
-    const birthdayRaw = result.birthday || contact?.birthday || null;
+    const birthdayRaw = result.birthday || null;
     if (birthdayRaw) {
       try {
         const bDate = new Date(birthdayRaw);
