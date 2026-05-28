@@ -30,6 +30,9 @@
     },
     "api/manual-corrections.js": {
       "maxDuration": 30
+    },
+    "api/replicate-action-plans.js": {
+      "maxDuration": 60
     }
   }
 }
