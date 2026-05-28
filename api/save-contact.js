@@ -8,12 +8,37 @@ function normalizeName(name) {
 
 // Check if two names are the same person
 // Requires both first and last token to match
+const SAVE_NICKNAMES = {
+  'maddy':['madison'],'madison':['maddy'],'jon':['jonathan'],'jonathan':['jon'],
+  'mike':['michael'],'michael':['mike'],'dave':['david'],'david':['dave'],
+  'matt':['matthew'],'matthew':['matt'],'ben':['benjamin'],'benjamin':['ben'],
+  'chris':['christopher'],'christopher':['chris'],'jake':['jacob'],'jacob':['jake'],
+  'josh':['joshua'],'joshua':['josh'],'zach':['zachary'],'zachary':['zach'],
+  'ally':['allison'],'allison':['ally'],'jen':['jennifer'],'jennifer':['jen'],
+  'jess':['jessica'],'jessica':['jess'],'kate':['katherine'],'katherine':['kate'],
+  'sam':['samuel','samantha'],'samuel':['sam'],'samantha':['sam'],
+  'dan':['daniel'],'daniel':['dan'],'alex':['alexander','alexandra'],'alexander':['alex'],
+  'rob':['robert'],'robert':['rob'],'will':['william'],'william':['will'],
+  'steph':['stephanie'],'stephanie':['steph'],'abby':['abigail'],'abigail':['abby'],
+  'becca':['rebecca'],'rebecca':['becca'],'nat':['natalie'],'natalie':['nat'],
+  'dani':['danielle'],'danielle':['dani'],'syd':['sydney'],'sydney':['syd'],
+  'tom':['thomas'],'thomas':['tom'],'nick':['nicholas'],'nicholas':['nick'],
+};
+
+function getNicksSC(name) { return [name, ...(SAVE_NICKNAMES[name] || [])]; }
+
 function namesMatch(a, b) {
   const na = normalizeName(a).split(' ').filter(t => t.length >= 2);
   const nb = normalizeName(b).split(' ').filter(t => t.length >= 2);
   if (!na.length || !nb.length) return false;
-  // Both first and last token must match
-  return na[0] === nb[0] && na[na.length - 1] === nb[nb.length - 1];
+  const aFirst = na[0], aLast = na[na.length - 1];
+  const bFirst = nb[0], bLast = nb[nb.length - 1];
+  // Last name must match exactly
+  if (aLast !== bLast) return false;
+  // First name: exact OR nickname match only — NO prefix matching
+  if (aFirst === bFirst) return true;
+  if (getNicksSC(aFirst).includes(bFirst) || getNicksSC(bFirst).includes(aFirst)) return true;
+  return false;
 }
 
 // Deep merge — new values only fill in if existing value is empty/null
