@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
 const { Redis } = require('@upstash/redis');
+const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
 const { verifySession } = require('./auth');
 
 async function resolveFubKey(session, targetAgentId, sidebarKey) {
@@ -274,7 +275,33 @@ module.exports = async (req, res) => {
       outcome.steps.push({ step: 'address_update_skipped', reason: 'no FUB person matched — deal created unlinked. Manually link in FUB.' });
     }
 
-    // 5) Home anniversary reminders — 10 years
+    // 5) Auto-tag contact — Past Client + Street + Area
+    if (fubPerson?.id) {
+      try {
+        const personRes = await fubFetch(`/people/${fubPerson.id}`, 'GET', headers);
+        const existingTags = (personRes.body?.tags || []).map(t => typeof t === 'string' ? t : (t.name || ''));
+        const newTags = [...existingTags];
+        let tagsChanged = false;
+
+        // Past Client
+        if (!newTags.includes('Past Client')) { newTags.push('Past Client'); tagsChanged = true; }
+
+        // Street tag
+        const streetTag = getStreetFromAddress(trade.property_address);
+        if (streetTag && !newTags.includes(streetTag)) { newTags.push(streetTag); tagsChanged = true; }
+
+        // Area tag
+        const areaTag = getAreaFromAddress(trade.property_address);
+        if (areaTag && !newTags.includes(areaTag)) { newTags.push(areaTag); tagsChanged = true; }
+
+        if (tagsChanged) {
+          const tagRes = await fubFetch(`/people/${fubPerson.id}`, 'PUT', headers, { tags: newTags });
+          outcome.steps.push({ step: 'auto_tag', ok: tagRes.ok, tags_added: newTags.filter(t => !existingTags.includes(t)) });
+        }
+      } catch(e) { outcome.steps.push({ step: 'auto_tag', ok: false, error: e.message }); }
+    }
+
+    // 6) Home anniversary reminders — 10 years
     if (fubPerson?.id && trade.close_date) {
       const [yStr, mStr, dStr] = trade.close_date.split('-');
       const baseYear = parseInt(yStr);
