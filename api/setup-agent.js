@@ -225,7 +225,7 @@ module.exports = async (req, res) => {
 
   try {
     const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
-    const raw = await redis.get(`agent:${agentId}`);
+    const raw = await redis.get(`agent:id:${agentId}`);
     if (!raw) return res.status(404).json({ error: `Agent ${agentId} not found in Redis` });
 
     const agent = typeof raw === 'string' ? JSON.parse(raw) : raw;
