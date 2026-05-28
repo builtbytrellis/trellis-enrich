@@ -78,13 +78,22 @@ module.exports = async (req, res) => {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Build background text
-    const backgroundParts = [];
-    if (contact.job_title && contact.company) backgroundParts.push(`Works at ${contact.company} as ${contact.job_title}`);
-    else if (contact.job_title) backgroundParts.push(`Occupation: ${contact.job_title}`);
-    else if (contact.company) backgroundParts.push(`Company: ${contact.company}`);
-    if (contact.notes) backgroundParts.push(contact.notes);
-    const newDescription = backgroundParts.join('\n') || null;
+    // Build structured background block — job/company always first, clean format
+    const structuredLines = [];
+    if (contact.job_title && contact.company) {
+      structuredLines.push(`${contact.job_title} at ${contact.company}`);
+    } else if (contact.job_title && contact.job_title !== 'unknown') {
+      structuredLines.push(contact.job_title);
+    } else if (contact.company && contact.company !== 'unknown') {
+      structuredLines.push(contact.company);
+    }
+    if (contact.birthday) structuredLines.push(`Birthday: ${contact.birthday}`);
+    if (contact.spouse_name) structuredLines.push(`Spouse: ${contact.spouse_name}`);
+    const structuredBlock = structuredLines.join('\n');
+
+    // Notes go below the structured block, separated clearly
+    const notesBlock = (contact.notes && contact.notes !== 'unknown') ? contact.notes : null;
+    const newDescription = [structuredBlock, notesBlock].filter(Boolean).join('\n\n') || null;
 
     let existingId = contact.fub_data?.fub_id;
     let payload = {};
@@ -130,11 +139,18 @@ module.exports = async (req, res) => {
 
       // Background/description — append new info if not already present
       const existingDesc = existing?.background || '';
-      if (newDescription && !existingDesc.includes(newDescription.split('\n')[0])) {
-        // Append BELOW existing notes — never overwrite Lorry's custom notes
-        payload.background = existingDesc
-          ? `${existingDesc}\n\n--- Trellis ---\n${newDescription}`
-          : newDescription;
+      if (structuredBlock) {
+        // Always update the structured block (job/company/birthday) at top
+        // Keep any existing custom notes Lorry wrote below
+        // Strip old Trellis structured blocks first
+        const stripped = existingDesc
+          .replace(/--- Trellis ---[\s\S]*?(?=\n\n|$)/g, '')
+          .replace(/^(Occupation:|Works at |Birthday:|Spouse:)[^\n]*\n?/gm, '')
+          .trim();
+        const newBg = [structuredBlock, stripped].filter(Boolean).join('\n\n');
+        if (newBg !== existingDesc) payload.background = newBg;
+      } else if (notesBlock && !existingDesc.includes(notesBlock)) {
+        payload.background = existingDesc ? `${existingDesc}\n\n${notesBlock}` : notesBlock;
       }
 
       // Tags — merge, don't overwrite. Add only tags not already on contact.
@@ -173,7 +189,7 @@ module.exports = async (req, res) => {
       if (contact.email) payload.emails = [{ value: contact.email, type: 'home' }];
       if (contact.phone) payload.phones = [{ value: contact.phone, type: 'mobile' }];
       if (contact.stage) payload.stage = contact.stage;
-      if (newDescription) payload.background = newDescription;
+      if (structuredBlock || notesBlock) payload.background = newDescription;
       if (approvedTags.length) payload.tags = approvedTags;
 
       if (contact.birthday) payload.customBirthday = contact.birthday;
