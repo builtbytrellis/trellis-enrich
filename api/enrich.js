@@ -1,9 +1,8 @@
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
 
-const FUB_TAGS = ["Relationship: A++","Relationship: A+","Relationship: A","Relationship: B","Relationship: C","Relationship: Past Client","Relationship: Referral Source","Relationship: Super Referrer","Relationship: VIP","Relationship: Sphere","Client: Buyer","Client: Seller","Client: Investor","Client: Landlord","Client: Tenant","Life Stage: Young Professional","Life Stage: Young Family","Life Stage: Growing Family","Life Stage: Established Family","Life Stage: Empty Nester","Life Stage: Investor Profile","Timeline: Now","Timeline: 3-6 Months","Timeline: 6-12 Months","Timeline: 12+ Months","Engagement: Active","Engagement: Nurture","Engagement: Cold","Engagement: Do Not Contact","Comms: Text","Comms: Email","Comms: Call","Source: Open House","Source: Referral","Source: Social","Source: Past Client","Source: Cold","Type: Past Client","Type: Referral Source","Type: Super Referrer","Type: VIP","Type: Sphere","Client: Buyer","Client: Seller","Client: Investor","Client: Landlord","Client: Tenant","Buyer: Inquiry","Buyer: Pre-Approved","Buyer: Active","Buyer: Offer Stage","Buyer: Under Contract","Buyer: Closed","Seller: Thinking","Seller: Preparing","Seller: Interviewing","Seller: Ready","Seller: Listed","Seller: Sold","Opportunity: Upsizer","Opportunity: Downsizer","Opportunity: First-Time Buyer","Opportunity: Relocation","Opportunity: Mortgage Renewal","Opportunity: Likely Seller","Opportunity: Likely Buyer","Owner: Primary Residence","Owner: Investment Property","Owner: Rental Property","Owner: Multiple Properties","Property: Detached","Property: Semi-Detached","Property: Condo","Property: Townhouse","Property: Freehold","Property: Bungalow","Property: 3 Storey","Family: No Kids","Family: Kids Under 5","Family: Kids 5-10","Family: Kids Teens","Family: Expecting","Family: Empty Nester","Owned Since: Pre-2010","Owned Since: 2010-2015","Owned Since: 2016-2020","Owned Since: 2021-2023","Owned Since: 2024+","Signal: High Equity","Signal: Would Sell If Right Price","Signal: Would Sell Exclusive","Signal: Street Turnover","Lifestyle: Golfer","Lifestyle: Cottage Owner","Lifestyle: Foodie","Lifestyle: Loves Travel","Lifestyle: Fitness Focused","Lifestyle: Design Oriented","Profession: Finance","Profession: Healthcare","Profession: Legal","Profession: Tech","Profession: Education","Profession: Trades","Profession: Business Owner","Profession: Real Estate Agent","Profession: Mortgage Broker","Age: 20s","Age: 30s","Age: 40s","Age: 50s","Age: 60+"];
+const FUB_TAGS_SET = new Set( ["A Client","A+ Client","B Client","C Client","D Client","Buyer","Seller","Likely Buyer","Likely Seller","First Time Buyer","Pre-Approved","Past Client","Nurture","Timeline: Now","Timeline: 3-6 Months","Timeline: 6-12 Months","Timeline: 12+ Months","Profession: Finance","Profession: Legal","Profession: Marketing","Profession: Tech","Profession: Health","Profession: Business Owner","Profession: Real Estate Agent","Profession: Commercial Real Estate","Profession: Unknown","Profession: Charity/Non-Profit","Age: 20s","Age: 30s","Age: 40s","Age: 50s","Age: 60+","Life Stage: Young Professional","Empty Nesters","Kids Under 10","Homeowner","Condo Owner","Cottage Owner","Investment Owner","Commercial Owner","High Equity Owner","Open To Reno","Would Buy For Right Price","Downsizer","Upsizer","Sphere","Has Referred","Lifestyle: Golfer","Lifestyle: Foodie","Lifestyle: Loves Travel","Lifestyle: Fitness Focused","Lifestyle: Cottage","Not Enriched","Ghosted"]);
 
-const FUB_TAGS_SET = new Set(FUB_TAGS);
 
 async function searchFUB(name, fubApiKey) {
   if (!fubApiKey) return null;
@@ -300,6 +299,7 @@ Return ONLY this JSON — no markdown:
     // ── Auto-attach existing FINTRAC + trade data from Redis ──
     try {
       const { Redis } = require('@upstash/redis');
+const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
       const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
 
       function normName(n) { return (n||'').toLowerCase().replace(/\s+/g,' ').trim(); }
@@ -348,16 +348,34 @@ Return ONLY this JSON — no markdown:
         }
         if (matchedTrades.length) {
           result.trade_history = matchedTrades;
-          // Add Past Client tag if not already there
-          if (!result.suggested_tags.find(t => t.tag === 'Relationship: Past Client')) {
-            result.suggested_tags.push({ tag: 'Relationship: Past Client', confidence: 'high', reason: `Found ${matchedTrades.length} deal(s) in Past Trades` });
+          // Past Client tag
+          if (!result.suggested_tags.find(t => t.tag === 'Past Client')) {
+            result.suggested_tags.push({ tag: 'Past Client', confidence: 'high', reason: `Found ${matchedTrades.length} deal(s) in Past Trades` });
           }
-          // Add buyer/seller tag based on most recent trade
+          // Buyer/seller tag based on most recent trade
           const latest = matchedTrades[0];
-          if (latest.side === 'buyer' && !result.suggested_tags.find(t => t.tag === 'Client: Buyer')) {
-            result.suggested_tags.push({ tag: 'Client: Buyer', confidence: 'high', reason: `Purchased ${latest.address}` });
-          } else if (latest.side === 'seller' && !result.suggested_tags.find(t => t.tag === 'Client: Seller')) {
-            result.suggested_tags.push({ tag: 'Client: Seller', confidence: 'high', reason: `Sold ${latest.address}` });
+          if (latest.side === 'buyer' && !result.suggested_tags.find(t => t.tag === 'Buyer')) {
+            result.suggested_tags.push({ tag: 'Buyer', confidence: 'high', reason: `Purchased ${latest.address}` });
+          } else if (latest.side === 'seller' && !result.suggested_tags.find(t => t.tag === 'Seller')) {
+            result.suggested_tags.push({ tag: 'Seller', confidence: 'high', reason: `Sold ${latest.address}` });
+          }
+          // Street + Area tags for each trade address
+          const addedStreets = new Set();
+          const addedAreas = new Set();
+          for (const trade of matchedTrades) {
+            if (!trade.address) continue;
+            const streetTag = getStreetFromAddress(trade.address);
+            const areaTag = getAreaFromAddress(trade.address);
+            if (streetTag && !addedStreets.has(streetTag)) {
+              addedStreets.add(streetTag);
+              result.suggested_tags.push({ tag: streetTag, confidence: 'high', reason: `Property: ${trade.address}` });
+            }
+            if (areaTag && !addedAreas.has(areaTag)) {
+              addedAreas.add(areaTag);
+              if (!result.suggested_tags.find(t => t.tag === areaTag)) {
+                result.suggested_tags.push({ tag: areaTag, confidence: 'high', reason: `Neighbourhood of ${trade.address}` });
+              }
+            }
           }
         }
       }
