@@ -235,6 +235,37 @@ Return ONLY this JSON — no markdown:
 
     const result = JSON.parse(response.choices[0].message.content);
 
+    // ── Priority override: FUB social/LinkedIn data beats web search guesses ──
+    // FUB already pulled LinkedIn/Google data — use it as ground truth
+    if (fubContact?.socialData?.title && (!result.job_title || result.job_title === 'unknown')) {
+      result.job_title = fubContact.socialData.title;
+    }
+    if (fubContact?.socialData?.company && (!result.company || result.company === 'unknown')) {
+      result.company = fubContact.socialData.company;
+    }
+    // Also pull from FUB background field — parse "Works at X as Y" or "Occupation: X"
+    const bg = fubContact?.background || '';
+    if (bg) {
+      const worksAt = bg.match(/Works at (.+?) as (.+)/i);
+      const occupation = bg.match(/Occupation: (.+)/i);
+      if (worksAt) {
+        if (!result.company || result.company === 'unknown') result.company = worksAt[1].trim();
+        if (!result.job_title || result.job_title === 'unknown') result.job_title = worksAt[2].split('\n')[0].trim();
+      } else if (occupation) {
+        if (!result.job_title || result.job_title === 'unknown') result.job_title = occupation[1].split('\n')[0].trim();
+      }
+      // Also check for "Director, Investments at Harbour Equity" format
+      const atFormat = bg.match(/^([^\n]+?) at ([^\n]+)/i);
+      if (atFormat && (!result.job_title || result.job_title === 'unknown')) {
+        result.job_title = atFormat[1].trim();
+        result.company = atFormat[2].trim();
+      }
+    }
+    // FUB native jobTitle field (some accounts have it)
+    if (fubContact?.jobTitle && (!result.job_title || result.job_title === 'unknown')) {
+      result.job_title = fubContact.jobTitle;
+    }
+
     // Server-side filter: strip tags not in approved list
     if (result.suggested_tags) {
       result.suggested_tags = result.suggested_tags.filter(t => FUB_TAGS_SET.has(t.tag));
