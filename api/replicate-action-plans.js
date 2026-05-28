@@ -48,7 +48,10 @@ module.exports = async (req, res) => {
   try {
     // 1. Get all action plans from source (Lorry)
     const sourcePlans = await fubGet('/actionPlans?limit=100', sourceKey);
-    const plans = sourcePlans.actionPlans || [];
+    const allPlans = sourcePlans.actionPlans || [];
+    // Only replicate plans created by the agent (createdById > 0), not FUB system plans (createdById: -1)
+    const plans = allPlans.filter(p => p.createdById > 0);
+    console.log(`Replicating ${plans.length} of ${allPlans.length} plans (skipping ${allPlans.length - plans.length} system/imported plans)`);
     
     // 2. Get each plan's full steps
     const results = [];
