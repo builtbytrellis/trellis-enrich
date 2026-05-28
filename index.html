@@ -725,7 +725,7 @@ async function setupAgent(agentId, agentName) {
     if (!res2.ok) throw new Error(data2.error);
 
     const s = data2.summary;
-    alert(`✓ ${agentName} is set up!\n\nAction plans: ${s.actionPlans.created} created\nLease plans: ${s.leasePlans.created} created\nEmail templates: ${s.emailTemplates.created} created` +
+    alert(`✓ ${agentName} is set up!\n\nAction plans: ${s.actionPlans.created} created, ${s.actionPlans.skipped} skipped\nLease plans: ${s.leasePlans.created} created, ${s.leasePlans.skipped} skipped\nEmail templates: ${s.emailTemplates.created} created, ${s.emailTemplates.skipped} skipped` +
       (s.actionPlans.failed + s.leasePlans.failed + s.emailTemplates.failed > 0 ? `\n\n✗ Some failed — check Vercel logs` : ''));
 
     if (btn) { btn.disabled = false; btn.textContent = 'Setup Agent (Plans + Templates)'; }
