@@ -139,6 +139,15 @@ module.exports = async (req, res) => {
   const agentId = (session.role === 'admin' && targetAgentId) ? targetAgentId : session.agentId;
 
   try {
+    // Debug mode
+    if (req.body.debug) {
+      const lines = csvText.trim().split('\n').filter(l => l.trim());
+      const rawHeaders = lines[0];
+      const firstRow = lines[1] || '';
+      const trades_preview = parseCSV(csvText).slice(0, 3);
+      return res.status(200).json({ debug: true, rawHeaders, firstRow, trades_preview });
+    }
+
     const trades = parseCSV(csvText);
     if (!trades.length) return res.status(400).json({ error: 'No valid rows found in CSV' });
 
