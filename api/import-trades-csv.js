@@ -40,83 +40,39 @@ function parseCSV(text) {
   const lines = text.trim().split('\n').filter(l => l.trim());
   if (lines.length < 2) return [];
 
-  const rawHeaders = parseLine(lines[0]);
-  const headers = rawHeaders.map(h => h.toLowerCase().replace(/[^a-z0-9]/g, '_'));
-
-  function findCol(...patterns) {
-    for (const p of patterns) {
-      const idx = headers.findIndex(h => h.includes(p));
-      if (idx >= 0) return idx;
-    }
-    return -1;
-  }
-
-  const cols = {
-    address:     findCol('address', 'property'),
-    buyer_name:  findCol('buyer_name', 'buyer'),
-    seller_name: findCol('seller_name', 'seller'),
-    close_date:  findCol('clos', 'close', 'closing'),
-    sale_price:  findCol('price', 'sale'),
-    type:        findCol('transaction_type', 'type', 'class', 'side'),
-  };
-
   const trades = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const c = parseLine(lines[i]);
-    const get = (idx) => idx >= 0 ? (c[idx] || '') : '';
+    // Parse CSV line handling quoted fields
+    const cols = [];
+    let cur = '', inQ = false;
+    const line = lines[i];
+    for (let j = 0; j < line.length; j++) {
+      if (line[j] === '"') { inQ = !inQ; }
+      else if (line[j] === ',' && !inQ) { cols.push(cur.trim().replace(/^"|"$/g, '')); cur = ''; }
+      else { cur += line[j]; }
+    }
+    cols.push(cur.trim().replace(/^"|"$/g, ''));
 
-    const address      = get(cols.address);
-    const buyer_name   = get(cols.buyer_name);
-    const seller_name  = get(cols.seller_name);
-    const close_date   = parseDate(get(cols.close_date));
-    const sale_price   = get(cols.sale_price);
-    const type_raw     = get(cols.type);
+    // Positional mapping — exactly as described:
+    // 0=address, 1=buyer_name, 2=seller_name, 3=closing_date, 4=sale_price, 5=transaction_type
+    const address      = (cols[0] || '').trim();
+    const buyer_name   = (cols[1] || '').trim();
+    const seller_name  = (cols[2] || '').trim();
+    const close_date   = parseDate((cols[3] || '').trim());
+    const sale_price   = (cols[4] || '').trim();
+    const type_raw     = (cols[5] || '').trim();
     const side         = getSide(type_raw);
 
     if (!address) continue;
 
     if (side === 'both') {
-      // Double-ended: create TWO records — buyer side and seller side
-      trades.push({
-        property_address: address,
-        client_name:      buyer_name,
-        agent_side:       'buyer',
-        transaction_type: type_raw,
-        close_date,
-        sale_price,
-        buyer_name,
-        seller_name,
-        double_ended:     true,
-        source:           'csv_import',
-      });
-      trades.push({
-        property_address: address,
-        client_name:      seller_name,
-        agent_side:       'seller',
-        transaction_type: type_raw,
-        close_date,
-        sale_price,
-        buyer_name,
-        seller_name,
-        double_ended:     true,
-        source:           'csv_import',
-      });
+      // Double-ended: two records
+      trades.push({ property_address: address, client_name: buyer_name, agent_side: 'buyer', transaction_type: type_raw, close_date, sale_price, buyer_name, seller_name, double_ended: true, source: 'csv_import' });
+      trades.push({ property_address: address, client_name: seller_name, agent_side: 'seller', transaction_type: type_raw, close_date, sale_price, buyer_name, seller_name, double_ended: true, source: 'csv_import' });
     } else {
-      // Single side — pick the right client name
       const client_name = side === 'seller' ? seller_name : buyer_name;
-      trades.push({
-        property_address: address,
-        client_name,
-        agent_side:       side,
-        transaction_type: type_raw,
-        close_date,
-        sale_price,
-        buyer_name,
-        seller_name,
-        double_ended:     false,
-        source:           'csv_import',
-      });
+      trades.push({ property_address: address, client_name, agent_side: side, transaction_type: type_raw, close_date, sale_price, buyer_name, seller_name, double_ended: false, source: 'csv_import' });
     }
   }
 
