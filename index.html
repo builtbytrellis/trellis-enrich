@@ -615,6 +615,7 @@ async function loadAdminPanel() {
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
               <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}')" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
+              <button class="btn btn-outline btn-sm" onclick="showAutomationsGuide('${a.agentId}','${a.name}')" style="color:#8e44ad;border-color:rgba(142,68,173,.3)">Automation Setup Guide</button>
               <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin trades here</button>
               <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}')">Update FUB key</button>
               <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
@@ -702,6 +703,42 @@ async function createTenantPlans() {
   } catch(e) { alert('Failed: ' + e.message); }
 }
 
+const AUTOMATIONS = [
+  { trigger: "Stage changes to Pre-Listing",         action: "Start action plan",  plan: "Seller - PRE-Listing - Freehold",     note: "For freehold sellers" },
+  { trigger: "Stage changes to Pre-Listing",         action: "Start action plan",  plan: "Seller - PRE-Listing - Condo",        note: "For condo sellers — create a separate automation with property type filter if available, otherwise duplicate and rename" },
+  { trigger: "Stage changes to Conditional Buyer",   action: "Start action plan",  plan: "Buyer - Conditional (Freehold)",      note: "For freehold buyers" },
+  { trigger: "Stage changes to Conditional Buyer",   action: "Start action plan",  plan: "Buyer - Conditional (Condo)",         note: "For condo buyers" },
+  { trigger: "Stage changes to Conditional Listing", action: "Start action plan",  plan: "Seller - Conditional - Freehold",     note: "For freehold sellers" },
+  { trigger: "Stage changes to Conditional Listing", action: "Start action plan",  plan: "Seller - Conditional - Condo",        note: "For condo sellers" },
+  { trigger: "Stage changes to Firm Buyer",          action: "Start action plan",  plan: "Buyer - Firm (Freehold)",             note: "For freehold buyers" },
+  { trigger: "Stage changes to Firm Listing",        action: "Start action plan",  plan: "Seller - Firm - Freehold",            note: "For freehold sellers" },
+  { trigger: "Stage changes to Closing",             action: "Start action plan",  plan: "Seller - Closing - Freehold",         note: "For freehold sellers" },
+  { trigger: "Stage changes to Closing",             action: "Start action plan",  plan: "Seller - Closing - Condo",            note: "For condo sellers" },
+  { trigger: "Stage changes to Conditional Buyer",   action: "Start action plan",  plan: "Tenant - Conditional",               note: "Tenant leases only" },
+  { trigger: "Stage changes to Conditional Listing", action: "Start action plan",  plan: "Landlord - Conditional",             note: "Landlord leases only" },
+  { trigger: "Stage changes to Closed",              action: "Start action plan",  plan: "12 Month Nurturing Plan",            note: "All closed deals" },
+  { trigger: "New lead is created",                  action: "Start action plan",  plan: "12 Month Nurturing Plan",            note: "New leads without a specific stage" },
+  { trigger: "Stage changes to Live Listing",        action: "Start action plan",  plan: "Seller - LIVE-Listing - Freehold",   note: "When listing goes live on MLS" },
+];
+
+function showAutomationsGuide(agentId, agentName) {
+  const list = document.getElementById('automation-list');
+  list.innerHTML = AUTOMATIONS.map((a, i) => `
+    <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start">
+      <div style="min-width:24px;height:24px;background:rgba(142,68,173,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#8e44ad">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap">
+          <span style="background:rgba(52,152,219,.12);color:#2980b9;padding:2px 8px;border-radius:4px;font-size:12px">WHEN: ${a.trigger}</span>
+          <span style="background:rgba(39,174,96,.12);color:#27ae60;padding:2px 8px;border-radius:4px;font-size:12px">THEN: ${a.action}</span>
+        </div>
+        <div style="font-weight:600;font-size:13px">${a.plan}</div>
+        ${a.note ? `<div style="font-size:12px;color:var(--ink-muted);margin-top:3px">${a.note}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('automations-modal').style.display = 'block';
+}
+
 async function setupAgent(agentId, agentName) {
   try {
     // Dry run first
@@ -726,7 +763,7 @@ async function setupAgent(agentId, agentName) {
 
     const s = data2.summary;
     alert(`✓ ${agentName} is set up!\n\nAction plans: ${s.actionPlans.created} created, ${s.actionPlans.skipped} skipped\nLease plans: ${s.leasePlans.created} created, ${s.leasePlans.skipped} skipped\nEmail templates: ${s.emailTemplates.created} created, ${s.emailTemplates.skipped} skipped` +
-      (s.actionPlans.failed + s.leasePlans.failed + s.emailTemplates.failed > 0 ? `\n\n✗ Some failed — check Vercel logs` : ''));
+      (s.actionPlans.failed + s.leasePlans.failed + s.emailTemplates.failed > 0 ? `\n\n✗ Some failed — check Vercel logs` : '') + `\n\nNext: click Automation Setup Guide to configure FUB automations.`);
 
     if (btn) { btn.disabled = false; btn.textContent = 'Setup Agent (Plans + Templates)'; }
   } catch(e) {
@@ -2435,5 +2472,28 @@ window.addEventListener('load', async function() {
   await checkExistingSession();
 });
 </script>
+
+<!-- Automations Setup Modal -->
+<div id="automations-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;overflow-y:auto">
+  <div style="max-width:680px;margin:40px auto;background:var(--surface);border-radius:16px;padding:32px;border:1px solid var(--border)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <div style="font-size:18px;font-weight:700">FUB Automation Setup</div>
+        <div style="font-size:13px;color:var(--ink-muted);margin-top:4px">Complete these steps in Follow Up Boss → Settings → Automations</div>
+      </div>
+      <button onclick="document.getElementById('automations-modal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--ink-muted)">×</button>
+    </div>
+
+    <div style="background:rgba(39,174,96,.08);border:1px solid rgba(39,174,96,.2);border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px">
+      <strong>How to create each automation:</strong> FUB → Settings → Automations → New Automation → set trigger and action as listed below
+    </div>
+
+    <div id="automation-list" style="display:flex;flex-direction:column;gap:12px"></div>
+
+    <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);font-size:13px;color:var(--ink-muted)">
+      These automations need to be created manually — FUB does not expose an automations API.
+    </div>
+  </div>
+</div>
 </body>
 </html>
