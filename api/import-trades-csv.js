@@ -53,15 +53,27 @@ function parseCSV(text) {
   }
 
   const cols = {
-    address:      findCol('address', 'property', 'trade addr'),
+    address:      findCol('trade address', 'address', 'property'),
     offer_date:   findCol('offer date', 'offer'),
     close_date:   findCol('close date', 'closing', 'close'),
-    class:        findCol('class', 'classification', 'type'),
-    buyer_addr:   findCol('buyer address', 'buyer addr', 'buyer'),
-    seller_addr:  findCol('seller address', 'seller addr', 'seller'),
+    class:        findCol('class', 'classification'),
+    buyer:        findCol('buyer'),
+    seller:       findCol('seller'),
     sides:        findCol('sides'),
     type:         findCol('type'),
   };
+
+  // Extract name from a combined name+address field
+  // Names come before the street number (addresses start with digits)
+  function extractName(raw) {
+    if (!raw) return '';
+    const lines = raw.split(/[\n,]/).map(l => l.trim()).filter(Boolean);
+    // First line before any street number is likely the name
+    for (const line of lines) {
+      if (!/^\d/.test(line)) return line; // doesn't start with a number
+    }
+    return lines[0] || '';
+  }
 
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
@@ -73,6 +85,17 @@ function parseCSV(text) {
     const classCode = get(cols.class).toUpperCase();
     const classInfo = CLASS_MAP[classCode] || { side: 'buyer', type: 'sale', label: classCode };
 
+    const buyerRaw   = get(cols.buyer);
+    const sellerRaw  = get(cols.seller);
+
+    // Pick client name based on which side David repped
+    let clientName = '';
+    if (['buyer', 'both', 'referral'].includes(classInfo.side)) {
+      clientName = extractName(buyerRaw);
+    } else if (classInfo.side === 'seller') {
+      clientName = extractName(sellerRaw);
+    }
+
     rows.push({
       property_address: get(cols.address),
       offer_date:       parseDate(get(cols.offer_date)),
@@ -81,8 +104,9 @@ function parseCSV(text) {
       transaction_type: classInfo.type,
       class_code:       classCode,
       class_label:      classInfo.label,
-      buyer_address:    get(cols.buyer_addr),
-      seller_address:   get(cols.seller_addr),
+      client_name:      clientName,
+      buyer_info:       buyerRaw,
+      seller_info:      sellerRaw,
       sides:            get(cols.sides),
       source:           'csv_import',
     });
