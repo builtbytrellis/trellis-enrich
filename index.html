@@ -425,6 +425,9 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
           <button onclick="clearAllTrades()" style="background:none;border:1px solid rgba(192,57,43,.3);color:var(--red);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">
             🗑 Clear All Trades
           </button>
+          <button onclick="debugTradeCSV()" style="background:none;border:1px solid rgba(52,152,219,.3);color:#3498db;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">
+            🔍 Debug CSV
+          </button>
           <div style="font-size:32px;margin-bottom:8px">🏠</div>
           <p>Drop APS PDFs here or click to browse</p>
           <small>Accepts multiple files</small>
@@ -2067,6 +2070,27 @@ async function applyAllFintracToContacts(ev) {
 }
 
 // ── Past Trades ────────────────────────────────────────────────────────
+async function debugTradeCSV() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.csv';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const csvText = await file.text();
+    const body = { csvText, debug: true };
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    const res = await fetch('/api/import-trades-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    alert('HEADERS:\n' + data.rawHeaders + '\n\nFIRST ROW:\n' + data.firstRow + '\n\nPARSED PREVIEW:\n' + JSON.stringify(data.trades_preview, null, 2).slice(0, 800));
+  };
+  input.click();
+}
+
 async function clearAllTrades() {
   if (!confirm('Delete all trades for this account? This cannot be undone.')) return;
   try {
