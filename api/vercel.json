@@ -45,6 +45,9 @@
     },
     "api/import-trades-csv.js": {
       "maxDuration": 30
+    },
+    "api/clear-trades.js": {
+      "maxDuration": 30
     }
   }
 }
