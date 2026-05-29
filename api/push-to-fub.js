@@ -225,7 +225,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ success: true, fubId: contactId, action: 'created', tags_applied: approvedTags.length });
     }
 
-    const tagsApplied = payload.tags ? (payload.tags.length - (existing?.tags||[]).length) : 0;
+    const tagsApplied = payload.tags ? payload.tags.length : 0;
     return res.status(200).json({ success: true, fubId: existingId, action, tags_applied: tagsApplied });
 
   } catch (err) {
