@@ -422,6 +422,9 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
             <input type="file" accept=".csv" style="display:none" onchange="handleTradeCSV(event)"/>
             📋 Upload Trade CSV
           </label>
+          <button onclick="clearAllTrades()" style="background:none;border:1px solid rgba(192,57,43,.3);color:var(--red);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">
+            🗑 Clear All Trades
+          </label>
           <div style="font-size:32px;margin-bottom:8px">🏠</div>
           <p>Drop APS PDFs here or click to browse</p>
           <small>Accepts multiple files</small>
@@ -2064,6 +2067,24 @@ async function applyAllFintracToContacts(ev) {
 }
 
 // ── Past Trades ────────────────────────────────────────────────────────
+async function clearAllTrades() {
+  if (!confirm('Delete all trades for this account? This cannot be undone.')) return;
+  try {
+    const body = {};
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    const res = await fetch('/api/clear-trades', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    tradeResults = [];
+    renderTradeResults();
+    alert(`✓ ${data.deleted} trades deleted.`);
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
 async function handleTradeCSV(e) {
   const file = e.target?.files?.[0];
   if (!file) return;
