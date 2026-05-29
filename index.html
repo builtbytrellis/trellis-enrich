@@ -418,6 +418,10 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <p style="font-size:13px;color:var(--ink-muted);margin-bottom:16px">Drop merged APS PDFs. We'll extract buyers, sellers, property, sale price, deposit, closing date, and commission.</p>
         <div class="drop-zone" id="trade-drop" onclick="document.getElementById('trade-inp').click()" style="padding:32px">
           <input type="file" id="trade-inp" accept=".pdf" multiple style="display:none" onchange="handleTradeFiles(event)"/>
+          <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:var(--green);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-left:8px">
+            <input type="file" accept=".csv" style="display:none" onchange="handleTradeCSV(event)"/>
+            📋 Upload Trade CSV
+          </label>
           <div style="font-size:32px;margin-bottom:8px">🏠</div>
           <p>Drop APS PDFs here or click to browse</p>
           <small>Accepts multiple files</small>
@@ -615,7 +619,6 @@ async function loadAdminPanel() {
             ${a.agentId !== 'admin_trellis' ? `
               <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
               <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}')" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
-              <button class="btn btn-outline btn-sm" onclick="showAutomationsGuide('${a.agentId}','${a.name}')" style="color:#8e44ad;border-color:rgba(142,68,173,.3)">Automation Setup Guide</button>
               <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin trades here</button>
               <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}')">Update FUB key</button>
               <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
@@ -703,42 +706,6 @@ async function createTenantPlans() {
   } catch(e) { alert('Failed: ' + e.message); }
 }
 
-const AUTOMATIONS = [
-  { trigger: "Stage changes to Pre-Listing",         action: "Start action plan",  plan: "Seller - PRE-Listing - Freehold",     note: "For freehold sellers" },
-  { trigger: "Stage changes to Pre-Listing",         action: "Start action plan",  plan: "Seller - PRE-Listing - Condo",        note: "For condo sellers — create a separate automation with property type filter if available, otherwise duplicate and rename" },
-  { trigger: "Stage changes to Conditional Buyer",   action: "Start action plan",  plan: "Buyer - Conditional (Freehold)",      note: "For freehold buyers" },
-  { trigger: "Stage changes to Conditional Buyer",   action: "Start action plan",  plan: "Buyer - Conditional (Condo)",         note: "For condo buyers" },
-  { trigger: "Stage changes to Conditional Listing", action: "Start action plan",  plan: "Seller - Conditional - Freehold",     note: "For freehold sellers" },
-  { trigger: "Stage changes to Conditional Listing", action: "Start action plan",  plan: "Seller - Conditional - Condo",        note: "For condo sellers" },
-  { trigger: "Stage changes to Firm Buyer",          action: "Start action plan",  plan: "Buyer - Firm (Freehold)",             note: "For freehold buyers" },
-  { trigger: "Stage changes to Firm Listing",        action: "Start action plan",  plan: "Seller - Firm - Freehold",            note: "For freehold sellers" },
-  { trigger: "Stage changes to Closing",             action: "Start action plan",  plan: "Seller - Closing - Freehold",         note: "For freehold sellers" },
-  { trigger: "Stage changes to Closing",             action: "Start action plan",  plan: "Seller - Closing - Condo",            note: "For condo sellers" },
-  { trigger: "Stage changes to Conditional Buyer",   action: "Start action plan",  plan: "Tenant - Conditional",               note: "Tenant leases only" },
-  { trigger: "Stage changes to Conditional Listing", action: "Start action plan",  plan: "Landlord - Conditional",             note: "Landlord leases only" },
-  { trigger: "Stage changes to Closed",              action: "Start action plan",  plan: "12 Month Nurturing Plan",            note: "All closed deals" },
-  { trigger: "New lead is created",                  action: "Start action plan",  plan: "12 Month Nurturing Plan",            note: "New leads without a specific stage" },
-  { trigger: "Stage changes to Live Listing",        action: "Start action plan",  plan: "Seller - LIVE-Listing - Freehold",   note: "When listing goes live on MLS" },
-];
-
-function showAutomationsGuide(agentId, agentName) {
-  const list = document.getElementById('automation-list');
-  list.innerHTML = AUTOMATIONS.map((a, i) => `
-    <div style="background:var(--surface-2);border-radius:8px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start">
-      <div style="min-width:24px;height:24px;background:rgba(142,68,173,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#8e44ad">${i+1}</div>
-      <div style="flex:1">
-        <div style="font-size:13px;margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap">
-          <span style="background:rgba(52,152,219,.12);color:#2980b9;padding:2px 8px;border-radius:4px;font-size:12px">WHEN: ${a.trigger}</span>
-          <span style="background:rgba(39,174,96,.12);color:#27ae60;padding:2px 8px;border-radius:4px;font-size:12px">THEN: ${a.action}</span>
-        </div>
-        <div style="font-weight:600;font-size:13px">${a.plan}</div>
-        ${a.note ? `<div style="font-size:12px;color:var(--ink-muted);margin-top:3px">${a.note}</div>` : ''}
-      </div>
-    </div>
-  `).join('');
-  document.getElementById('automations-modal').style.display = 'block';
-}
-
 async function setupAgent(agentId, agentName) {
   try {
     // Dry run first
@@ -763,7 +730,7 @@ async function setupAgent(agentId, agentName) {
 
     const s = data2.summary;
     alert(`✓ ${agentName} is set up!\n\nAction plans: ${s.actionPlans.created} created, ${s.actionPlans.skipped} skipped\nLease plans: ${s.leasePlans.created} created, ${s.leasePlans.skipped} skipped\nEmail templates: ${s.emailTemplates.created} created, ${s.emailTemplates.skipped} skipped` +
-      (s.actionPlans.failed + s.leasePlans.failed + s.emailTemplates.failed > 0 ? `\n\n✗ Some failed — check Vercel logs` : '') + `\n\nNext: click Automation Setup Guide to configure FUB automations.`);
+      (s.actionPlans.failed + s.leasePlans.failed + s.emailTemplates.failed > 0 ? `\n\n✗ Some failed — check Vercel logs` : ''));
 
     if (btn) { btn.disabled = false; btn.textContent = 'Setup Agent (Plans + Templates)'; }
   } catch(e) {
@@ -2097,6 +2064,39 @@ async function applyAllFintracToContacts(ev) {
 }
 
 // ── Past Trades ────────────────────────────────────────────────────────
+async function handleTradeCSV(e) {
+  const file = e.target?.files?.[0];
+  if (!file) return;
+  const csvText = await file.text();
+  document.getElementById('trade-status').style.display = 'block';
+  document.getElementById('trade-results').style.display = 'none';
+  document.getElementById('trade-progress').textContent = 'Importing CSV...';
+
+  try {
+    const body = { csvText };
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    const res = await fetch('/api/import-trades-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Import failed');
+
+    document.getElementById('trade-progress').textContent =
+      `✓ ${data.imported} trades imported from CSV`;
+
+    // Load saved trades to show results
+    await loadSavedTrades();
+    document.getElementById('trade-results').style.display = 'block';
+  } catch(e) {
+    document.getElementById('trade-progress').textContent = 'Error: ' + e.message;
+    document.getElementById('trade-progress').style.color = 'var(--red)';
+  }
+  // Reset file input
+  e.target.value = '';
+}
+
 async function handleTradeFiles(e) {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
