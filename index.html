@@ -2086,7 +2086,13 @@ async function debugTradeCSV() {
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    alert('HEADERS:\n' + data.rawHeaders + '\n\nFIRST ROW:\n' + data.firstRow + '\n\nPARSED PREVIEW:\n' + JSON.stringify(data.trades_preview, null, 2).slice(0, 800));
+    // Show debug output on page so it's readable
+    document.getElementById('trade-progress').innerHTML =
+      '<strong>RAW HEADERS:</strong><br><code>' + data.rawHeaders + '</code><br><br>' +
+      '<strong>FIRST ROW:</strong><br><code>' + data.firstRow + '</code><br><br>' +
+      '<strong>PARSED (first trade):</strong><br><pre style="font-size:11px;white-space:pre-wrap">' +
+      JSON.stringify(data.trades_preview?.[0], null, 2) + '</pre>';
+    document.getElementById('trade-status').style.display = 'block';
   };
   input.click();
 }
