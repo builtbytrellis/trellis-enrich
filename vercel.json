@@ -57,6 +57,9 @@
     },
     "api/push-to-github.js": {
       "maxDuration": 60
+    },
+    "api/demo-login.js": {
+      "maxDuration": 30
     }
   }
 }
