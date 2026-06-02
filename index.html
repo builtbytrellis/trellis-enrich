@@ -511,8 +511,8 @@ async function doLogin() {
 
 async function checkExistingSession() {
   // Demo mode — auto-login if ?demo=true in URL
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('demo') === 'true') {
+  const demoParams = new URLSearchParams(window.location.search);
+  if (demoParams.get('demo') === 'true') {
     document.getElementById('auth-screen').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px"><div style="font-size:48px">🎬</div><div style="font-size:20px;font-weight:600">Loading Demo...</div></div>';
     try {
       const r = await fetch('/api/demo-login');
