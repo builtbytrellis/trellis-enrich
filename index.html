@@ -1500,6 +1500,44 @@ async function clearPersistentQueue() {
 }
 
 // ── Single enrichment ─────────────────────────────────────────────────
+// Pre-built demo enrichment results for known contacts
+const DEMO_ENRICHMENT = {
+  'gal hirsch': {
+    full_name: 'Gal Hirsch', initials: 'GH',
+    job_title: 'Realtor & Marketing Specialist', company: 'Independent',
+    location: 'Toronto', likely_age_range: '30s',
+    family_signals: null, interests: ['Real estate tech', 'Marketing', 'PropTech'],
+    community_involvement: [], linkedin_url: null,
+    suggested_tags: [
+      { tag: 'Profession: Real Estate Agent', reason: 'Licensed realtor in Toronto', confidence: 'high' },
+      { tag: 'Profession: Marketing', reason: 'Marketing specialist background', confidence: 'high' },
+      { tag: 'Age: 30s', reason: 'Inferred from career stage', confidence: 'medium' },
+      { tag: 'Life Stage: Young Professional', reason: 'Active career, Toronto-based', confidence: 'medium' },
+      { tag: 'Sphere', reason: 'Known contact', confidence: 'high' }
+    ],
+    notes: 'Toronto-based realtor specializing in marketing. Active in real estate technology and innovation. Strong digital marketing background applied to real estate sales.',
+    confidence_overall: 'medium', warning: null,
+    fub_data: null
+  },
+  'dustin seidler': {
+    full_name: 'Dustin Seidler', initials: 'DS',
+    job_title: 'Sales Representative', company: 'Chestnut Park Real Estate',
+    location: 'Toronto — Yorkville', likely_age_range: '30s',
+    family_signals: null, interests: ['Real estate', 'Sports medicine', 'Luxury properties'],
+    community_involvement: ['Former head paramedic, Toronto Raptors & Blue Jays'],
+    linkedin_url: 'https://ca.linkedin.com/in/dustinseidler',
+    suggested_tags: [
+      { tag: 'Profession: Real Estate Agent', reason: 'Sales Rep at Chestnut Park Real Estate', confidence: 'high' },
+      { tag: 'Age: 30s', reason: 'Graduated TMU 2022, career timeline', confidence: 'medium' },
+      { tag: 'Sphere', reason: 'Known contact in Toronto real estate', confidence: 'high' },
+      { tag: 'Has Referred', reason: 'Active in real estate community', confidence: 'medium' }
+    ],
+    notes: 'Realtor at Chestnut Park Real Estate (Christie's International affiliate). Former paramedic — served as head medic for the Toronto Raptors and Blue Jays. Specializes in Yorkville and surrounding neighbourhoods. Bachelor of Health Administration from Toronto Metropolitan University, 2022.',
+    confidence_overall: 'high', warning: null,
+    fub_data: null
+  }
+};
+
 async function enrichSingle() {
   const name = document.getElementById('s-name').value.trim(); if (!name) return;
   const city = document.getElementById('s-city').value.trim();
@@ -1507,6 +1545,14 @@ async function enrichSingle() {
   btn.disabled = true; btn.textContent = 'Searching...';
   document.getElementById('single-result').innerHTML = '<div class="card" style="color:var(--ink-muted);font-size:13px">Searching FUB and enriching...</div>';
   try {
+    // Demo mode intercept — return pre-built data for known contacts
+    if (localStorage.getItem('trellis_demo_mode') === 'true') {
+      const key = name.toLowerCase().trim();
+      if (DEMO_ENRICHMENT[key]) {
+        displayEnrichResult(DEMO_ENRICHMENT[key]);
+        return;
+      }
+    }
     const res = await fetch('/api/enrich', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, city, fubApiKey: getFUBKey(), agentId: impersonating?.agentId || currentUserId }) });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
