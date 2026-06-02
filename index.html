@@ -2647,8 +2647,8 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('load', async function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const dsKey = urlParams.get('ds_key');
+  const loadParams = new URLSearchParams(window.location.search);
+  const dsKey = loadParams.get('ds_key');
   if (dsKey) { sessionStorage.setItem('pending_ds_key', dsKey); window.history.replaceState(null, '', window.location.pathname); }
   await checkExistingSession();
 });
