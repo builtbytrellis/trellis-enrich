@@ -2403,16 +2403,17 @@ function renderTradeResults() {
     const partyName = r.buyer_or_tenant_name;
     const counterpartyName = r.seller_or_landlord_name;
     const buyerMatch = findContactMatch(r.agent_side === 'seller' || r.agent_side === 'landlord' ? r.seller_or_landlord_name : partyName);
-    const dealTypeBadge = r.deal_type === 'sale' ? '🏠 Sale' : r.deal_type === 'lease' ? '🔑 Lease' : r.deal_type === 'lease_renewal' ? '🔄 Lease Renewal' : '❓ Unknown';
+    const dealTypeBadge = r.deal_type === 'sale' ? '🏠 Sale' : r.deal_type === 'lease' ? '🔑 Lease' : r.deal_type === 'lease_renewal' ? '🔄 Lease Renewal' : '📋 Sale';
     const sideLabel = r.agent_side === 'buyer' ? 'Buy side' : r.agent_side === 'seller' ? 'List side' : r.agent_side === 'tenant' ? 'Tenant side' : r.agent_side === 'landlord' ? 'Landlord side' : r.agent_side === 'both' ? 'Double-ended' : '';
+    const clientDisplayName = r.agent_side === 'seller' || r.agent_side === 'landlord' ? r.seller_or_landlord_name : r.buyer_or_tenant_name;
 
     return `
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
         <div style="flex:1">
-          <div style="font-size:11px;color:var(--ink-muted);margin-bottom:2px">${dealTypeBadge}</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px">${clientDisplayName || '—'}</div>
           <div style="font-size:15px;font-weight:500">${r.property_address || 'Address unknown'}</div>
-          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${r.filename}${sideLabel ? ' • ' + sideLabel : ''}</div>
+          <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${dealTypeBadge}${sideLabel ? ' • ' + sideLabel : ''}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
           ${buyerMatch ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ ${buyerMatch.full_name||buyerMatch.name} in contacts</div>` : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
