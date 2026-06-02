@@ -419,15 +419,12 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <div class="drop-zone" id="trade-drop" onclick="document.getElementById('trade-inp').click()" style="padding:32px">
           <input type="file" id="trade-inp" accept=".pdf" multiple style="display:none" onchange="handleTradeFiles(event)"/>
           <label style="cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:rgba(39,174,96,.1);border:1px solid rgba(39,174,96,.3);color:var(--green);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-left:8px">
-            <input type="file" accept=".csv" style="display:none" onchange="handleTradeCSV(event)"/>
+            <input type="file" accept=".csv,.CSV,text/csv" style="display:none" onchange="handleTradeCSV(event)"/>
             📋 Upload Trade CSV
           </label>
           <button onclick="clearAllTrades()" style="background:none;border:1px solid rgba(192,57,43,.3);color:var(--red);padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">
             🗑 Clear All Trades
-          </button>
-          <button onclick="debugTradeCSV()" style="background:none;border:1px solid rgba(52,152,219,.3);color:#3498db;padding:6px 12px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;margin-left:8px">
-            🔍 Debug CSV
-          </button>
+</button>
           <div style="font-size:32px;margin-bottom:8px">🏠</div>
           <p>Drop APS PDFs here or click to browse</p>
           <small>Accepts multiple files</small>
@@ -613,26 +610,128 @@ async function loadAdminPanel() {
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         <div style="padding:16px 20px;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">Active agents (${agents.length})</div>
+        <!-- Demo Mode Toggle -->
+        <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:12px;color:var(--ink-muted)">Demo Mode — hide real client data during presentations</span>
+          <button onclick="toggleDemoMode()" id="demo-mode-btn" style="background:none;border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;cursor:pointer;color:var(--ink-muted)">
+            Enable Demo Mode
+          </button>
+        </div>
+        <!-- Demo Mode Banner -->
+        <div id="demo-banner" style="display:none;background:rgba(52,152,219,.1);border-bottom:.5px solid rgba(52,152,219,.3);padding:10px 20px;font-size:13px;color:#2980b9;font-weight:500;text-align:center">
+          🎬 Demo Mode Active — showing sample data only. Real client data is hidden.
+        </div>
+
         ${agents.map(a => `
-          <div style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:.5px solid var(--border);flex-wrap:wrap">
-            <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--gold);flex-shrink:0">${a.name[0].toUpperCase()}</div>
-            <div style="flex:1;min-width:120px">
-              <div style="font-size:13px;font-weight:500">${a.name}</div>
-              <div style="font-size:11px;color:var(--ink-muted)">${a.email} · ${a.role}</div>
+          <!-- Agent Row -->
+          <div>
+            <div onclick="toggleAgentProfile('${a.agentId}')" style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:.5px solid var(--border);flex-wrap:wrap;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
+              <div style="width:36px;height:36px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:var(--gold);flex-shrink:0">${a.name[0].toUpperCase()}</div>
+              <div style="flex:1;min-width:120px">
+                <div style="font-size:13px;font-weight:500">${a.name}</div>
+                <div style="font-size:11px;color:var(--ink-muted)">${a.email} · ${a.role}</div>
+              </div>
+              <span class="pill ${a.role === 'admin' ? 'pill-review' : 'pill-done'}">${a.role}</span>
+              <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
+              <span style="font-size:18px;color:var(--ink-muted);margin-left:auto" id="chevron-${a.agentId}">▸</span>
             </div>
-            <span class="pill ${a.role === 'admin' ? 'pill-review' : 'pill-done'}">${a.role}</span>
-            <span class="pill ${a.hasFubKey ? 'pill-pushed' : 'pill-pending'}">${a.hasFubKey ? 'FUB ✓' : 'No FUB key'}</span>
-            ${a.agentId !== 'admin_trellis' ? `
-              <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}')">Enrich as Agent</button>
-              <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}')" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
-              <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}')">Move admin trades here</button>
-              <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}')">Update FUB key</button>
-              <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}')" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
-            ` : ''}
+
+            <!-- Expandable Profile Card -->
+            <div id="profile-${a.agentId}" style="display:none;background:var(--surface-2);border-bottom:.5px solid var(--border);padding:20px">
+              <div id="stats-${a.agentId}" style="color:var(--ink-muted);font-size:13px">Loading stats...</div>
+              ${a.agentId !== 'admin_trellis' ? `
+              <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}');event.stopPropagation()">Enrich as Agent</button>
+                <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}');event.stopPropagation()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
+                <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}');event.stopPropagation()">Move admin trades here</button>
+                <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}');event.stopPropagation()">Update FUB key</button>
+                <button class="btn btn-outline btn-sm" onclick="deleteAgent('${a.agentId}','${a.name}');event.stopPropagation()" style="color:var(--red);border-color:rgba(192,57,43,.3)">Remove</button>
+              </div>` : ''}
+            </div>
           </div>
         `).join('')}
       </div>`;
   } catch(e) { panel.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
+}
+
+let demoModeActive = false;
+
+function toggleDemoMode() {
+  demoModeActive = !demoModeActive;
+  const btn = document.getElementById('demo-mode-btn');
+  const banner = document.getElementById('demo-banner');
+  if (demoModeActive) {
+    btn.textContent = 'Disable Demo Mode';
+    btn.style.color = '#2980b9';
+    btn.style.borderColor = 'rgba(52,152,219,.4)';
+    banner.style.display = 'block';
+    // Switch to impersonating a demo view - just visual for now
+    document.querySelectorAll('[id^="profile-"]').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('[id^="chevron-"]').forEach(el => el.textContent = '▸');
+  } else {
+    btn.textContent = 'Enable Demo Mode';
+    btn.style.color = 'var(--ink-muted)';
+    btn.style.borderColor = 'var(--border)';
+    banner.style.display = 'none';
+  }
+}
+
+const statsCache = {};
+
+async function toggleAgentProfile(agentId) {
+  const panel = document.getElementById(`profile-${agentId}`);
+  const chevron = document.getElementById(`chevron-${agentId}`);
+  const open = panel.style.display === 'block';
+
+  // Close all others
+  document.querySelectorAll('[id^="profile-"]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('[id^="chevron-"]').forEach(el => el.textContent = '▸');
+
+  if (open) return;
+
+  panel.style.display = 'block';
+  chevron.textContent = '▾';
+
+  // Load stats if not cached
+  const statsEl = document.getElementById(`stats-${agentId}`);
+  if (statsCache[agentId]) {
+    statsEl.innerHTML = statsCache[agentId];
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/get-agent-stats', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ agentId })
+    });
+    const s = await res.json();
+    if (!res.ok) throw new Error(s.error);
+
+    const pct = s.contacts > 0 ? Math.round((s.enriched / s.contacts) * 100) : 0;
+    const html = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:4px">
+        ${[
+          ['Contacts', s.contacts, 'var(--ink)'],
+          ['Enriched', s.enriched + ' (' + pct + '%)', 'var(--green)'],
+          ['In FUB', s.pushed, 'var(--green)'],
+          ['Trades', s.trades, 'var(--gold)'],
+          ['FINTRACs', s.fintrac, 'var(--gold)'],
+          ['Action Plans', s.actionPlans, '#8e44ad'],
+          ['Templates', s.templates, '#8e44ad'],
+        ].map(([label, val, color]) => `
+          <div style="background:var(--surface);border-radius:8px;padding:12px;text-align:center;border:1px solid var(--border)">
+            <div style="font-size:20px;font-weight:700;color:${color}">${val}</div>
+            <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${label}</div>
+          </div>
+        `).join('')}
+      </div>`;
+
+    statsCache[agentId] = html;
+    statsEl.innerHTML = html;
+  } catch(e) {
+    statsEl.innerHTML = `<span style="color:var(--red);font-size:13px">Could not load stats: ${e.message}</span>`;
+  }
 }
 
 async function createAgent() {
@@ -2070,33 +2169,6 @@ async function applyAllFintracToContacts(ev) {
 }
 
 // ── Past Trades ────────────────────────────────────────────────────────
-async function debugTradeCSV() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.csv';
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const csvText = await file.text();
-    const body = { csvText, debug: true };
-    if (impersonating) body.targetAgentId = impersonating.agentId;
-    const res = await fetch('/api/import-trades-csv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    // Show debug output on page so it's readable
-    document.getElementById('trade-progress').innerHTML =
-      '<strong>RAW HEADERS:</strong><br><code>' + data.rawHeaders + '</code><br><br>' +
-      '<strong>FIRST ROW:</strong><br><code>' + data.firstRow + '</code><br><br>' +
-      '<strong>PARSED (first trade):</strong><br><pre style="font-size:11px;white-space:pre-wrap">' +
-      JSON.stringify(data.trades_preview?.[0], null, 2) + '</pre>';
-    document.getElementById('trade-status').style.display = 'block';
-  };
-  input.click();
-}
-
 async function clearAllTrades() {
   if (!confirm('Delete all trades for this account? This cannot be undone.')) return;
   try {
