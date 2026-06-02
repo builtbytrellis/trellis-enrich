@@ -48,6 +48,9 @@
     },
     "api/clear-trades.js": {
       "maxDuration": 30
+    },
+    "api/get-agent-stats.js": {
+      "maxDuration": 30
     }
   }
 }
