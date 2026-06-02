@@ -1549,7 +1549,7 @@ async function enrichSingle() {
     if (localStorage.getItem('trellis_demo_mode') === 'true') {
       const key = name.toLowerCase().trim();
       if (DEMO_ENRICHMENT[key]) {
-        displayEnrichResult(DEMO_ENRICHMENT[key]);
+        renderSingleResult(DEMO_ENRICHMENT[key], 'demo-' + key.replace(' ','-'));
         return;
       }
     }
