@@ -502,6 +502,7 @@ async function doLogin() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
     localStorage.setItem('trellis_token', data.token);
+    localStorage.removeItem('trellis_demo_mode'); // clear any stale demo mode
     currentSession = data.agent;
     showApp(data.agent);
   } catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
