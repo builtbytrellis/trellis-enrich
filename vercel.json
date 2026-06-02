@@ -1,0 +1,62 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "api/extract-fintrac.js": {
+      "maxDuration": 60
+    },
+    "api/deduplicate-contacts.js": {
+      "maxDuration": 30
+    },
+    "api/fix-isp-contacts.js": {
+      "maxDuration": 30
+    },
+    "api/bulk-tag.js": {
+      "maxDuration": 60
+    },
+    "api/fix-age-tags.js": {
+      "maxDuration": 60
+    },
+    "api/rematch-fintrac.js": {
+      "maxDuration": 30
+    },
+    "api/manual-corrections.js": {
+      "maxDuration": 30
+    },
+    "api/replicate-action-plans.js": {
+      "maxDuration": 60
+    },
+    "api/create-tenant-plans.js": {
+      "maxDuration": 30
+    },
+    "api/create-email-templates.js": {
+      "maxDuration": 30
+    },
+    "api/setup-agent.js": {
+      "maxDuration": 120
+    },
+    "api/import-trades-csv.js": {
+      "maxDuration": 30
+    },
+    "api/clear-trades.js": {
+      "maxDuration": 30
+    },
+    "api/get-agent-stats.js": {
+      "maxDuration": 30
+    },
+    "api/seed-demo-agent.js": {
+      "maxDuration": 30
+    },
+    "api/push-to-github.js": {
+      "maxDuration": 60
+    }
+  }
+}
