@@ -51,14 +51,14 @@ module.exports = async (req, res) => {
       { property_address: '66 Sorauren Ave, Toronto ON', client_name: 'James Okonkwo', agent_side: 'seller', transaction_type: 'Selling Side', close_date: '2024-02-14', sale_price: '1285000', double_ended: false, source: 'csv_import' },
     ];
 
-    const existingTrades = await redis.lrange(\`agent:\${DEMO_AGENT_ID}:trades\`, 0, -1);
+    const existingTrades = await redis.lrange(`agent:${DEMO_AGENT_ID}:trades`, 0, -1);
     for (const id of existingTrades) await redis.del(id);
-    await redis.del(\`agent:\${DEMO_AGENT_ID}:trades\`);
+    await redis.del(`agent:${DEMO_AGENT_ID}:trades`);
 
     for (const trade of SAMPLE_TRADES) {
-      const tid = \`trade:\${DEMO_AGENT_ID}:\${Date.now()}:\${Math.random().toString(36).slice(2)}\`;
+      const tid = `trade:${DEMO_AGENT_ID}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
       await redis.set(tid, JSON.stringify({ ...trade, agentId: DEMO_AGENT_ID, savedAt: new Date().toISOString() }));
-      await redis.lpush(\`agent:\${DEMO_AGENT_ID}:trades\`, tid);
+      await redis.lpush(`agent:${DEMO_AGENT_ID}:trades`, tid);
     }
 
     // Create demo session (1 hour)
