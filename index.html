@@ -2402,7 +2402,7 @@ function renderTradeResults() {
     const isLease = r.deal_type === 'lease' || r.deal_type === 'lease_renewal';
     const partyName = r.buyer_or_tenant_name;
     const counterpartyName = r.seller_or_landlord_name;
-    const buyerMatch = findContactMatch(partyName);
+    const buyerMatch = findContactMatch(r.agent_side === 'seller' || r.agent_side === 'landlord' ? r.seller_or_landlord_name : partyName);
     const dealTypeBadge = r.deal_type === 'sale' ? '🏠 Sale' : r.deal_type === 'lease' ? '🔑 Lease' : r.deal_type === 'lease_renewal' ? '🔄 Lease Renewal' : '❓ Unknown';
     const sideLabel = r.agent_side === 'buyer' ? 'Buy side' : r.agent_side === 'seller' ? 'List side' : r.agent_side === 'tenant' ? 'Tenant side' : r.agent_side === 'landlord' ? 'Landlord side' : r.agent_side === 'both' ? 'Double-ended' : '';
 
