@@ -509,6 +509,24 @@ async function doLogin() {
 }
 
 async function checkExistingSession() {
+  // Demo mode — auto-login if ?demo=true in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('demo') === 'true') {
+    document.getElementById('auth-screen').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px"><div style="font-size:48px">🎬</div><div style="font-size:20px;font-weight:600">Loading Demo...</div></div>';
+    try {
+      const r = await fetch('/api/demo-login');
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      localStorage.setItem('trellis_token', d.token);
+      localStorage.setItem('trellis_session', JSON.stringify({ agentId: d.agentId, name: 'Demo Agent', email: 'demo@trellis.ai', role: 'agent', isDemo: true }));
+      localStorage.setItem('trellis_demo_mode', 'true');
+      window.history.replaceState({}, '', '/');
+    } catch(e) {
+      document.getElementById('auth-screen').innerHTML = '<div style="padding:40px;color:red">Demo failed: ' + e.message + '</div>';
+      return false;
+    }
+  }
+
   const token = getToken();
   if (!token) return false;
   // Check for pending DocuSign key
@@ -529,6 +547,14 @@ async function showApp(agent) {
   currentUserId = agent.agentId;
   localStorage.setItem('trellis_session', JSON.stringify(agent));
   document.getElementById('app-shell').classList.add('visible');
+  // Show demo banner if in demo mode
+  if (localStorage.getItem('trellis_demo_mode') === 'true' && !document.getElementById('global-demo-banner')) {
+    const b = document.createElement('div');
+    b.id = 'global-demo-banner';
+    b.style.cssText = 'background:#2980b9;color:white;text-align:center;padding:8px 16px;font-size:13px;font-weight:600;letter-spacing:.02em';
+    b.innerHTML = '🎬 Demo Mode &nbsp;|&nbsp; <a href="javascript:exitDemo()" style="color:white;opacity:.8;text-decoration:underline">Exit</a>';
+    document.getElementById('app-shell').prepend(b);
+  }
   document.getElementById('user-name').textContent = agent.name;
   document.getElementById('user-avatar').textContent = agent.name[0].toUpperCase();
 
@@ -653,6 +679,12 @@ async function loadAdminPanel() {
 }
 
 let demoModeActive = false;
+
+function exitDemo() {
+  localStorage.removeItem('trellis_demo_mode');
+  localStorage.removeItem('trellis_token');
+  window.location.href = '/';
+}
 
 async function toggleDemoMode() {
   const btn = document.getElementById('demo-mode-btn');
