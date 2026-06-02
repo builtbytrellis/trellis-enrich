@@ -44,11 +44,11 @@ module.exports = async (req, res) => {
 
     // Seed sample trades
     const SAMPLE_TRADES = [
-      { property_address: '54 Elm Grove Ave, Toronto ON', client_name: 'Michael Chen', agent_side: 'buyer', transaction_type: 'Buying Side', close_date: '2021-09-15', sale_price: '785000', double_ended: false, source: 'csv_import' },
-      { property_address: '219 Fort York Blvd Unit 1209, Toronto ON', client_name: 'Natasha Kowalski', agent_side: 'seller', transaction_type: 'Selling Side', close_date: '2023-04-28', sale_price: '649000', double_ended: false, source: 'csv_import' },
-      { property_address: '38 Joe Shuster Way Unit 2010, Toronto ON', client_name: 'Tyler Marchetti', agent_side: 'buyer', transaction_type: 'Buying Side', close_date: '2022-07-10', sale_price: '598000', double_ended: false, source: 'csv_import' },
-      { property_address: '115 Blue Jays Way Unit 4108, Toronto ON', client_name: 'Linda Petrov', agent_side: 'buyer', transaction_type: 'Buying Side', close_date: '2019-11-30', sale_price: '712000', double_ended: false, source: 'csv_import' },
-      { property_address: '66 Sorauren Ave, Toronto ON', client_name: 'James Okonkwo', agent_side: 'seller', transaction_type: 'Selling Side', close_date: '2024-02-14', sale_price: '1285000', double_ended: false, source: 'csv_import' },
+      { property_address: '54 Elm Grove Ave, Toronto ON', buyer_or_tenant_name: 'Michael Chen', seller_or_landlord_name: 'Previous Owner', agent_side: 'buyer', deal_type: 'purchase', close_date: '2021-09-15', sale_price: '785000', source: 'demo' },
+      { property_address: '219 Fort York Blvd Unit 1209, Toronto ON', buyer_or_tenant_name: 'New Buyer', seller_or_landlord_name: 'Natasha Kowalski', agent_side: 'seller', deal_type: 'purchase', close_date: '2023-04-28', sale_price: '649000', source: 'demo' },
+      { property_address: '38 Joe Shuster Way Unit 2010, Toronto ON', buyer_or_tenant_name: 'Tyler Marchetti', seller_or_landlord_name: 'Previous Owner', agent_side: 'buyer', deal_type: 'purchase', close_date: '2022-07-10', sale_price: '598000', source: 'demo' },
+      { property_address: '115 Blue Jays Way Unit 4108, Toronto ON', buyer_or_tenant_name: 'Linda Petrov', seller_or_landlord_name: 'Previous Owner', agent_side: 'buyer', deal_type: 'purchase', close_date: '2019-11-30', sale_price: '712000', source: 'demo' },
+      { property_address: '66 Sorauren Ave, Toronto ON', buyer_or_tenant_name: 'New Buyer', seller_or_landlord_name: 'James Okonkwo', agent_side: 'seller', deal_type: 'purchase', close_date: '2024-02-14', sale_price: '1285000', source: 'demo' },
     ];
 
     const existingTrades = await redis.lrange(`agent:${DEMO_AGENT_ID}:trades`, 0, -1);
