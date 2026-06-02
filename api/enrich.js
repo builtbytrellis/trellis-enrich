@@ -186,7 +186,7 @@ EXISTING FUB DATA:
       ? contextParts.join('\n')
       : 'No data found — use name and city context only, assign low confidence.';
 
-    const tagList = FUB_TAGS.join(', ');
+    const tagList = Array.from(FUB_TAGS_SET).join(', ');
 
     const prompt = `You are a real estate CRM enrichment agent specializing in the Toronto/GTA market. Analyze this contact and suggest the most relevant CRM tags.
 
