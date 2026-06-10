@@ -353,6 +353,20 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
           if (!result.suggested_tags.find(t => t.tag === 'Past Client')) {
             result.suggested_tags.push({ tag: 'Past Client', confidence: 'high', reason: `Found ${matchedTrades.length} deal(s) in Past Trades` });
           }
+          // Year tags: Buyer 2026 / Seller 2026 / Tenant 2026 / Landlord 2026
+          const addedYearTags = new Set();
+          for (const trade of matchedTrades) {
+            if (!trade.close_date) continue;
+            const yr = String(trade.close_date).slice(0, 4);
+            if (!/^[12][09]\d\d$/.test(yr)) continue;
+            const roleCap = trade.side ? trade.side.charAt(0).toUpperCase() + trade.side.slice(1) : null;
+            if (!roleCap) continue;
+            const yearTag = `${roleCap} ${yr}`;
+            if (addedYearTags.has(yearTag)) continue;
+            addedYearTags.add(yearTag);
+            result.suggested_tags.push({ tag: yearTag, confidence: 'high', reason: `${roleCap} side of ${trade.address} (closed ${trade.close_date})` });
+          }
+
           // Buyer/seller tag based on most recent trade
           const latest = matchedTrades[0];
           if (latest.side === 'buyer' && !result.suggested_tags.find(t => t.tag === 'Buyer')) {
