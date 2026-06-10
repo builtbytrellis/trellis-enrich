@@ -63,6 +63,9 @@
     },
     "api/audit-data.js": {
       "maxDuration": 60
+    },
+    "api/dedupe-trades.js": {
+      "maxDuration": 60
     }
   }
 }
