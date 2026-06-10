@@ -60,6 +60,9 @@
     },
     "api/demo-login.js": {
       "maxDuration": 30
+    },
+    "api/audit-data.js": {
+      "maxDuration": 60
     }
   }
 }
