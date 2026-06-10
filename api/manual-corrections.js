@@ -9,6 +9,21 @@ const CORRECTIONS = [
     reason: 'FINTRAC data was wrongly applied from Seth Frieberg'
   },
   {
+    name: 'Matt Frieberg',
+    clear: ['birthday', 'job_title', 'fintrac_verified'],
+    reason: 'FINTRAC data was wrongly applied from Seth Frieberg'
+  },
+  {
+    name: 'Matthew Frieberg',
+    clear: ['birthday', 'job_title', 'fintrac_verified'],
+    reason: 'FINTRAC data was wrongly applied from Seth Frieberg'
+  },
+  {
+    name: 'Matthew Freiberg',
+    clear: ['birthday', 'job_title', 'fintrac_verified'],
+    reason: 'FINTRAC data was wrongly applied from Seth Frieberg'
+  },
+  {
     name: 'Matt Prager',
     set: { birthday: '1990-11-26', job_title: 'Lawyer', fintrac_verified: true },
     reason: 'Correct FINTRAC data from Matthew William Prager'
