@@ -667,6 +667,8 @@ async function loadAdminPanel() {
               ${a.agentId !== 'admin_trellis' ? `
               <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}');event.stopPropagation()">Enrich as Agent</button>
+                <button class="btn btn-outline btn-sm" onclick="runAudit('${a.agentId}','${a.name}');event.stopPropagation()" style="color:#2980b9;border-color:rgba(41,128,185,.3)">Audit Data</button>
+                <button class="btn btn-outline btn-sm" onclick="dedupeTrades('${a.agentId}','${a.name}');event.stopPropagation()" style="color:#e67e22;border-color:rgba(230,126,34,.3)">Dedupe Trades</button>
                 <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}');event.stopPropagation()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
                 <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}');event.stopPropagation()">Move admin trades here</button>
                 <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}');event.stopPropagation()">Update FUB key</button>
@@ -735,6 +737,39 @@ async function toggleDemoMode() {
 }
 
 const statsCache = {};
+
+async function runAudit(agentId, name) {
+  const statsEl = document.getElementById(`stats-${agentId}`);
+  statsEl.innerHTML = 'Running audit...';
+  try {
+    const res = await fetch('/api/audit-data', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ targetAgentId: agentId }) });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    const s = d.summary, g = d.gaps;
+    statsEl.innerHTML = `
+      <div style="font-size:13px;line-height:1.7">
+        <strong>${name} — Data Audit</strong><br>
+        Contacts: <strong>${s.contacts}</strong> · Trades: <strong>${s.trades}</strong> (${s.duplicate_trades} duplicates) · FINTRAC verified: <strong>${s.fintrac_verified_contacts}</strong><br>
+        Birthdays: ${s.contacts_with_birthday} · Job titles: ${s.contacts_with_job_title} · Contacts w/ trade history: ${s.contacts_with_trade_history}<br><br>
+        <strong style="color:var(--red)">Gaps</strong><br>
+        Trades w/o contact match: <strong>${g.trades_without_contact_match}</strong><br>
+        ${(g.trades_without_contact_list||[]).slice(0,15).map(t => `&nbsp;&nbsp;· ${t.client} — ${t.address} (${t.close_date||'?'})`).join('<br>')}
+        ${g.trades_without_contact_match > 15 ? '<br>&nbsp;&nbsp;…and more' : ''}<br><br>
+        Past Clients missing trade record: <strong>${g.past_clients_missing_trade_record}</strong><br>
+        Trade clients missing FINTRAC: <strong>${g.trade_clients_missing_fintrac}</strong>
+      </div>`;
+  } catch(e) { statsEl.innerHTML = `<span style="color:var(--red)">Audit failed: ${e.message}</span>`; }
+}
+
+async function dedupeTrades(agentId, name) {
+  if (!confirm(`Remove duplicate trade records for ${name}?`)) return;
+  try {
+    const res = await fetch('/api/dedupe-trades', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ targetAgentId: agentId }) });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    alert(`✓ Dedupe complete: kept ${d.kept}, removed ${d.removed}`);
+  } catch(e) { alert('Dedupe failed: ' + e.message); }
+}
 
 async function toggleAgentProfile(agentId) {
   const panel = document.getElementById(`profile-${agentId}`);
