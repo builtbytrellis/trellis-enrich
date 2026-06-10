@@ -48,6 +48,72 @@ async function getFubContact(fubId, headers) {
   } catch(e) { return null; }
 }
 
+// ── Apply closing date custom field + birthday/closing/lease tasks ──
+async function applyDatesAndTasks(personId, contact, headers) {
+  try {
+    const updates = {};
+
+    // Birthday task — day of (next occurrence)
+    if (contact.birthday) {
+      const bday = nextAnniversary(contact.birthday);
+      if (bday) await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, bday, headers);
+    }
+
+    // Trade-based: closing anniversary + lease end reminder
+    const trades = contact.trade_history || [];
+    const latest = trades[0];
+    if (latest && latest.close_date) {
+      // Closing date custom field (FUB customClosingAnniversary)
+      updates.customClosingAnniversary = latest.close_date;
+
+      if ((latest.deal_type || '').includes('lease')) {
+        // Lease: reminder 90 days before lease ends (assume 1-year lease from close date)
+        const start = new Date(latest.close_date);
+        if (!isNaN(start.getTime())) {
+          const leaseEnd = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
+          const reminder = new Date(leaseEnd); reminder.setDate(reminder.getDate() - 90);
+          if (reminder > new Date()) {
+            await createFubTask(personId, `🔑 Lease ending soon (~${leaseEnd.toISOString().split('T')[0]}) — reach out about renewal or next move`, reminder.toISOString().split('T')[0], headers);
+          }
+        }
+      } else {
+        // Sale: closing anniversary task — day of (next occurrence)
+        const anniv = nextAnniversary(latest.close_date);
+        if (anniv) await createFubTask(personId, `🏠 Closing anniversary — check in`, anniv, headers);
+      }
+    }
+
+    if (Object.keys(updates).length) {
+      await fetch(`https://api.followupboss.com/v1/people/${personId}`, {
+        method: 'PUT', headers, body: JSON.stringify(updates)
+      });
+    }
+  } catch(e) { console.warn('applyDatesAndTasks failed (non-fatal):', e.message); }
+}
+
+// ── Create a FUB task for a contact ──
+async function createFubTask(personId, name, dueDate, headers) {
+  if (!personId || !dueDate) return null;
+  try {
+    const r = await fetch('https://api.followupboss.com/v1/tasks', {
+      method: 'POST', headers,
+      body: JSON.stringify({ personId, name, dueDate, type: 'Follow Up' })
+    });
+    return r.ok;
+  } catch(e) { return null; }
+}
+
+// Next occurrence of a MM-DD anniversary from a YYYY-MM-DD date
+function nextAnniversary(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  let next = new Date(now.getFullYear(), d.getMonth(), d.getDate());
+  if (next < now) next = new Date(now.getFullYear() + 1, d.getMonth(), d.getDate());
+  return next.toISOString().split('T')[0];
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -222,8 +288,12 @@ module.exports = async (req, res) => {
         } catch(e) {}
       }
 
+      await applyDatesAndTasks(contactId, contact, headers);
       return res.status(200).json({ success: true, fubId: contactId, action: 'created', tags_applied: approvedTags.length });
     }
+
+    // ── Post-push: closing anniversary, birthday + closing + lease tasks ──
+    await applyDatesAndTasks(existingId, contact, headers);
 
     const tagsApplied = payload.tags ? payload.tags.length : 0;
     return res.status(200).json({ success: true, fubId: existingId, action, tags_applied: tagsApplied });
