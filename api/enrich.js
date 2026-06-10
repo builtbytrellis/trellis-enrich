@@ -200,6 +200,7 @@ RULES:
 4. Always include a Profession tag when inferable
 5. Use Relationship tag based on source/history (Past Client = Relationship: Past Client, sphere = Relationship: Sphere, etc.)
 6. Confidence should be "high" when web search confirms details, "medium" when inferred from email/FUB, "low" when guessing from name only
+7. NEVER tag "Profession: Real Estate Agent" unless the person is explicitly a licensed realtor or real estate agent. Insurance brokers, mortgage brokers, and finance professionals are "Profession: Finance" not Real Estate Agent.
 7. Max 8 tags
 
 Available tags (copy EXACTLY):
