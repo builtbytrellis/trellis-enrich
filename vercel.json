@@ -61,6 +61,5 @@
     "api/demo-login.js": {
       "maxDuration": 30
     }
-  },
-  "_lastDeploy": "2026-05-29-force"
+  }
 }
