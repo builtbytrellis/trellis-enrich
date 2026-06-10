@@ -53,10 +53,18 @@ async function applyDatesAndTasks(personId, contact, headers) {
   try {
     const updates = {};
 
-    // Birthday task — day of (next occurrence)
+    // Birthday tasks — day of, next 10 years
     if (contact.birthday) {
-      const bday = nextAnniversary(contact.birthday);
-      if (bday) await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, bday, headers);
+      const d = new Date(contact.birthday);
+      if (!isNaN(d.getTime())) {
+        const now = new Date();
+        let startYear = now.getFullYear();
+        if (new Date(startYear, d.getMonth(), d.getDate()) < now) startYear++;
+        for (let y = startYear; y < startYear + 10; y++) {
+          const due = new Date(y, d.getMonth(), d.getDate()).toISOString().split('T')[0];
+          await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, due, headers);
+        }
+      }
     }
 
     // Trade-based: closing anniversary + lease end reminder
@@ -77,9 +85,18 @@ async function applyDatesAndTasks(personId, contact, headers) {
           }
         }
       } else {
-        // Sale: closing anniversary task — day of (next occurrence)
-        const anniv = nextAnniversary(latest.close_date);
-        if (anniv) await createFubTask(personId, `🏠 Closing anniversary — check in`, anniv, headers);
+        // Sale: closing anniversary tasks — day of, next 10 years
+        const cd = new Date(latest.close_date);
+        if (!isNaN(cd.getTime())) {
+          const now = new Date();
+          let startYear = now.getFullYear();
+          if (new Date(startYear, cd.getMonth(), cd.getDate()) < now) startYear++;
+          for (let y = startYear; y < startYear + 10; y++) {
+            const due = new Date(y, cd.getMonth(), cd.getDate()).toISOString().split('T')[0];
+            const yrsIn = y - cd.getFullYear();
+            await createFubTask(personId, `🏠 Closing anniversary (${yrsIn} yr) — check in`, due, headers);
+          }
+        }
       }
     }
 
