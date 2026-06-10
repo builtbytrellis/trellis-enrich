@@ -98,9 +98,9 @@ module.exports = async (req, res) => {
         }
       }
 
-      // Only auto-apply score 2+ (nickname or exact match)
-      // Score 1 (prefix) is too risky — shown as unmatched for human review
-      if (bestMatch && bestScore >= 2) {
+      // Only auto-apply score 3 (exact first + exact last name)
+      // Score 2 (nickname) and score 1 (prefix) are too risky — always require human review
+      if (bestMatch && bestScore >= 3) {
         // Convert MM/DD/YYYY to YYYY-MM-DD
         let dob = row.date_of_birth || '';
         if (dob && dob.includes('/')) {
@@ -145,7 +145,7 @@ module.exports = async (req, res) => {
         });
       } else {
         // Score 1 = possible match but too risky to auto-apply
-        if (bestScore === 1 && bestMatch) {
+        if ((bestScore === 1 || bestScore === 2) && bestMatch) {
           row._possible_match = bestMatch.full_name || bestMatch.name;
           row._possible_score = 'prefix-only — needs human review';
         }
