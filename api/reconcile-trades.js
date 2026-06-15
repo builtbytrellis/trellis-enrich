@@ -68,21 +68,51 @@ module.exports = async (req, res) => {
   try {
     const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
 
-    // Parse the master CSV (address, buyer_name, seller_name, closing_date, sale_price, transaction_type)
+    // Parse master CSV. Auto-detect format by header.
+    // New format: Year, Name, Address, Neighbourhood, Price, Closing Date, MLS #, Lorry Represented
+    // Old format: address, buyer_name, seller_name, closing_date, sale_price, transaction_type
     const lines = csvText.trim().split('\n').filter(l => l.trim());
+    const header = parseLine(lines[0]).map(h => h.toLowerCase());
+    const isNewFormat = header.some(h => h.includes('represent')) || header.some(h => h.includes('neighbourhood') || h.includes('neighborhood'));
+
     const masterTrades = [];
     for (let i = 1; i < lines.length; i++) {
       const c = parseLine(lines[i]);
-      const address = c[0] || '';
-      if (!address) continue;
-      masterTrades.push({
-        property_address: address,
-        buyer_name: c[1] || '',
-        seller_name: c[2] || '',
-        close_date: parseDate(c[3]),
-        sale_price: c[4] || '',
-        transaction_type: c[5] || '',
-      });
+      if (isNewFormat) {
+        // Year, Name, Address, Neighbourhood, Price, Closing Date, MLS #, Represented
+        const name = c[1] || '';
+        const address = c[2] || '';
+        if (!name && !address) continue;
+        const represented = (c[7] || '').toLowerCase();
+        const isLease = represented.includes('tenant') || represented.includes('landlord');
+        masterTrades.push({
+          year: c[0] || '',
+          client_name: name,
+          property_address: address,
+          neighbourhood: c[3] || '',
+          sale_price: c[4] || '',
+          close_date: parseDate(c[5]),
+          mls: c[6] || '',
+          represented: represented,
+          deal_type: isLease ? 'lease' : 'purchase',
+          // Map represented → which name field for matching
+          buyer_name: (represented.includes('buyer') || represented.includes('tenant')) ? name : '',
+          seller_name: (represented.includes('seller') || represented.includes('landlord')) ? name : '',
+        });
+      } else {
+        const address = c[0] || '';
+        if (!address) continue;
+        masterTrades.push({
+          property_address: address,
+          buyer_name: c[1] || '',
+          seller_name: c[2] || '',
+          close_date: parseDate(c[3]),
+          sale_price: c[4] || '',
+          transaction_type: c[5] || '',
+          client_name: '',
+          neighbourhood: '', mls: '', represented: '', year: '',
+        });
+      }
     }
 
     // Load existing trades in Redis
@@ -134,16 +164,29 @@ module.exports = async (req, res) => {
         const isLease = type.includes('lease')||type.includes('rent')||type==='r';
         const client = side==='seller'||side==='landlord' ? mt.seller_name : mt.buyer_name;
 
+        // New format already has represented + client_name — use directly if present
+        let finalSide = side, finalClient = client, finalIsLease = isLease;
+        if (mt.represented) {
+          if (mt.represented.includes('buyer')) { finalSide='buyer'; finalIsLease=false; }
+          else if (mt.represented.includes('seller')) { finalSide='seller'; finalIsLease=false; }
+          else if (mt.represented.includes('tenant')) { finalSide='tenant'; finalIsLease=true; }
+          else if (mt.represented.includes('landlord')) { finalSide='landlord'; finalIsLease=true; }
+          finalClient = mt.client_name || client;
+        }
+
         const tid = `trade:${agentId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
         await redis.set(tid, JSON.stringify({
           property_address: mt.property_address,
-          buyer_or_tenant_name: mt.buyer_name,
-          seller_or_landlord_name: mt.seller_name,
-          client_name: client,
-          agent_side: side,
-          deal_type: isLease ? 'lease' : 'purchase',
+          buyer_or_tenant_name: mt.buyer_name || (finalSide==='buyer'||finalSide==='tenant' ? finalClient : ''),
+          seller_or_landlord_name: mt.seller_name || (finalSide==='seller'||finalSide==='landlord' ? finalClient : ''),
+          client_name: finalClient,
+          agent_side: finalSide,
+          deal_type: finalIsLease ? 'lease' : 'purchase',
           close_date: mt.close_date,
           sale_price: mt.sale_price,
+          neighbourhood: mt.neighbourhood || '',
+          mls: mt.mls || '',
+          year: mt.year || (mt.close_date ? mt.close_date.slice(0,4) : ''),
           source: 'reconcile_import',
           agentId,
           savedAt: new Date().toISOString()
