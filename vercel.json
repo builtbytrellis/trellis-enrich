@@ -72,6 +72,9 @@
     },
     "api/missing-contacts-review.js": {
       "maxDuration": 30
+    },
+    "api/bad-match-report.js": {
+      "maxDuration": 60
     }
   }
 }
