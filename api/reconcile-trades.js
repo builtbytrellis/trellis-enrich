@@ -68,50 +68,78 @@ module.exports = async (req, res) => {
   try {
     const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
 
-    // Parse master CSV. Auto-detect format by header.
-    // New format: Year, Name, Address, Neighbourhood, Price, Closing Date, MLS #, Lorry Represented
-    // Old format: address, buyer_name, seller_name, closing_date, sale_price, transaction_type
+    // Parse master CSV — supports the full 13-column format:
+    // Year, Name, Address, Neighbourhood, Price, Closing Date, MLS #, Lorry Represented,
+    // Deal Type, District, FSA, Notes, Source File
+    // One row PER CLIENT. Multiple rows can share one deal (same MLS/address+date).
     const lines = csvText.trim().split('\n').filter(l => l.trim());
-    const header = parseLine(lines[0]).map(h => h.toLowerCase());
-    const isNewFormat = header.some(h => h.includes('represent')) || header.some(h => h.includes('neighbourhood') || h.includes('neighborhood'));
+    const header = parseLine(lines[0]).map(h => h.toLowerCase().trim());
 
-    const masterTrades = [];
+    function colIdx(...names) {
+      for (const n of names) {
+        const i = header.findIndex(h => h.includes(n));
+        if (i >= 0) return i;
+      }
+      return -1;
+    }
+    const idx = {
+      year:    colIdx('year'),
+      name:    colIdx('name'),
+      address: colIdx('address'),
+      hood:    colIdx('neighbourhood','neighborhood'),
+      price:   colIdx('price'),
+      close:   colIdx('closing','close date'),
+      mls:     colIdx('mls'),
+      rep:     colIdx('represent'),
+      deal:    colIdx('deal type'),
+      fsa:     colIdx('fsa'),
+    };
+
+    // Each row = one client tied to a deal
+    const masterRows = [];
     for (let i = 1; i < lines.length; i++) {
       const c = parseLine(lines[i]);
-      if (isNewFormat) {
-        // Year, Name, Address, Neighbourhood, Price, Closing Date, MLS #, Represented
-        const name = c[1] || '';
-        const address = c[2] || '';
-        if (!name && !address) continue;
-        const represented = (c[7] || '').toLowerCase();
-        const isLease = represented.includes('tenant') || represented.includes('landlord');
-        masterTrades.push({
-          year: c[0] || '',
-          client_name: name,
-          property_address: address,
-          neighbourhood: c[3] || '',
-          sale_price: c[4] || '',
-          close_date: parseDate(c[5]),
-          mls: c[6] || '',
-          represented: represented,
-          deal_type: isLease ? 'lease' : 'purchase',
-          // Map represented → which name field for matching
-          buyer_name: (represented.includes('buyer') || represented.includes('tenant')) ? name : '',
-          seller_name: (represented.includes('seller') || represented.includes('landlord')) ? name : '',
-        });
+      const get = (j) => j >= 0 ? (c[j] || '').trim() : '';
+      const name = get(idx.name);
+      const address = get(idx.address);
+      if (!name && !address) continue;
+
+      const rep = get(idx.rep).toLowerCase();
+      const dealType = get(idx.deal).toLowerCase();
+      const isLease = dealType.includes('lease') || rep.includes('tenant') || rep.includes('landlord');
+
+      let side = 'buyer';
+      if (rep.includes('seller')) side = 'seller';
+      else if (rep.includes('landlord')) side = 'landlord';
+      else if (rep.includes('tenant')) side = 'tenant';
+      else if (rep.includes('buyer')) side = 'buyer';
+
+      masterRows.push({
+        year: get(idx.year),
+        client_name: name,
+        property_address: address,
+        neighbourhood: get(idx.hood),
+        sale_price: get(idx.price),
+        close_date: parseDate(get(idx.close)),
+        mls: get(idx.mls),
+        represented: rep,
+        agent_side: side,
+        deal_type: isLease ? 'lease' : 'purchase',
+        fsa: get(idx.fsa),
+        // Deal-level key: prefer MLS, fall back to address+date
+        deal_key: (get(idx.mls) && get(idx.mls).toUpperCase() !== 'EXCLUSIVE')
+          ? `mls:${get(idx.mls).toUpperCase()}`
+          : `addr:${normAddr(address)}|${parseDate(get(idx.close))||''}`,
+      });
+    }
+
+    // Group rows into unique DEALS (multiple clients per deal)
+    const masterDeals = new Map();
+    for (const r of masterRows) {
+      if (!masterDeals.has(r.deal_key)) {
+        masterDeals.set(r.deal_key, { ...r, clients: [r.client_name] });
       } else {
-        const address = c[0] || '';
-        if (!address) continue;
-        masterTrades.push({
-          property_address: address,
-          buyer_name: c[1] || '',
-          seller_name: c[2] || '',
-          close_date: parseDate(c[3]),
-          sale_price: c[4] || '',
-          transaction_type: c[5] || '',
-          client_name: '',
-          neighbourhood: '', mls: '', represented: '', year: '',
-        });
+        masterDeals.get(r.deal_key).clients.push(r.client_name);
       }
     }
 
@@ -125,68 +153,52 @@ module.exports = async (req, res) => {
     const contactRaws = contactIds.length ? await Promise.all(contactIds.map(id => redis.get(id))) : [];
     const contacts = contactRaws.filter(Boolean).map(r => typeof r === 'string' ? JSON.parse(r) : r);
 
-    // Find which master trades are MISSING from Redis (by address + close date)
-    const existingKeys = new Set(existingTrades.map(t => `${normAddr(t.property_address)}|${t.close_date||''}`));
-    const missingTrades = [];
-    const presentTrades = [];
-    for (const mt of masterTrades) {
-      const key = `${normAddr(mt.property_address)}|${mt.close_date||''}`;
-      if (existingKeys.has(key)) presentTrades.push(mt);
-      else missingTrades.push(mt);
+    // Build existing-deal keys from Redis (MLS or address+date)
+    const existingKeys = new Set();
+    for (const t of existingTrades) {
+      if (t.mls && String(t.mls).toUpperCase() !== 'EXCLUSIVE') existingKeys.add(`mls:${String(t.mls).toUpperCase()}`);
+      existingKeys.add(`addr:${normAddr(t.property_address)}|${t.close_date||''}`);
     }
 
-    // For each master trade, check if a CONTACT exists (fuzzy match on buyer or seller)
-    const tradesWithNoContact = [];
-    for (const mt of masterTrades) {
-      const hasContact = contacts.some(c =>
-        nameMatchFuzzy(mt.buyer_name, c.full_name||c.name) ||
-        nameMatchFuzzy(mt.seller_name, c.full_name||c.name)
-      );
+    // Which unique DEALS are missing from the system
+    const missingDeals = [];
+    const presentDeals = [];
+    for (const [key, deal] of masterDeals) {
+      const altKey = `addr:${normAddr(deal.property_address)}|${deal.close_date||''}`;
+      if (existingKeys.has(key) || existingKeys.has(altKey)) presentDeals.push(deal);
+      else missingDeals.push(deal);
+    }
+
+    // Which CLIENTS (rows) have no contact in the system (fuzzy match)
+    const clientsWithNoContact = [];
+    for (const r of masterRows) {
+      const hasContact = contacts.some(c => nameMatchFuzzy(r.client_name, c.full_name||c.name));
       if (!hasContact) {
-        tradesWithNoContact.push({
-          address: mt.property_address,
-          buyer: mt.buyer_name,
-          seller: mt.seller_name,
-          close_date: mt.close_date
-        });
+        clientsWithNoContact.push({ name: r.client_name, address: r.property_address, year: r.year });
       }
     }
 
     let imported = 0;
-    if (autoFix && missingTrades.length) {
-      // Import the missing trades into Redis
-      for (const mt of missingTrades) {
-        const type = (mt.transaction_type||'').toLowerCase();
-        let side = 'buyer';
-        if (type.includes('sell')||type.includes('list')||type==='c') side='seller';
-        else if (type.includes('landlord')) side='landlord';
-        else if (type.includes('tenant')||type.includes('rent')||type==='r') side='tenant';
-        const isLease = type.includes('lease')||type.includes('rent')||type==='r';
-        const client = side==='seller'||side==='landlord' ? mt.seller_name : mt.buyer_name;
-
-        // New format already has represented + client_name — use directly if present
-        let finalSide = side, finalClient = client, finalIsLease = isLease;
-        if (mt.represented) {
-          if (mt.represented.includes('buyer')) { finalSide='buyer'; finalIsLease=false; }
-          else if (mt.represented.includes('seller')) { finalSide='seller'; finalIsLease=false; }
-          else if (mt.represented.includes('tenant')) { finalSide='tenant'; finalIsLease=true; }
-          else if (mt.represented.includes('landlord')) { finalSide='landlord'; finalIsLease=true; }
-          finalClient = mt.client_name || client;
-        }
-
+    if (autoFix && missingDeals.length) {
+      // Import each CLIENT row belonging to a missing deal
+      const missingKeys = new Set(missingDeals.map(d => d.deal_key));
+      for (const r of masterRows) {
+        if (!missingKeys.has(r.deal_key)) continue;
+        const isBuyerSide = r.agent_side === 'buyer' || r.agent_side === 'tenant';
         const tid = `trade:${agentId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
         await redis.set(tid, JSON.stringify({
-          property_address: mt.property_address,
-          buyer_or_tenant_name: mt.buyer_name || (finalSide==='buyer'||finalSide==='tenant' ? finalClient : ''),
-          seller_or_landlord_name: mt.seller_name || (finalSide==='seller'||finalSide==='landlord' ? finalClient : ''),
-          client_name: finalClient,
-          agent_side: finalSide,
-          deal_type: finalIsLease ? 'lease' : 'purchase',
-          close_date: mt.close_date,
-          sale_price: mt.sale_price,
-          neighbourhood: mt.neighbourhood || '',
-          mls: mt.mls || '',
-          year: mt.year || (mt.close_date ? mt.close_date.slice(0,4) : ''),
+          property_address: r.property_address,
+          buyer_or_tenant_name: isBuyerSide ? r.client_name : '',
+          seller_or_landlord_name: !isBuyerSide ? r.client_name : '',
+          client_name: r.client_name,
+          agent_side: r.agent_side,
+          deal_type: r.deal_type,
+          close_date: r.close_date,
+          sale_price: r.sale_price,
+          neighbourhood: r.neighbourhood,
+          mls: r.mls,
+          year: r.year || (r.close_date ? r.close_date.slice(0,4) : ''),
+          fsa: r.fsa,
           source: 'reconcile_import',
           agentId,
           savedAt: new Date().toISOString()
@@ -196,14 +208,21 @@ module.exports = async (req, res) => {
       }
     }
 
-    return res.status(200).json({
+        return res.status(200).json({
       success: true,
-      master_csv_total: masterTrades.length,
-      already_in_system: presentTrades.length,
-      missing_from_system: missingTrades.length,
-      missing_list: missingTrades.slice(0, 100).map(t => ({ address: t.property_address, buyer: t.buyer_name, seller: t.seller_name, close_date: t.close_date })),
-      trades_with_no_contact: tradesWithNoContact.length,
-      no_contact_list: tradesWithNoContact.slice(0, 100),
+      master_client_rows: masterRows.length,
+      master_unique_deals: masterDeals.size,
+      deals_already_in_system: presentDeals.length,
+      deals_missing: missingDeals.length,
+      missing_list: missingDeals.slice(0, 100).map(d => ({
+        address: d.property_address,
+        clients: d.clients.join(' + '),
+        close_date: d.close_date,
+        price: d.sale_price,
+        type: d.deal_type
+      })),
+      clients_with_no_contact: clientsWithNoContact.length,
+      no_contact_list: clientsWithNoContact.slice(0, 100),
       imported: imported,
       autoFix: !!autoFix
     });
