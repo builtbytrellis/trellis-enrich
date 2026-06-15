@@ -66,6 +66,9 @@
     },
     "api/dedupe-trades.js": {
       "maxDuration": 60
+    },
+    "api/reconcile-trades.js": {
+      "maxDuration": 60
     }
   }
 }
