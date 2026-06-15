@@ -211,8 +211,13 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
         <div id="single-result"></div>
       </div>
       <div id="epanel-batch" style="display:none">
+        <div class="card" style="margin-bottom:12px;border:1px solid rgba(39,174,96,.3);background:rgba(39,174,96,.04)">
+          <div class="card-title" style="color:var(--green)">Re-enrich existing database</div>
+          <p style="font-size:13px;color:var(--ink-muted);margin:8px 0">Re-runs enrichment on ALL contacts already in this account — attaches newly imported trades, applies tags, fixes data. Use this after importing trades.</p>
+          <button class="btn btn-primary" onclick="reEnrichAll()" style="background:var(--green)">Re-enrich All Existing Contacts</button>
+        </div>
         <div class="card">
-          <div class="card-title">One name per line. Add comma + city for better results.</div>
+          <div class="card-title">Or paste new names — one per line. Add comma + city for better results.</div>
           <textarea class="notes" id="batch-names" placeholder="Sarah Chen, Toronto&#10;Michael Thompson&#10;Priya Sharma, Markham"></textarea>
           <button class="btn btn-primary" onclick="runBatch()">Enrich all</button>
         </div>
@@ -1832,6 +1837,27 @@ async function pushSingleContact(id) {
 function setMsg(id, text, type) { const el = document.getElementById('pmsg-'+id); if(el){el.textContent=text;el.className='push-msg'+(type?' '+type:'');} }
 
 // ── Batch & Excel ─────────────────────────────────────────────────────
+async function reEnrichAll() {
+  const who = impersonating ? impersonating.name : 'this account';
+  if (!confirm(`Re-enrich ALL existing contacts for ${who}? This re-runs enrichment on the entire database and may take a while.`)) return;
+  try {
+    const url = impersonating ? '/api/get-contacts?agentId=' + impersonating.agentId : '/api/get-contacts';
+    const res = await fetch(url, { headers: authHeaders() });
+    const data = await res.json();
+    const all = (data.contacts || []).map(c => ({
+      name: c.full_name || c.name || '',
+      city: c.city || '',
+      email: (c.fub_data && c.fub_data.email) || c.email || ''
+    })).filter(c => c.name);
+    if (!all.length) { alert('No existing contacts found to re-enrich.'); return; }
+    if (!confirm(`Found ${all.length} contacts. Queue them all for re-enrichment?`)) return;
+    startBatchQueue(all);
+    showPanel('queue');
+    document.querySelectorAll('.nav-item')[2].classList.add('active');
+    document.querySelectorAll('.nav-item')[0].classList.remove('active');
+  } catch(e) { alert('Failed to load contacts: ' + e.message); }
+}
+
 async function runBatch() {
   const raw = document.getElementById('batch-names').value.trim(); if(!raw) return;
   const contacts = raw.split('\n').map(l=>{const p=l.split(',');return{name:p[0].trim(),city:(p[1]||'').trim()};}).filter(c=>c.name);
