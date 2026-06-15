@@ -304,10 +304,50 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
       const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
 
       function normName(n) { return (n||'').toLowerCase().replace(/\s+/g,' ').trim(); }
+
+      // Common nickname → formal name map (both directions checked)
+      const NICKNAMES = {
+        'dave':'david','david':'dave','matt':'matthew','matthew':'matt','matty':'matthew',
+        'jackie':'jacqueline','jacqueline':'jackie','sammy':'samuel','sam':'samuel','samuel':'sam',
+        'josh':'joshua','joshua':'josh','ally':'allison','allison':'ally','alli':'allison',
+        'mike':'michael','michael':'mike','chris':'christopher','christopher':'chris',
+        'nick':'nicholas','nicholas':'nick','rob':'robert','robert':'rob','bob':'robert',
+        'will':'william','william':'will','bill':'william','dan':'daniel','daniel':'dan',
+        'danny':'daniel','tony':'anthony','anthony':'tony','jen':'jennifer','jennifer':'jen',
+        'jenny':'jennifer','liz':'elizabeth','elizabeth':'liz','beth':'elizabeth',
+        'kate':'katherine','katherine':'kate','katie':'katherine','kathy':'katherine',
+        'steph':'stephanie','stephanie':'steph','greg':'gregory','gregory':'greg',
+        'andy':'andrew','andrew':'andy','ben':'benjamin','benjamin':'ben','tom':'thomas',
+        'thomas':'tom','tommy':'thomas','rick':'richard','richard':'rick','dick':'richard',
+        'zach':'zachary','zachary':'zach','gabe':'gabriel','gabriel':'gabe','alex':'alexander',
+        'alexander':'alex','abby':'abigail','abigail':'abby','mac':'mackenzie','mackenzie':'mac'
+      };
+
+      function firstNamesMatch(a, b) {
+        if (a === b) return true;
+        // First initial match (Dave → David needs more, but D → D + same last is risky alone)
+        // Nickname map match
+        if (NICKNAMES[a] === b || NICKNAMES[b] === a) return true;
+        // One is a prefix of the other (Matt → Matthew, Jackie → Jacquel...)
+        if (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a))) return true;
+        return false;
+      }
+
+      // Strict: exact first + exact last (used for FINTRAC auto-apply — high stakes)
       function nameMatch(a, b) {
         const ta = normName(a).split(' ').filter(t=>t.length>=2);
         const tb = normName(b).split(' ').filter(t=>t.length>=2);
         return ta.length && tb.length && ta[0]===tb[0] && ta[ta.length-1]===tb[tb.length-1];
+      }
+
+      // Fuzzy: same last name + first name matches via nickname/prefix (used for TRADES)
+      function nameMatchFuzzy(a, b) {
+        const ta = normName(a).split(' ').filter(t=>t.length>=2);
+        const tb = normName(b).split(' ').filter(t=>t.length>=2);
+        if (!ta.length || !tb.length) return false;
+        const lastMatch = ta[ta.length-1] === tb[tb.length-1];
+        if (!lastMatch) return false;
+        return firstNamesMatch(ta[0], tb[0]);
       }
 
       // Find matching contact in History for FINTRAC data
@@ -337,12 +377,12 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
           const t = typeof raw === 'string' ? JSON.parse(raw) : raw;
           const buyer = t.buyer_or_tenant_name || '';
           const seller = t.seller_or_landlord_name || '';
-          if (nameMatch(result.full_name, buyer) || nameMatch(result.full_name, seller)) {
+          if (nameMatchFuzzy(result.full_name, buyer) || nameMatchFuzzy(result.full_name, seller)) {
             matchedTrades.push({
               address: t.property_address,
               close_date: t.close_date,
               deal_type: t.deal_type,
-              side: nameMatch(result.full_name, buyer) ? (t.deal_type === 'lease' ? 'tenant' : 'buyer') : (t.deal_type === 'lease' ? 'landlord' : 'seller'),
+              side: nameMatchFuzzy(result.full_name, buyer) ? (t.deal_type === 'lease' ? 'tenant' : 'buyer') : (t.deal_type === 'lease' ? 'landlord' : 'seller'),
               sale_price: t.sale_price || t.monthly_rent
             });
           }
