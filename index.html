@@ -767,20 +767,21 @@ async function reconcileTrades(e, agentId, name) {
     statsEl.innerHTML = `
       <div style="font-size:13px;line-height:1.7">
         <strong>${name} — Trade Reconciliation</strong><br>
-        Master CSV total: <strong>${d.master_csv_total}</strong><br>
-        Already in system: <strong style="color:var(--green)">${d.already_in_system}</strong><br>
-        Missing from system: <strong style="color:var(--red)">${d.missing_from_system}</strong><br>
-        Trades with no contact: <strong style="color:#e67e22">${d.trades_with_no_contact}</strong><br><br>
-        ${d.missing_from_system > 0 ? `
-          <strong style="color:var(--red)">Missing trades (will be imported):</strong><br>
-          ${d.missing_list.slice(0,20).map(t => `&nbsp;&nbsp;· ${t.buyer||t.seller||'?'} — ${t.address} (${t.close_date||'?'})`).join('<br>')}
-          ${d.missing_from_system > 20 ? `<br>&nbsp;&nbsp;…and ${d.missing_from_system - 20} more` : ''}
+        Master list: <strong>${d.master_client_rows}</strong> client rows across <strong>${d.master_unique_deals}</strong> unique deals<br>
+        Deals already in system: <strong style="color:var(--green)">${d.deals_already_in_system}</strong><br>
+        Deals missing: <strong style="color:var(--red)">${d.deals_missing}</strong><br>
+        Clients with no contact record: <strong style="color:#e67e22">${d.clients_with_no_contact}</strong><br><br>
+        ${d.deals_missing > 0 ? `
+          <strong style="color:var(--red)">Missing deals (all clients will be imported):</strong><br>
+          ${d.missing_list.slice(0,25).map(t => `&nbsp;&nbsp;· ${t.clients} — ${t.address} (${t.close_date||'?'}) ${t.type==='lease'?'🔑':'🏠'}`).join('<br>')}
+          ${d.deals_missing > 25 ? `<br>&nbsp;&nbsp;…and ${d.deals_missing - 25} more` : ''}
           <br><br>
-          <button class="btn btn-primary btn-sm" onclick="applyReconcile('${agentId}','${name}')" style="background:var(--green)">✓ Import ${d.missing_from_system} Missing Trades</button>
-        ` : '<strong style="color:var(--green)">✓ Nothing missing — all master trades are in the system!</strong>'}
-        ${d.trades_with_no_contact > 0 ? `<br><br>
-          <strong style="color:#e67e22">Trades with no contact (create these contacts):</strong><br>
-          ${d.no_contact_list.slice(0,15).map(t => `&nbsp;&nbsp;· ${t.buyer||t.seller} — ${t.address}`).join('<br>')}
+          <button class="btn btn-primary btn-sm" onclick="applyReconcile('${agentId}','${name}')" style="background:var(--green)">✓ Import ${d.deals_missing} Missing Deals</button>
+        ` : '<strong style="color:var(--green)">✓ Nothing missing — all master deals are in the system!</strong>'}
+        ${d.clients_with_no_contact > 0 ? `<br><br>
+          <strong style="color:#e67e22">Clients with no contact record (consider creating):</strong><br>
+          ${d.no_contact_list.slice(0,20).map(t => `&nbsp;&nbsp;· ${t.name} — ${t.address} (${t.year||'?'})`).join('<br>')}
+          ${d.clients_with_no_contact > 20 ? `<br>&nbsp;&nbsp;…and ${d.clients_with_no_contact - 20} more` : ''}
         ` : ''}
       </div>`;
   } catch(err) {
