@@ -15,7 +15,9 @@ const NICKNAMES = {
   'josh':'joshua','joshua':'josh','ally':'allison','allison':'ally','alli':'allison',
   'mike':'michael','michael':'mike','zach':'zachary','zachary':'zach','gabe':'gabriel',
   'gabriel':'gabe','steph':'stephanie','stephanie':'steph','mac':'mackenzie','mackenzie':'mac',
-  'dan':'daniel','daniel':'dan','danny':'daniel','nick':'nicholas','nicholas':'nick'
+  'dan':'daniel','daniel':'dan','danny':'daniel','nick':'nicholas','nicholas':'nick',
+  'maddy':'madison','madison':'maddy','mads':'madison','nikki':'nicole','nicole':'nikki',
+  'liv':'olivia','rachel':'rachelle','rachelle':'rachel'
 };
 function firstNamesMatch(a, b) {
   if (a === b) return true;
