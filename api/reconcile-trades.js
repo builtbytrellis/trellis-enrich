@@ -208,7 +208,35 @@ module.exports = async (req, res) => {
       }
     }
 
-        return res.status(200).json({
+        // Save no-contact clients into the review queue (so Lorry can decide later)
+    if (autoFix && clientsWithNoContact.length) {
+      try {
+        const reviewKey = `agent:${agentId}:missing_contacts_review`;
+        const existingReview = await redis.get(reviewKey);
+        const queue = existingReview ? (typeof existingReview === 'string' ? JSON.parse(existingReview) : existingReview) : [];
+        const seen = new Set(queue.map(q => q.name.toLowerCase()));
+        // enrich candidate with deal info from masterRows
+        for (const cwc of clientsWithNoContact) {
+          if (seen.has(cwc.name.toLowerCase())) continue;
+          const row = masterRows.find(r => r.client_name === cwc.name);
+          queue.push({
+            name: cwc.name,
+            address: cwc.address,
+            year: cwc.year,
+            close_date: row?.close_date || null,
+            side: row?.agent_side || 'tenant',
+            deal_type: row?.deal_type || 'lease',
+            neighbourhood: row?.neighbourhood || '',
+            status: 'pending',
+            addedAt: new Date().toISOString()
+          });
+          seen.add(cwc.name.toLowerCase());
+        }
+        await redis.set(reviewKey, JSON.stringify(queue));
+      } catch(e) { console.warn('review queue save failed:', e.message); }
+    }
+
+    return res.status(200).json({
       success: true,
       master_client_rows: masterRows.length,
       master_unique_deals: masterDeals.size,
