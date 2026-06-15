@@ -320,7 +320,11 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
         'andy':'andrew','andrew':'andy','ben':'benjamin','benjamin':'ben','tom':'thomas',
         'thomas':'tom','tommy':'thomas','rick':'richard','richard':'rick','dick':'richard',
         'zach':'zachary','zachary':'zach','gabe':'gabriel','gabriel':'gabe','alex':'alexander',
-        'alexander':'alex','abby':'abigail','abigail':'abby','mac':'mackenzie','mackenzie':'mac'
+        'alexander':'alex','abby':'abigail','abigail':'abby','mac':'mackenzie','mackenzie':'mac',
+        'maddy':'madison','madison':'maddy','mads':'madison','aviva':'aviva',
+        'nikki':'nicole','nicole':'nikki','nic':'nicole','cole':'nicholas',
+        'olivia':'olivia','liv':'olivia','livvy':'olivia','gabe':'gabriel',
+        'sammy':'samuel','sam':'samuel','rachel':'rachelle','rachelle':'rachel'
       };
 
       function firstNamesMatch(a, b) {
