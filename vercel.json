@@ -69,6 +69,9 @@
     },
     "api/reconcile-trades.js": {
       "maxDuration": 60
+    },
+    "api/missing-contacts-review.js": {
+      "maxDuration": 30
     }
   }
 }
