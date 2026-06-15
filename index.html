@@ -673,6 +673,7 @@ async function loadAdminPanel() {
                   Reconcile (Upload Master CSV)
                   <input type="file" accept=".csv" style="display:none" onchange="reconcileTrades(event, '${a.agentId}', '${a.name}')"/>
                 </label>
+                <button class="btn btn-outline btn-sm" onclick="reviewMissingContacts('${a.agentId}','${a.name}');event.stopPropagation()" style="color:#8e44ad;border-color:rgba(142,68,173,.3)">Review Missing Contacts</button>
                 <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}');event.stopPropagation()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
                 <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}');event.stopPropagation()">Move admin trades here</button>
                 <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}');event.stopPropagation()">Update FUB key</button>
@@ -743,6 +744,65 @@ async function toggleDemoMode() {
 const statsCache = {};
 
 let reconcileCache = {};
+
+async function reviewMissingContacts(agentId, name) {
+  const statsEl = document.getElementById(`stats-${agentId}`);
+  statsEl.innerHTML = 'Loading review queue...';
+  try {
+    const res = await fetch('/api/missing-contacts-review', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ action: 'list', targetAgentId: agentId })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    const pending = (d.candidates||[]).filter(c => c.status === 'pending');
+    const created = (d.candidates||[]).filter(c => c.status === 'created').length;
+    const skipped = (d.candidates||[]).filter(c => c.status === 'skipped').length;
+
+    if (!d.candidates || !d.candidates.length) {
+      statsEl.innerHTML = '<em>No missing contacts in review queue. Run Reconcile + Import first to populate it.</em>';
+      return;
+    }
+
+    statsEl.innerHTML = `
+      <div style="font-size:13px;line-height:1.6">
+        <strong>${name} — Missing Contacts Review</strong><br>
+        Pending: <strong style="color:#e67e22">${pending.length}</strong> · Created: <strong style="color:var(--green)">${created}</strong> · Skipped: ${skipped}<br>
+        <span style="color:var(--ink-muted);font-size:12px">These closed deals with Lorry but aren't in his contacts. Create a card or skip.</span>
+        <div style="margin-top:12px;max-height:400px;overflow-y:auto">
+          ${pending.map(c => `
+            <div id="cand-${c.name.replace(/[^a-z0-9]/gi,'')}" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:.5px solid var(--border)">
+              <div style="flex:1">
+                <div style="font-weight:600">${c.name}</div>
+                <div style="font-size:11px;color:var(--ink-muted)">${c.address} · ${c.year} · ${c.deal_type==='lease'?'🔑 Lease':'🏠 Sale'}</div>
+              </div>
+              <button class="btn btn-primary btn-sm" style="background:var(--green)" onclick="decideMissing('${agentId}','${c.name.replace(/'/g,"\\'")}','create')">+ Create</button>
+              <button class="btn btn-outline btn-sm" onclick="decideMissing('${agentId}','${c.name.replace(/'/g,"\\'")}','skip')">Skip</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  } catch(e) { statsEl.innerHTML = `<span style="color:var(--red)">Failed: ${e.message}</span>`; }
+}
+
+async function decideMissing(agentId, contactName, decision) {
+  const safeId = contactName.replace(/[^a-z0-9]/gi,'');
+  const row = document.getElementById(`cand-${safeId}`);
+  if (row) row.style.opacity = '0.4';
+  try {
+    const res = await fetch('/api/missing-contacts-review', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ action: 'decide', targetAgentId: agentId, contactName, decision })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    if (row) {
+      row.innerHTML = `<div style="flex:1;font-size:12px;color:${decision==='create'?'var(--green)':'var(--ink-muted)'}">${contactName} — ${decision==='create'?'✓ Contact created':'skipped'}</div>`;
+      row.style.opacity = '1';
+    }
+  } catch(e) { alert('Failed: ' + e.message); if (row) row.style.opacity='1'; }
+}
+
 
 async function reconcileTrades(e, agentId, name) {
   const file = e.target?.files?.[0];
