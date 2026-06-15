@@ -377,13 +377,22 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
           const t = typeof raw === 'string' ? JSON.parse(raw) : raw;
           const buyer = t.buyer_or_tenant_name || '';
           const seller = t.seller_or_landlord_name || '';
-          if (nameMatchFuzzy(result.full_name, buyer) || nameMatchFuzzy(result.full_name, seller)) {
+          const matchesBuyer = nameMatchFuzzy(result.full_name, buyer);
+          const matchesSeller = nameMatchFuzzy(result.full_name, seller);
+          if (matchesBuyer || matchesSeller) {
+            // Prefer the explicitly stored side (new master format); fall back to inference
+            let side = t.agent_side;
+            if (!side) {
+              side = matchesBuyer ? (t.deal_type === 'lease' ? 'tenant' : 'buyer') : (t.deal_type === 'lease' ? 'landlord' : 'seller');
+            }
             matchedTrades.push({
               address: t.property_address,
               close_date: t.close_date,
               deal_type: t.deal_type,
-              side: nameMatchFuzzy(result.full_name, buyer) ? (t.deal_type === 'lease' ? 'tenant' : 'buyer') : (t.deal_type === 'lease' ? 'landlord' : 'seller'),
-              sale_price: t.sale_price || t.monthly_rent
+              side,
+              sale_price: t.sale_price || t.monthly_rent,
+              neighbourhood: t.neighbourhood || '',
+              year: t.year || (t.close_date ? String(t.close_date).slice(0,4) : '')
             });
           }
         }
@@ -420,7 +429,8 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
           for (const trade of matchedTrades) {
             if (!trade.address) continue;
             const streetTag = getStreetFromAddress(trade.address);
-            const areaTag = getAreaFromAddress(trade.address);
+            // Prefer explicit neighbourhood from master CSV, else parse from address
+            const areaTag = trade.neighbourhood ? `Area: ${trade.neighbourhood}` : getAreaFromAddress(trade.address);
             if (streetTag && !addedStreets.has(streetTag)) {
               addedStreets.add(streetTag);
               result.suggested_tags.push({ tag: streetTag, confidence: 'high', reason: `Property: ${trade.address}` });
