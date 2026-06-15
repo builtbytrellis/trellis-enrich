@@ -669,6 +669,10 @@ async function loadAdminPanel() {
                 <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}');event.stopPropagation()">Enrich as Agent</button>
                 <button class="btn btn-outline btn-sm" onclick="runAudit('${a.agentId}','${a.name}');event.stopPropagation()" style="color:#2980b9;border-color:rgba(41,128,185,.3)">Audit Data</button>
                 <button class="btn btn-outline btn-sm" onclick="dedupeTrades('${a.agentId}','${a.name}');event.stopPropagation()" style="color:#e67e22;border-color:rgba(230,126,34,.3)">Dedupe Trades</button>
+                <label class="btn btn-outline btn-sm" style="color:#27ae60;border-color:rgba(39,174,96,.3);cursor:pointer" onclick="event.stopPropagation()">
+                  Reconcile (Upload Master CSV)
+                  <input type="file" accept=".csv" style="display:none" onchange="reconcileTrades(event, '${a.agentId}', '${a.name}')"/>
+                </label>
                 <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}');event.stopPropagation()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
                 <button class="btn btn-outline btn-sm" onclick="migrateAdminTrades('${a.agentId}','${a.name}');event.stopPropagation()">Move admin trades here</button>
                 <button class="btn btn-outline btn-sm" onclick="updateAgentFubKey('${a.agentId}','${a.name}');event.stopPropagation()">Update FUB key</button>
@@ -737,6 +741,70 @@ async function toggleDemoMode() {
 }
 
 const statsCache = {};
+
+let reconcileCache = {};
+
+async function reconcileTrades(e, agentId, name) {
+  const file = e.target?.files?.[0];
+  if (!file) return;
+  const csvText = await file.text();
+  e.target.value = '';
+
+  const statsEl = document.getElementById(`stats-${agentId}`);
+  statsEl.innerHTML = 'Comparing master CSV against system...';
+
+  try {
+    // First run WITHOUT autofix — just preview
+    const res = await fetch('/api/reconcile-trades', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ targetAgentId: agentId, csvText, autoFix: false })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+
+    reconcileCache[agentId] = csvText;
+
+    statsEl.innerHTML = `
+      <div style="font-size:13px;line-height:1.7">
+        <strong>${name} — Trade Reconciliation</strong><br>
+        Master CSV total: <strong>${d.master_csv_total}</strong><br>
+        Already in system: <strong style="color:var(--green)">${d.already_in_system}</strong><br>
+        Missing from system: <strong style="color:var(--red)">${d.missing_from_system}</strong><br>
+        Trades with no contact: <strong style="color:#e67e22">${d.trades_with_no_contact}</strong><br><br>
+        ${d.missing_from_system > 0 ? `
+          <strong style="color:var(--red)">Missing trades (will be imported):</strong><br>
+          ${d.missing_list.slice(0,20).map(t => `&nbsp;&nbsp;· ${t.buyer||t.seller||'?'} — ${t.address} (${t.close_date||'?'})`).join('<br>')}
+          ${d.missing_from_system > 20 ? `<br>&nbsp;&nbsp;…and ${d.missing_from_system - 20} more` : ''}
+          <br><br>
+          <button class="btn btn-primary btn-sm" onclick="applyReconcile('${agentId}','${name}')" style="background:var(--green)">✓ Import ${d.missing_from_system} Missing Trades</button>
+        ` : '<strong style="color:var(--green)">✓ Nothing missing — all master trades are in the system!</strong>'}
+        ${d.trades_with_no_contact > 0 ? `<br><br>
+          <strong style="color:#e67e22">Trades with no contact (create these contacts):</strong><br>
+          ${d.no_contact_list.slice(0,15).map(t => `&nbsp;&nbsp;· ${t.buyer||t.seller} — ${t.address}`).join('<br>')}
+        ` : ''}
+      </div>`;
+  } catch(err) {
+    statsEl.innerHTML = `<span style="color:var(--red)">Reconcile failed: ${err.message}</span>`;
+  }
+}
+
+async function applyReconcile(agentId, name) {
+  const csvText = reconcileCache[agentId];
+  if (!csvText) return alert('Please re-upload the CSV');
+  const statsEl = document.getElementById(`stats-${agentId}`);
+  statsEl.innerHTML = 'Importing missing trades...';
+  try {
+    const res = await fetch('/api/reconcile-trades', {
+      method: 'POST', headers: authHeaders(),
+      body: JSON.stringify({ targetAgentId: agentId, csvText, autoFix: true })
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    statsEl.innerHTML = `<strong style="color:var(--green)">✓ Imported ${d.imported} missing trades.</strong> Re-run enrichment to attach them to contacts.`;
+  } catch(err) {
+    statsEl.innerHTML = `<span style="color:var(--red)">Import failed: ${err.message}</span>`;
+  }
+}
 
 async function runAudit(agentId, name) {
   const statsEl = document.getElementById(`stats-${agentId}`);
