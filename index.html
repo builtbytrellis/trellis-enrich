@@ -1829,7 +1829,7 @@ async function enrichSingle() {
         return;
       }
     }
-    const res = await fetch('/api/enrich', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, city, fubApiKey: getFUBKey(), agentId: impersonating?.agentId || currentUserId }) });
+    const res = await fetch('/api/enrich', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ name, city, fubApiKey: getFUBKey(), agentId: impersonating?.agentId }) });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     const id = 'single_' + Date.now();
@@ -2071,7 +2071,7 @@ async function processNext() {
   }
   processing = true; next.status = 'running'; renderQueue();
   try {
-    const res = await fetch('/api/enrich', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name:next.name, city:next.city, fubApiKey:getFUBKey(), agentId: impersonating?.agentId || currentUserId})});
+    const res = await fetch('/api/enrich', {method:'POST', headers:authHeaders(), body:JSON.stringify({name:next.name, city:next.city, fubApiKey:getFUBKey(), agentId: impersonating?.agentId})});
     const data = await res.json();
     if(data.error) throw new Error(data.error);
     next.result = data;
