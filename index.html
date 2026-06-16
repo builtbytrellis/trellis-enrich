@@ -2382,14 +2382,27 @@ async function handleFintracCsv(e) {
     return fallback;
   }
 
+  // Find filename FIRST so we can exclude it from name matching
+  const filenameIdx = headers.findIndex(h => h.includes('filename') || h === 'file');
+  // full_name: prefer exact 'fullname', then 'name' but NEVER the filename column
+  function findNameCol() {
+    let i = headers.findIndex(h => h === 'fullname' || h === 'name' || h === 'clientname');
+    if (i >= 0) return i;
+    // partial match but skip the filename column
+    i = headers.findIndex((h, idx) => idx !== filenameIdx && (h.includes('fullname') || (h.includes('name') && !h.includes('file'))));
+    if (i >= 0) return i;
+    return 1;
+  }
   const colMap = {
-    full_name: findCol(['fullname','name','client','person','individual'], 1),
+    full_name: findNameCol(),
     date_of_birth: findCol(['dateofbirth','dob','birthday','birthdate','born'], 2),
-    occupation: findCol(['occupation','job','profession','title','employer','work'], 3),
+    occupation: findCol(['occupation','job','profession','title','work'], 3),
     employer: headers.indexOf('employer') >= 0 ? headers.indexOf('employer')
               : headers.indexOf('company') >= 0 ? headers.indexOf('company') : -1,
-    filename: headers.indexOf('filename') >= 0 ? headers.indexOf('filename') : 0,
+    filename: filenameIdx >= 0 ? filenameIdx : 0,
   };
+  // Debug: show what columns were detected
+  console.log('FINTRAC column map:', JSON.stringify(colMap), 'headers:', headers);
 
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCsvLine(lines[i]);
