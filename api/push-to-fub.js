@@ -68,8 +68,23 @@ async function applyDatesAndTasks(personId, contact, headers) {
     }
 
     // Trade-based: closing anniversary + lease end reminder
+    // The anniversary should celebrate the home they currently OWN — i.e. the most
+    // recent PURCHASE — not a property they sold or a lease. Pick the right deal:
     const trades = contact.trade_history || [];
-    const latest = trades[0];
+    function pickAnniversaryDeal(list) {
+      const withDate = list.filter(t => t.close_date);
+      if (!withDate.length) return null;
+      const byDateDesc = (a, b) => new Date(b.close_date) - new Date(a.close_date);
+      // 1. Most recent purchase (buyer side, not lease)
+      const purchases = withDate.filter(t => t.side === 'buyer' && !(t.deal_type||'').includes('lease'));
+      if (purchases.length) return purchases.sort(byDateDesc)[0];
+      // 2. No purchase — fall back to most recent lease as tenant (lease-end reminder)
+      const tenantLeases = withDate.filter(t => t.side === 'tenant');
+      if (tenantLeases.length) return tenantLeases.sort(byDateDesc)[0];
+      // 3. Otherwise the most recent deal of any kind
+      return withDate.sort(byDateDesc)[0];
+    }
+    const latest = pickAnniversaryDeal(trades);
     if (latest && latest.close_date) {
       // Closing date custom field (FUB customClosingAnniversary)
       updates.customClosingAnniversary = latest.close_date;
