@@ -153,7 +153,31 @@ module.exports = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ success: true, matched, unmatched, total: rows.length });
+    // Push unmatched FINTRACs into the review queue for the agent
+    if (unmatched.length) {
+      const reviewKey = `agent:${agentId}:review_queue`;
+      const existingReview = await redis.get(reviewKey);
+      const queue = existingReview ? (typeof existingReview === 'string' ? JSON.parse(existingReview) : existingReview) : [];
+      const seen = new Set(queue.map(q => (q.name||'').toLowerCase() + '|fintrac'));
+      for (const u of unmatched) {
+        const k = (u.full_name||'').toLowerCase() + '|fintrac';
+        if (seen.has(k)) continue;
+        queue.push({
+          id: 'rv' + Date.now() + Math.random().toString(36).slice(2),
+          name: u.full_name,
+          reason: 'FINTRAC — no matching contact',
+          detail: u._possible_match ? `Possible match: ${u._possible_match} (${u._possible_score||''})` : 'No contact found in database',
+          birthday: u.date_of_birth || '',
+          occupation: u.occupation || '',
+          status: 'pending', note: '',
+          addedAt: new Date().toISOString()
+        });
+        seen.add(k);
+      }
+      await redis.set(reviewKey, JSON.stringify(queue));
+    }
+
+    return res.status(200).json({ success: true, matched, unmatched, total: rows.length, queued_for_review: unmatched.length });
   } catch(e) {
     console.error('import-fintrac-csv error:', e);
     return res.status(500).json({ error: e.message });
