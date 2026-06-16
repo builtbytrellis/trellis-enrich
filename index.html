@@ -2121,11 +2121,13 @@ function renderExpandContent(item) {
     <div class="edit-field"><label>Email</label><input id="qf-email-${item.id}" value="${item.email||d.fub_data?.email||''}"/></div>
     <div class="edit-field"><label>Phone</label><input id="qf-phone-${item.id}" value="${d.fub_data?.phone||''}"/></div>
     <div class="edit-field"><label>City</label><input id="qf-city-${item.id}" value="${d.location||item.city||''}"/></div>
-    <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value=""/></div>
-    <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value=""/></div>
+    <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value="${d.birthday||''}"/>${d.fintrac_verified?'<span style="font-size:10px;color:var(--green)">✓ FINTRAC verified</span>':''}</div>
+    <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value="${d.spouse_name||''}"/></div>
     <div class="edit-field"><label>Stage</label>
       <select id="qf-stage-${item.id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
     </div>
+    <div class="edit-field"><label>Job title</label><input id="qf-job-${item.id}" value="${d.job_title||''}"/></div>
+    <div class="edit-field"><label>Company</label><input id="qf-company-${item.id}" value="${d.company||''}"/></div>
     <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}">${d.notes||''}</textarea></div>
   </div>
   <div class="section-label">Tags — click to approve</div>
@@ -2163,15 +2165,18 @@ async function pushQueueItem(id) {
     email: document.getElementById('qf-email-'+id)?.value || item.email || item.result.fub_data?.email || '',
     phone: document.getElementById('qf-phone-'+id)?.value || item.result.fub_data?.phone || '',
     location: document.getElementById('qf-city-'+id)?.value || item.result.location || '',
-    birthday: document.getElementById('qf-birthday-'+id)?.value || '',
-    spouse_name: document.getElementById('qf-spouse-'+id)?.value || '',
+    birthday: document.getElementById('qf-birthday-'+id)?.value || item.result.birthday || '',
+    spouse_name: document.getElementById('qf-spouse-'+id)?.value || item.result.spouse_name || '',
+    job_title: document.getElementById('qf-job-'+id)?.value || item.result.job_title || '',
+    company: document.getElementById('qf-company-'+id)?.value || item.result.company || '',
     stage: document.getElementById('qf-stage-'+id)?.value || '',
     notes: document.getElementById('qf-notes-'+id)?.value || item.result.notes || '',
+    fintrac_verified: item.result.fintrac_verified || false,
     approved_tags: approved
   };
   setMsg(id, 'Pushing...', '');
   try {
-    const res = await fetch('/api/push-to-fub', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fubApiKey:fubKey, contact:editedContact})});
+    const res = await fetch('/api/push-to-fub', {method:'POST', headers:authHeaders(), body:JSON.stringify({fubApiKey:fubKey, contact:editedContact})});
     const result = await res.json();
     if(result.error) throw new Error(result.error);
     setMsg(id, `Pushed — ${approved.length} tags`, 'ok');
