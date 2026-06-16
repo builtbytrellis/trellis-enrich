@@ -78,6 +78,12 @@
     },
     "api/debug-fintrac-match.js": {
       "maxDuration": 30
+    },
+    "api/change-password.js": {
+      "maxDuration": 30
+    },
+    "api/review-queue.js": {
+      "maxDuration": 30
     }
   }
 }
