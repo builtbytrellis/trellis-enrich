@@ -164,6 +164,7 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
       <div class="nav-item active" onclick="showPanel('enrich',this)"><span class="nav-dot"></span>Enrich</div>
       <div class="nav-item" onclick="showPanel('voice',this)"><span class="nav-dot"></span>Voice memos</div>
       <div class="nav-item" onclick="showPanel('queue',this)"><span class="nav-dot"></span>Queue <span id="queue-badge" style="margin-left:auto;background:rgba(184,146,74,.3);color:var(--gold-light);font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
+      <div class="nav-item" onclick="showPanel('review',this)"><span class="nav-dot"></span>Review <span id="review-badge" style="margin-left:auto;background:rgba(142,68,173,.3);color:#c39bd3;font-size:10px;padding:2px 7px;border-radius:10px;display:none"></span></div>
       <div class="nav-item" onclick="showPanel('history',this)"><span class="nav-dot"></span>History</div>
       <div class="nav-item" onclick="showPanel('transactions',this)"><span class="nav-dot"></span>Transactions</div>
       <div class="nav-item" onclick="showPanel('fintrac',this)"><span class="nav-dot"></span>FINTRAC</div>
@@ -321,6 +322,18 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
     </div>
 
     <!-- History -->
+    <div class="panel" id="panel-review">
+      <div class="panel-head">
+        <h1>Review</h1>
+        <p>Contacts and records that need your review. Confirm, skip, or add a note.</p>
+      </div>
+      <div id="review-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div id="review-empty" style="display:none;text-align:center;padding:48px;color:var(--ink-muted)">
+        <div style="font-size:32px;margin-bottom:8px">✓</div>
+        Nothing to review right now.
+      </div>
+    </div>
+
     <div class="panel" id="panel-history">
       <div class="page-title">History</div>
       <div class="page-sub">All contacts enriched and pushed — persisted across sessions.</div>
@@ -509,9 +522,102 @@ async function doLogin() {
     localStorage.setItem('trellis_token', data.token);
     localStorage.removeItem('trellis_demo_mode'); // clear any stale demo mode
     currentSession = data.agent;
+    if (data.agent.mustChangePassword) {
+      showPasswordChangeModal();
+      return;
+    }
     showApp(data.agent);
   } catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
   btn.textContent = 'Sign in'; btn.disabled = false;
+}
+
+function showPasswordChangeModal() {
+  const m = document.createElement('div');
+  m.id = 'pw-modal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:10000';
+  m.innerHTML = `
+    <div style="background:white;border-radius:12px;padding:32px;max-width:380px;width:90%">
+      <h2 style="margin:0 0 8px;font-size:18px">Set your password</h2>
+      <p style="font-size:13px;color:#666;margin:0 0 20px">You're using a temporary password. Choose a new one to continue.</p>
+      <input type="password" id="pw-new" placeholder="New password (min 6 chars)" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px;box-sizing:border-box"/>
+      <input type="password" id="pw-confirm" placeholder="Confirm password" style="width:100%;padding:12px;border:1px solid #ddd;border-radius:6px;margin-bottom:10px;box-sizing:border-box"/>
+      <div id="pw-error" style="color:#c0392b;font-size:13px;margin-bottom:10px;display:none"></div>
+      <button onclick="submitNewPassword()" id="pw-btn" style="width:100%;padding:12px;background:#1a1a18;color:white;border:none;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer">Set password & continue</button>
+    </div>`;
+  document.body.appendChild(m);
+}
+
+async function submitNewPassword() {
+  const np = document.getElementById('pw-new').value;
+  const cf = document.getElementById('pw-confirm').value;
+  const err = document.getElementById('pw-error');
+  const btn = document.getElementById('pw-btn');
+  err.style.display = 'none';
+  if (np.length < 6) { err.textContent = 'Password must be at least 6 characters'; err.style.display = 'block'; return; }
+  if (np !== cf) { err.textContent = 'Passwords do not match'; err.style.display = 'block'; return; }
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  try {
+    const res = await fetch('/api/change-password', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ newPassword: np }) });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    document.getElementById('pw-modal').remove();
+    showApp(currentSession);
+  } catch(e) { err.textContent = e.message; err.style.display = 'block'; btn.textContent = 'Set password & continue'; btn.disabled = false; }
+}
+
+async function loadReviewQueue() {
+  const listEl = document.getElementById('review-list');
+  const emptyEl = document.getElementById('review-empty');
+  listEl.innerHTML = '<div style="color:var(--ink-muted)">Loading...</div>';
+  try {
+    const body = { action: 'list' };
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    const res = await fetch('/api/review-queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const d = await res.json();
+    const pending = (d.items||[]).filter(i => i.status === 'pending');
+    updateReviewBadge(pending.length);
+    if (!d.items || !d.items.length) { listEl.innerHTML=''; emptyEl.style.display='block'; return; }
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = d.items.map(it => `
+      <div class="card" style="${it.status!=='pending'?'opacity:.55':''}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:15px">${it.name||'Unknown'}</div>
+            <div style="font-size:12px;color:var(--ink-muted);margin-top:2px">${it.reason||''}</div>
+            ${it.detail?`<div style="font-size:12px;color:var(--ink-muted)">${it.detail}</div>`:''}
+            ${it.birthday?`<div style="font-size:12px;color:var(--ink-muted)">🎂 ${it.birthday}</div>`:''}
+            ${it.occupation?`<div style="font-size:12px;color:var(--ink-muted)">💼 ${it.occupation}</div>`:''}
+            ${it.address?`<div style="font-size:12px;color:var(--ink-muted)">📍 ${it.address} ${it.year?'('+it.year+')':''}</div>`:''}
+          </div>
+          <span class="pill ${it.status==='pending'?'pill-pending':it.status==='done'?'pill-done':'pill-review'}">${it.status}</span>
+        </div>
+        <textarea placeholder="Add a note..." onchange="saveReviewNote('${it.id}', this.value)" style="width:100%;margin-top:10px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;min-height:50px">${it.note||''}</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary btn-sm" style="background:var(--green)" onclick="setReviewStatus('${it.id}','done')">✓ Done</button>
+          <button class="btn btn-outline btn-sm" onclick="setReviewStatus('${it.id}','skipped')">Skip</button>
+          <button class="btn btn-outline btn-sm" onclick="setReviewStatus('${it.id}','pending')">Reopen</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { listEl.innerHTML = `<div style="color:var(--red)">Failed: ${e.message}</div>`; }
+}
+
+async function saveReviewNote(itemId, note) {
+  const body = { action: 'update', itemId, note };
+  if (impersonating) body.targetAgentId = impersonating.agentId;
+  await fetch('/api/review-queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+}
+
+async function setReviewStatus(itemId, status) {
+  const body = { action: 'update', itemId, status };
+  if (impersonating) body.targetAgentId = impersonating.agentId;
+  await fetch('/api/review-queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+  loadReviewQueue();
+}
+
+function updateReviewBadge(n) {
+  const b = document.getElementById('review-badge');
+  if (b) { if (n > 0) { b.textContent = n; b.style.display = 'inline-block'; } else { b.style.display = 'none'; } }
 }
 
 async function checkExistingSession() {
@@ -1140,6 +1246,7 @@ function stopImpersonating() {
 
 // ── Navigation ────────────────────────────────────────────────────────
 function showPanel(id, el) {
+  if (id === 'review') loadReviewQueue();
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const panel = document.getElementById('panel-' + id);
