@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     const session = { agentId: agent.agentId, email: agent.email, name: agent.name, role: agent.role || 'agent', token };
     await redis.set(`session:${token}`, JSON.stringify(session), { ex: 60 * 60 * 24 * 30 }); // 30 days
 
-    return res.status(200).json({ success: true, token, agent: { agentId: agent.agentId, name: agent.name, email: agent.email, role: agent.role || 'agent' } });
+    return res.status(200).json({ success: true, token, agent: { agentId: agent.agentId, name: agent.name, email: agent.email, role: agent.role || 'agent', mustChangePassword: !!agent.mustChangePassword } });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: e.message });
