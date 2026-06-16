@@ -75,6 +75,9 @@
     },
     "api/bad-match-report.js": {
       "maxDuration": 60
+    },
+    "api/debug-fintrac-match.js": {
+      "maxDuration": 30
     }
   }
 }
