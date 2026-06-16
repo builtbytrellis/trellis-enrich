@@ -1,5 +1,6 @@
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
+const { verifySession } = require('./auth');
 
 const FUB_TAGS_SET = new Set( ["A Client","A+ Client","B Client","C Client","D Client","Buyer","Seller","Likely Buyer","Likely Seller","First Time Buyer","Pre-Approved","Past Client","Nurture","Timeline: Now","Timeline: 3-6 Months","Timeline: 6-12 Months","Timeline: 12+ Months","Profession: Finance","Profession: Legal","Profession: Marketing","Profession: Tech","Profession: Health","Profession: Business Owner","Profession: Real Estate Agent","Profession: Commercial Real Estate","Profession: Unknown","Profession: Charity/Non-Profit","Age: 20s","Age: 30s","Age: 40s","Age: 50s","Age: 60+","Life Stage: Young Professional","Empty Nesters","Kids Under 10","Homeowner","Condo Owner","Cottage Owner","Investment Owner","Commercial Owner","High Equity Owner","Open To Reno","Would Buy For Right Price","Downsizer","Upsizer","Sphere","Has Referred","Lifestyle: Golfer","Lifestyle: Foodie","Lifestyle: Loves Travel","Lifestyle: Fitness Focused","Lifestyle: Cottage","Not Enriched","Ghosted"]);
 
@@ -130,8 +131,17 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { name, city, fubApiKey, email, skip_web_search, agentId } = req.body;
+  const session = await verifySession(req, res);
+  if (!session) return;
+
+  const { name, city, fubApiKey, email, skip_web_search } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
+
+  // SECURITY: non-admins can ONLY enrich within their own agent scope.
+  // Admins may pass a targetAgentId to act on a specific agent.
+  const agentId = (session.role === 'admin' && req.body.agentId)
+    ? req.body.agentId
+    : session.agentId;
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
