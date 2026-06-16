@@ -84,6 +84,9 @@
     },
     "api/review-queue.js": {
       "maxDuration": 30
+    },
+    "api/admin-set-temp-password.js": {
+      "maxDuration": 30
     }
   }
 }
