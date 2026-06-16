@@ -51,6 +51,19 @@ async function getFubContact(fubId, headers) {
 // ── Apply closing date custom field + birthday/closing/lease tasks ──
 async function applyDatesAndTasks(personId, contact, headers) {
   try {
+    // Find the account owner (the agent) so tasks are assigned to THEM, not the API key holder.
+    // Prefer a non-broker-admin agent; fall back to first user.
+    let assignedUserId = null;
+    try {
+      const ur = await fetch('https://api.followupboss.com/v1/users?limit=20', { headers });
+      if (ur.ok) {
+        const ud = await ur.json();
+        const users = ud.users || [];
+        // Heuristic: assign to the agent whose email is NOT the Trellis admin key owner.
+        const agent = users.find(u => u.email && !/builtbytrellis/i.test(u.email)) || users[0];
+        if (agent) assignedUserId = agent.id;
+      }
+    } catch(e) { /* non-fatal */ }
     const updates = {};
 
     // Birthday tasks — day of, next 10 years
@@ -62,7 +75,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
         if (new Date(startYear, d.getMonth(), d.getDate()) < now) startYear++;
         for (let y = startYear; y < startYear + 10; y++) {
           const due = new Date(y, d.getMonth(), d.getDate()).toISOString().split('T')[0];
-          await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, due, headers);
+          await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, due, headers, assignedUserId);
         }
       }
     }
@@ -96,7 +109,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
           const leaseEnd = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
           const reminder = new Date(leaseEnd); reminder.setDate(reminder.getDate() - 90);
           if (reminder > new Date()) {
-            await createFubTask(personId, `🔑 Lease ending soon (~${leaseEnd.toISOString().split('T')[0]}) — reach out about renewal or next move`, reminder.toISOString().split('T')[0], headers);
+            await createFubTask(personId, `🔑 Lease ending soon (~${leaseEnd.toISOString().split('T')[0]}) — reach out about renewal or next move`, reminder.toISOString().split('T')[0], headers, assignedUserId);
           }
         }
       } else {
@@ -109,7 +122,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
           for (let y = startYear; y < startYear + 10; y++) {
             const due = new Date(y, cd.getMonth(), cd.getDate()).toISOString().split('T')[0];
             const yrsIn = y - cd.getFullYear();
-            await createFubTask(personId, `🏠 Closing anniversary (${yrsIn} yr) — check in`, due, headers);
+            await createFubTask(personId, `🏠 Closing anniversary (${yrsIn} yr) — check in`, due, headers, assignedUserId);
           }
         }
       }
@@ -124,12 +137,14 @@ async function applyDatesAndTasks(personId, contact, headers) {
 }
 
 // ── Create a FUB task for a contact ──
-async function createFubTask(personId, name, dueDate, headers) {
+async function createFubTask(personId, name, dueDate, headers, assignedUserId) {
   if (!personId || !dueDate) return null;
   try {
+    const body = { personId, name, dueDate, type: 'Follow Up' };
+    if (assignedUserId) body.assignedUserId = assignedUserId;
     const r = await fetch('https://api.followupboss.com/v1/tasks', {
       method: 'POST', headers,
-      body: JSON.stringify({ personId, name, dueDate, type: 'Follow Up' })
+      body: JSON.stringify(body)
     });
     return r.ok;
   } catch(e) { return null; }
