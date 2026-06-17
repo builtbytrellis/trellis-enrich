@@ -505,6 +505,25 @@ function deriveProf(jobTitle, company) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────
+let fubDomain = null;
+async function loadFubDomain() {
+  if (fubDomain) return fubDomain;
+  try {
+    const res = await fetch('/api/fub-identity', { headers: authHeaders() });
+    if (res.ok) { const d = await res.json(); fubDomain = d.domain || null; }
+  } catch(e) {}
+  return fubDomain;
+}
+function fubProfileUrl(fubId) {
+  if (!fubId || !fubDomain) return null;
+  return `https://${fubDomain}.followupboss.com/2/people/view/${fubId}`;
+}
+function fubLink(name, fubId) {
+  const url = fubProfileUrl(fubId);
+  if (!url) return name;
+  return `<a href="${url}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none" title="Open in Follow Up Boss">${name} ↗</a>`;
+}
+
 function getToken() { return sessionStorage.getItem('trellis_token') || localStorage.getItem('trellis_token'); }
 function authHeaders() { return { 'Content-Type': 'application/json', 'x-session-token': getToken() }; }
 
@@ -596,7 +615,7 @@ async function loadReviewQueue() {
       <div class="card" style="${it.status!=='pending'?'opacity:.55':''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="flex:1">
-            <div style="font-weight:600;font-size:15px">${it.name||'Unknown'}</div>
+            <div style="font-weight:600;font-size:15px">${it.name||'Unknown'} ${fubDomain ? `<a href="https://${fubDomain}.followupboss.com/2/people?q=${encodeURIComponent((it.name||'').split(' ').slice(-1)[0])}" target="_blank" rel="noopener" style="font-size:11px;color:var(--gold);text-decoration:none">↗ FUB</a>` : ''}</div>
             <div style="font-size:12px;color:var(--ink-muted);margin-top:2px">${it.reason||''}</div>
             ${it.detail?`<div style="font-size:12px;color:var(--ink-muted)">${it.detail}</div>`:''}
             ${it.birthday?`<div style="font-size:12px;color:var(--ink-muted)">🎂 ${it.birthday}</div>`:''}
@@ -723,6 +742,7 @@ async function checkExistingSession() {
 async function showApp(agent) {
   document.getElementById('auth-screen').classList.add('hidden');
   currentUserId = agent.agentId;
+  loadFubDomain();
   // Persist session by role: admin → localStorage; agent → sessionStorage only
   if (agent.role === 'admin') {
     localStorage.setItem('trellis_session', JSON.stringify(agent));
@@ -2308,7 +2328,7 @@ function loadVoiceReviewList() {
     return `<div onclick="selectVoiceContact(${i})" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background=''">
       <div style="width:32px;height:32px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold);flex-shrink:0">${initials}</div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:500">${name}</div>
+        <div style="font-size:13px;font-weight:500">${c.fub_data?.fub_id ? fubLink(name, c.fub_data.fub_id) : name}</div>
         ${meta ? `<div style="font-size:11px;color:var(--ink-muted)">${meta}</div>` : ''}
       </div>
       <div style="font-size:11px;color:var(--ink-muted)">Record →</div>
