@@ -62,6 +62,40 @@ module.exports = async (req, res) => {
       return res.status(200).json({ success: true });
     }
 
+    if (action === 'apply') {
+      // Apply this review item's FINTRAC data to a specified existing FUB contact
+      const { fubApiKey, fubContactId, itemId: applyId } = req.body;
+      if (!fubApiKey || !fubContactId) return res.status(400).json({ error: 'fubApiKey and fubContactId required' });
+
+      const existing = await redis.get(KEY);
+      let queue = existing ? (typeof existing === 'string' ? JSON.parse(existing) : existing) : [];
+      const item = queue.find(q => q.id === applyId);
+      if (!item) return res.status(404).json({ error: 'Review item not found' });
+
+      // Normalize birthday to YYYY-MM-DD
+      let dob = item.birthday || '';
+      const us = dob.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (us) dob = `${us[3]}-${us[1].padStart(2,'0')}-${us[2].padStart(2,'0')}`;
+
+      const encoded = Buffer.from(fubApiKey + ':').toString('base64');
+      const payload = {};
+      if (dob) payload.customBirthday = dob;
+      const r = await fetch(`https://api.followupboss.com/v1/people/${fubContactId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Basic ${encoded}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!r.ok) {
+        const errBody = await r.text();
+        return res.status(500).json({ error: 'FUB update failed: ' + errBody.slice(0,150) });
+      }
+      item.status = 'done';
+      item.appliedTo = fubContactId;
+      item.note = (item.note ? item.note + ' | ' : '') + `Applied FINTRAC (DOB ${dob}) to contact ${fubContactId}`;
+      await redis.set(KEY, JSON.stringify(queue));
+      return res.status(200).json({ success: true, applied: { contactId: fubContactId, birthday: dob } });
+    }
+
     if (action === 'clear') {
       await redis.del(KEY);
       return res.status(200).json({ success: true });
