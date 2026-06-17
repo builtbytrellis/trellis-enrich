@@ -5,6 +5,18 @@ const { verifySession } = require('./auth');
 const FUB_TAGS_SET = new Set( ["A Client","A+ Client","B Client","C Client","D Client","Buyer","Seller","Likely Buyer","Likely Seller","First Time Buyer","Pre-Approved","Past Client","Nurture","Timeline: Now","Timeline: 3-6 Months","Timeline: 6-12 Months","Timeline: 12+ Months","Profession: Finance","Profession: Legal","Profession: Marketing","Profession: Tech","Profession: Health","Profession: Business Owner","Profession: Real Estate Agent","Profession: Commercial Real Estate","Profession: Unknown","Profession: Charity/Non-Profit","Age: 20s","Age: 30s","Age: 40s","Age: 50s","Age: 60+","Life Stage: Young Professional","Empty Nesters","Kids Under 10","Homeowner","Condo Owner","Cottage Owner","Investment Owner","Commercial Owner","High Equity Owner","Open To Reno","Would Buy For Right Price","Downsizer","Upsizer","Sphere","Has Referred","Lifestyle: Golfer","Lifestyle: Foodie","Lifestyle: Loves Travel","Lifestyle: Fitness Focused","Lifestyle: Cottage","Not Enriched","Ghosted"]);
 
 
+async function fetchFubNotes(personId, fubApiKey) {
+  if (!personId || !fubApiKey) return [];
+  try {
+    const encoded = Buffer.from(fubApiKey + ':').toString('base64');
+    const res = await fetch(`https://api.followupboss.com/v1/notes?personId=${personId}&limit=10`, {
+      headers: { 'Authorization': `Basic ${encoded}` }
+    });
+    const data = await res.json();
+    return (data.notes || []).map(n => ({ date: (n.created||'').slice(0,10), body: n.body || '' })).filter(n => n.body);
+  } catch(e) { return []; }
+}
+
 async function searchFUB(name, fubApiKey) {
   if (!fubApiKey) return null;
   try {
@@ -173,6 +185,15 @@ EXISTING FUB DATA:
 - Last contact: ${lastContact || 'unknown'}
 - Created: ${fubContact.created || 'unknown'}
 `;
+
+      // Pull the agent's own notes — highest-quality signal (e.g. "mortgage specialist with CIBC")
+      const notes = await fetchFubNotes(fubContact.id, fubKey);
+      if (notes.length) {
+        fubContext += `\nAGENT'S OWN NOTES (written by the realtor — treat as authoritative for profession/relationship/personal facts):\n`;
+        for (const n of notes) {
+          fubContext += `- [${n.date}] ${n.body}\n`;
+        }
+      }
     }
 
     // Step 2 — email domain inference (always run)
@@ -211,6 +232,7 @@ RULES:
 5. Use Relationship tag based on source/history (Past Client = Relationship: Past Client, sphere = Relationship: Sphere, etc.)
 6. Confidence should be "high" when web search confirms details, "medium" when inferred from email/FUB, "low" when guessing from name only
 7. NEVER tag "Profession: Real Estate Agent" unless the person is explicitly a licensed realtor or real estate agent. Insurance brokers, mortgage brokers, and finance professionals are "Profession: Finance" not Real Estate Agent.
+8. The AGENT'S OWN NOTES are the most authoritative source. If a note states the person's job, relationship, or personal facts (e.g. "mortgage specialist with CIBC", "my cousin", "expecting a baby"), use that OVER any web-search guess. A mortgage specialist / banker / financial advisor = "Profession: Finance". Extract birthdays, family signals, and life stage from notes when present.
 7. Max 8 tags
 
 Available tags (copy EXACTLY):
