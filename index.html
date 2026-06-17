@@ -584,7 +584,7 @@ async function loadReviewQueue() {
   const emptyEl = document.getElementById('review-empty');
   listEl.innerHTML = '<div style="color:var(--ink-muted)">Loading...</div>';
   try {
-    const body = { action: 'list' };
+    const body = { action: 'list', fubApiKey: getFUBKey() };
     if (impersonating) body.targetAgentId = impersonating.agentId;
     const res = await fetch('/api/review-queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
     const d = await res.json();
