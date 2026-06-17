@@ -46,7 +46,49 @@ module.exports = async (req, res) => {
 
     if (action === 'list') {
       const existing = await redis.get(KEY);
-      const queue = existing ? (typeof existing === 'string' ? JSON.parse(existing) : existing) : [];
+      let queue = existing ? (typeof existing === 'string' ? JSON.parse(existing) : existing) : [];
+
+      // Auto-detect: if a pending FINTRAC item's matching contact already has the birthday,
+      // mark it auto-resolved so the queue self-cleans. Requires a FUB key.
+      const { fubApiKey } = req.body;
+      if (fubApiKey) {
+        function normDob(d) {
+          if (!d) return '';
+          const us = String(d).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+          if (us) return `${us[3]}-${us[1].padStart(2,'0')}-${us[2].padStart(2,'0')}`;
+          return String(d).slice(0,10);
+        }
+        const encoded = Buffer.from(fubApiKey + ':').toString('base64');
+        let changed = false;
+        for (const item of queue) {
+          if (item.status !== 'pending' || !item.birthday) continue;
+          const lastName = (item.name||'').split(' ').slice(-1)[0];
+          if (!lastName) continue;
+          try {
+            const r = await fetch(`https://api.followupboss.com/v1/people?q=${encodeURIComponent(lastName)}&limit=10&fields=id,firstName,lastName,customBirthday`, {
+              headers: { 'Authorization': `Basic ${encoded}` }
+            });
+            if (!r.ok) continue;
+            const data = await r.json();
+            const wantDob = normDob(item.birthday);
+            // If ANY contact with a matching first name already has this exact birthday, resolve it
+            const itemFirst = (item.name||'').split(' ')[0].toLowerCase();
+            const match = (data.people||[]).find(p => {
+              const pf = (p.firstName||'').toLowerCase();
+              const sameDob = p.customBirthday && normDob(p.customBirthday) === wantDob;
+              return sameDob;
+            });
+            if (match) {
+              item.status = 'done';
+              item.appliedTo = match.id;
+              item.note = (item.note ? item.note + ' | ' : '') + `Auto-resolved: ${match.firstName} ${match.lastName} already has this birthday`;
+              changed = true;
+            }
+          } catch(e) { /* skip on error */ }
+        }
+        if (changed) await redis.set(KEY, JSON.stringify(queue));
+      }
+
       return res.status(200).json({ success: true, items: queue });
     }
 
