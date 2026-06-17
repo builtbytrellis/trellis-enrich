@@ -700,7 +700,21 @@ async function checkExistingSession() {
   try {
     const res = await fetch('/api/get-contacts', { headers: authHeaders() });
     if (res.status === 401) { localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session'); sessionStorage.removeItem('trellis_token'); sessionStorage.removeItem('trellis_session'); return false; }
-    const saved = sessionStorage.getItem('trellis_session') || localStorage.getItem('trellis_session');
+    // Prefer sessionStorage. Only trust localStorage if it's an ADMIN (agents must re-login each session).
+    let saved = sessionStorage.getItem('trellis_session');
+    if (!saved) {
+      const localSaved = localStorage.getItem('trellis_session');
+      if (localSaved) {
+        const parsed = JSON.parse(localSaved);
+        if (parsed.role === 'admin') {
+          saved = localSaved;
+        } else {
+          // Stale agent token in localStorage — clear it, force fresh login
+          localStorage.removeItem('trellis_token');
+          localStorage.removeItem('trellis_session');
+        }
+      }
+    }
     if (saved) { currentSession = JSON.parse(saved); showApp(currentSession); return true; }
     return false;
   } catch(e) { return false; }
@@ -709,7 +723,14 @@ async function checkExistingSession() {
 async function showApp(agent) {
   document.getElementById('auth-screen').classList.add('hidden');
   currentUserId = agent.agentId;
-  localStorage.setItem('trellis_session', JSON.stringify(agent));
+  // Persist session by role: admin → localStorage; agent → sessionStorage only
+  if (agent.role === 'admin') {
+    localStorage.setItem('trellis_session', JSON.stringify(agent));
+  } else {
+    sessionStorage.setItem('trellis_session', JSON.stringify(agent));
+    localStorage.removeItem('trellis_session');
+    localStorage.removeItem('trellis_token');
+  }
   document.getElementById('app-shell').classList.add('visible');
   // Show demo banner if in demo mode
   if (localStorage.getItem('trellis_demo_mode') === 'true' && !document.getElementById('global-demo-banner')) {
