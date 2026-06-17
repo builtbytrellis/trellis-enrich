@@ -15,8 +15,8 @@ function stepSignature(steps) {
     .slice()
     .sort((a,b) => (a.position||0) - (b.position||0))
     .map(s => {
-      const label = s.taskName || s.subject || s.templateName || s.emailTemplateId || '';
-      return `${s.action}|${s.runAfterDays}|${(label||'').trim().slice(0,60)}`;
+      const label = String(s.taskName || s.subject || s.templateName || s.emailTemplateId || '');
+      return `${s.action}|${s.runAfterDays}|${label.trim().slice(0,60)}`;
     })
     .join(' >> ');
 }
