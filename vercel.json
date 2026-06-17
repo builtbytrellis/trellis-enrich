@@ -93,6 +93,9 @@
     },
     "api/fub-identity.js": {
       "maxDuration": 30
+    },
+    "api/compare-action-plans.js": {
+      "maxDuration": 120
     }
   }
 }
