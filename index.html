@@ -505,7 +505,7 @@ function deriveProf(jobTitle, company) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────
-function getToken() { return localStorage.getItem('trellis_token'); }
+function getToken() { return sessionStorage.getItem('trellis_token') || localStorage.getItem('trellis_token'); }
 function authHeaders() { return { 'Content-Type': 'application/json', 'x-session-token': getToken() }; }
 
 async function doLogin() {
@@ -519,8 +519,18 @@ async function doLogin() {
     const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
-    localStorage.setItem('trellis_token', data.token);
-    localStorage.removeItem('trellis_demo_mode'); // clear any stale demo mode
+    // Admins persist across sessions; agents must log in fresh each session (privacy)
+    if (data.agent.role === 'admin') {
+      localStorage.setItem('trellis_token', data.token);
+      localStorage.setItem('trellis_session', JSON.stringify(data.agent));
+    } else {
+      sessionStorage.setItem('trellis_token', data.token);
+      sessionStorage.setItem('trellis_session', JSON.stringify(data.agent));
+      // make sure no stale persistent token lingers for an agent
+      localStorage.removeItem('trellis_token');
+      localStorage.removeItem('trellis_session');
+    }
+    localStorage.removeItem('trellis_demo_mode');
     currentSession = data.agent;
     if (data.agent.mustChangePassword) {
       showPasswordChangeModal();
@@ -561,7 +571,11 @@ async function submitNewPassword() {
     const d = await res.json();
     if (!res.ok) throw new Error(d.error);
     document.getElementById('pw-modal').remove();
-    showApp(currentSession);
+    // Clear session so they log in fresh with their NEW password (privacy + confirms it works)
+    sessionStorage.removeItem('trellis_token'); sessionStorage.removeItem('trellis_session');
+    localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session');
+    alert('Password set! Please log in with your new password.');
+    location.reload();
   } catch(e) { err.textContent = e.message; err.style.display = 'block'; btn.textContent = 'Set password & continue'; btn.disabled = false; }
 }
 
@@ -647,8 +661,8 @@ async function checkExistingSession() {
   if (dsKey) { sessionStorage.setItem('pending_ds_key', dsKey); window.history.replaceState(null, '', window.location.pathname); }
   try {
     const res = await fetch('/api/get-contacts', { headers: authHeaders() });
-    if (res.status === 401) { localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session'); return false; }
-    const saved = localStorage.getItem('trellis_session');
+    if (res.status === 401) { localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session'); sessionStorage.removeItem('trellis_token'); sessionStorage.removeItem('trellis_session'); return false; }
+    const saved = sessionStorage.getItem('trellis_session') || localStorage.getItem('trellis_session');
     if (saved) { currentSession = JSON.parse(saved); showApp(currentSession); return true; }
     return false;
   } catch(e) { return false; }
@@ -711,7 +725,7 @@ async function showApp(agent) {
 }
 
 async function signOut() {
-  localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session');
+  localStorage.removeItem('trellis_token'); localStorage.removeItem('trellis_session'); sessionStorage.removeItem('trellis_token'); sessionStorage.removeItem('trellis_session');
   document.getElementById('app-shell').classList.remove('visible');
   document.getElementById('auth-screen').classList.remove('hidden');
   document.getElementById('login-password').value = '';
