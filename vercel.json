@@ -96,6 +96,9 @@
     },
     "api/compare-action-plans.js": {
       "maxDuration": 120
+    },
+    "api/diff-action-plan.js": {
+      "maxDuration": 60
     }
   }
 }
