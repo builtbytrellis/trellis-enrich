@@ -78,7 +78,17 @@ module.exports = async (req, res) => {
     }
 
     // Current Lorry plan names (to skip existing if requested)
-    const lorryPlans = (await fubGet('/actionPlans?limit=100', lorryKey)).actionPlans || [];
+    // Only count ACTIVE, non-prefixed plans — ignore deleted/junk/prefixed so we recreate cleanly
+    const lorryPlansRaw = (await fubGet('/actionPlans?limit=100', lorryKey)).actionPlans || [];
+    const lorryPlans = [];
+    for (const p of lorryPlansRaw) {
+      const n = p.name;
+      if (/OLD|DELETE|DUP|TEST|🗑|\?/.test(n)) continue;
+      // fetch status to exclude Deleted
+      const full = await fubGet(`/actionPlans/${p.id}`, lorryKey);
+      if (full.status === 'Deleted') continue;
+      lorryPlans.push(p);
+    }
     const lorryNames = new Set(lorryPlans.map(p => p.name.trim().toLowerCase()));
 
     const results = [];
