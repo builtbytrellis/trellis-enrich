@@ -102,6 +102,9 @@
     },
     "api/sync-plans-from-david.js": {
       "maxDuration": 300
+    },
+    "api/copy-david-plans.js": {
+      "maxDuration": 300
     }
   }
 }
