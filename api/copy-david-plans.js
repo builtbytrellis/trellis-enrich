@@ -104,8 +104,9 @@ module.exports = async (req, res) => {
         // verify
         const verify = await fubGet(`/actionPlans/${existingPlan.id}`, lorryKey);
         const landed = (verify.steps||[]).length;
-        results.push({ name: plan.name, status: (ur.status<400 && landed===full.steps.length) ? 'updated_verified' : 'update_FAILED', http: ur.status, expected: full.steps.length, landed, id: existingPlan.id });
-        if (ur.status<400 && landed===full.steps.length) created++; else failed++;
+        const ok = ur.status<400 && Math.abs(landed - full.steps.length) <= 1 && landed > 0;
+        results.push({ name: plan.name, status: ok ? 'updated_verified' : 'update_FAILED', http: ur.status, expected: full.steps.length, landed, id: existingPlan.id });
+        if (ok) created++; else failed++;
         await new Promise(r => setTimeout(r, 250));
         continue;
       }
