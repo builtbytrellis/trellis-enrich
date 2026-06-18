@@ -25,6 +25,14 @@ function myPlansOnly(list) {
   );
 }
 
+function stepSignature(steps) {
+  return (steps || []).slice().sort((a,b)=>(a.position||0)-(b.position||0))
+    .map(s => {
+      const label = String(s.taskName || s.subject || s.templateName || s.emailTemplateId || '');
+      return `${s.action}|${s.runAfterDays}|${label.trim().slice(0,60)}`;
+    }).join(' >> ');
+}
+
 // Build a clean create-payload from a source plan's full detail
 function buildPayload(full) {
   const steps = (full.steps || []).map(s => {
@@ -84,11 +92,14 @@ module.exports = async (req, res) => {
       if (!full.steps || !full.steps.length) continue; // never sync empty
 
       const existing = tgtByName[src.name.trim().toLowerCase()];
-      let willDelete = null, inUse = false;
+      let inUse = false;
       if (existing) {
         const tgtFull = await fubGet(`/actionPlans/${existing.id}`, targetKey);
         inUse = !!tgtFull.isUsed || (tgtFull.contactsRunningCount||0) > 0;
-        willDelete = existing.id;
+        // Skip if identical — no need to churn unchanged plans
+        if (stepSignature(tgtFull.steps) === stepSignature(full.steps)) {
+          continue;
+        }
       }
 
       const plan = { name: src.name, steps: full.steps.length, action: existing ? 'replace' : 'create', inUse };
