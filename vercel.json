@@ -99,6 +99,9 @@
     },
     "api/diff-action-plan.js": {
       "maxDuration": 60
+    },
+    "api/sync-plans-from-david.js": {
+      "maxDuration": 300
     }
   }
 }
