@@ -36,8 +36,17 @@ module.exports = async (req, res) => {
   if (!sourceKey || !targetKey) return res.status(500).json({ error: 'Missing DAVID_FUB_KEY or LORRY_FUB_KEY' });
 
   try {
-    const srcList = (await fubGet('/actionPlans?limit=100', sourceKey)).actionPlans || [];
-    const tgtList = (await fubGet('/actionPlans?limit=100', targetKey)).actionPlans || [];
+    // "My Action Plans" in FUB = user-created originals, not shared-template copies or system defaults.
+    function myPlansOnly(list) {
+      return (list || []).filter(p =>
+        !p.sharedActionPlanId &&            // not a copy of a shared template
+        !p.isDefaultBuyerPlan &&
+        !p.isDefaultSellerPlan &&
+        !/test|delete/i.test(p.name)        // exclude test junk
+      );
+    }
+    const srcList = myPlansOnly((await fubGet('/actionPlans?limit=100', sourceKey)).actionPlans);
+    const tgtList = myPlansOnly((await fubGet('/actionPlans?limit=100', targetKey)).actionPlans);
 
     const tgtByName = {};
     for (const p of tgtList) tgtByName[p.name.trim().toLowerCase()] = p;
@@ -50,6 +59,7 @@ module.exports = async (req, res) => {
       const tgt = tgtByName[src.name.trim().toLowerCase()];
       // Fetch full step detail for both
       const srcFull = await fubGet(`/actionPlans/${src.id}`, sourceKey);
+      if (!srcFull.steps || srcFull.steps.length === 0) continue; // skip empty
       const srcSig = stepSignature(srcFull.steps);
 
       if (!tgt) {
