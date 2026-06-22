@@ -69,8 +69,9 @@ module.exports = async (req, res) => {
       if (!rTokens.length || !cTokens.length) return 0;
       const rFirst = rTokens[0], rLast = rTokens[rTokens.length - 1];
       const cFirst = cTokens[0], cLast = cTokens[cTokens.length - 1];
-      // Last name must match
-      if (rLast !== cLast) return 0;
+      // Last name must match (compound/hyphenated aware: "chiu" ~ "chiu-stacey")
+      const surMatch = (a,b) => { if(a===b) return true; const sp=s=>s.split(/[-\s]+/).filter(Boolean); const sa=new Set(sp(a)); for(const p of sp(b)) if(sa.has(p)) return true; return false; };
+      if (!surMatch(rLast, cLast)) return 0;
       // First name exact
       if (rFirst === cFirst) return 3;
       // First name nickname
