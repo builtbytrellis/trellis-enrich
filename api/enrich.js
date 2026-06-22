@@ -438,6 +438,52 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
             });
           }
         }
+        // ── HOUSEHOLD FALLBACK: catch trades filed under a maiden/previous surname ──
+        // Signal (both required, so no false positives): a trade-client who shares the
+        // contact's FIRST name and appears on a deal (address+close_date) alongside another
+        // trade-client who shares the contact's SURNAME (the spouse anchor).
+        // e.g. contact "Andrea Callowhill" → spouse "Jay Callowhill" on a deal → "Andrea Concil"
+        // on that same deal is the maiden-name version → attribute her trades to the contact.
+        {
+          const cParts = normName(result.full_name).split(' ').filter(x => x.length >= 2);
+          if (cParts.length >= 2) {
+            const cFirst = cParts[0], cLast = cParts[cParts.length - 1];
+            const dealMap = {};
+            for (const raw of tradeRaws) {
+              if (!raw) continue;
+              const t = typeof raw === 'string' ? JSON.parse(raw) : raw;
+              const key = (t.property_address || '') + '|' + (t.close_date || '');
+              (dealMap[key] = dealMap[key] || []).push(t);
+            }
+            const haveKeys = new Set(matchedTrades.map(m => (m.address || '') + '|' + (m.close_date || '')));
+            for (const key in dealMap) {
+              if (haveKeys.has(key)) continue;
+              const group = dealMap[key];
+              const groupNames = group.map(t => t.client_name || t.buyer_or_tenant_name || t.seller_or_landlord_name || '');
+              const hasSpouseAnchor = groupNames.some(n => {
+                const p = normName(n).split(' ').filter(x => x.length >= 2);
+                return p.length >= 2 && surnamesMatch(p[p.length - 1], cLast) && p[0] !== cFirst;
+              });
+              if (!hasSpouseAnchor) continue;
+              for (const t of group) {
+                const nm = t.client_name || t.buyer_or_tenant_name || t.seller_or_landlord_name || '';
+                const p = normName(nm).split(' ').filter(x => x.length >= 2);
+                if (p.length >= 2 && firstNamesMatch(p[0], cFirst) && !surnamesMatch(p[p.length - 1], cLast)) {
+                  let side = t.agent_side || (t.deal_type === 'lease' ? 'tenant' : 'buyer');
+                  matchedTrades.push({
+                    address: t.property_address, close_date: t.close_date, deal_type: t.deal_type, side,
+                    sale_price: t.sale_price || t.monthly_rent, neighbourhood: t.neighbourhood || '',
+                    year: t.year || (t.close_date ? String(t.close_date).slice(0, 4) : ''),
+                    matched_via: 'household', maiden_name: nm
+                  });
+                  haveKeys.add(key);
+                  break;
+                }
+              }
+            }
+          }
+        }
+
         if (matchedTrades.length) {
           result.trade_history = matchedTrades;
           // Past Client tag
