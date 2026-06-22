@@ -1,5 +1,53 @@
 const { Redis } = require('@upstash/redis');
 const { verifySession } = require('./auth');
+const fetch = require('node-fetch');
+
+// Name matching (compound/hyphenated surname aware) — mirrors enrich/reconcile
+const NICK = {'kate':'katherine','katherine':'kate','katie':'katherine','kathy':'katherine','kat':'katherine',
+  'dave':'david','david':'dave','matt':'matthew','matthew':'matt','mike':'michael','michael':'mike',
+  'chris':'christopher','christopher':'chris','nick':'nicholas','nicholas':'nick','rob':'robert','robert':'rob',
+  'will':'william','william':'will','dan':'daniel','daniel':'dan','tony':'anthony','jen':'jennifer','jenny':'jennifer',
+  'liz':'elizabeth','beth':'elizabeth','steph':'stephanie','greg':'gregory','gregory':'greg','andy':'andrew',
+  'ben':'benjamin','tom':'thomas','rick':'richard','zach':'zachary','alex':'alexander','abby':'abigail',
+  'jacquelyn':'jac','jac':'jacquelyn','jackie':'jacqueline','sam':'samuel','nikki':'nicole','nicole':'nikki'};
+function normName(n){return (n||'').toLowerCase().replace(/\s+/g,' ').trim();}
+function firstNamesMatch(a,b){
+  if(a===b) return true;
+  if(NICK[a]===b||NICK[b]===a) return true;
+  if(a.length>=3&&b.length>=3&&(a.startsWith(b)||b.startsWith(a))) return true;
+  return false;
+}
+function surnamesMatch(a,b){
+  if(a===b) return true;
+  const sp=s=>s.split(/[-\s]+/).filter(Boolean);
+  const sa=new Set(sp(a));
+  for(const part of sp(b)) if(sa.has(part)) return true;
+  return false;
+}
+function nameMatchFuzzy(a,b){
+  const ta=normName(a).split(' ').filter(t=>t.length>=2);
+  const tb=normName(b).split(' ').filter(t=>t.length>=2);
+  if(!ta.length||!tb.length) return false;
+  if(!surnamesMatch(ta[ta.length-1],tb[tb.length-1])) return false;
+  return firstNamesMatch(ta[0],tb[0]);
+}
+async function getFubKey(redis, agentId){
+  const idRaw = await redis.get(`agent:id:${agentId}`);
+  if(!idRaw) return null;
+  const a = typeof idRaw==='string'?JSON.parse(idRaw):idRaw;
+  return a.fubApiKey || a.fub_api_key || null;
+}
+async function fubSearch(name, fubKey){
+  if(!fubKey) return [];
+  try{
+    const last = normName(name).split(' ').slice(-1)[0];
+    const encoded = Buffer.from(fubKey+':').toString('base64');
+    const r = await fetch(`https://api.followupboss.com/v1/people?q=${encodeURIComponent(last)}&limit=25`, { headers:{'Authorization':`Basic ${encoded}`} });
+    if(!r.ok) return [];
+    const d = await r.json();
+    return (d.people||[]).map(p=>({id:p.id, name:p.name||((p.firstName||'')+' '+(p.lastName||'')).trim()}));
+  }catch(e){ return []; }
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -115,6 +163,31 @@ module.exports = async (req, res) => {
     if (action === 'clear') {
       await redis.del(KEY);
       return res.status(200).json({ success: true });
+    }
+
+    // MATCH all pending candidates against the LIVE FUB to prevent duplicate creation
+    if (action === 'match_against_fub') {
+      const fubKey = await getFubKey(redis, agentId);
+      if (!fubKey) return res.status(400).json({ error: 'No FUB key for agent' });
+      const existing = await redis.get(KEY);
+      let queue = existing ? (typeof existing === 'string' ? JSON.parse(existing) : existing) : [];
+      let flagged = 0, checked = 0;
+      // cache FUB searches by last name to limit API calls
+      const cache = {};
+      for (const cand of queue) {
+        if (cand.status && cand.status !== 'pending') continue;
+        checked++;
+        const last = normName(cand.name).split(' ').slice(-1)[0];
+        if (!(last in cache)) cache[last] = await fubSearch(cand.name, fubKey);
+        const hit = cache[last].find(p => nameMatchFuzzy(cand.name, p.name));
+        if (hit) {
+          cand.fub_match = { id: hit.id, name: hit.name };
+          cand.status = 'exists_in_fub';
+          flagged++;
+        }
+      }
+      await redis.set(KEY, JSON.stringify(queue));
+      return res.status(200).json({ success: true, checked, already_in_fub: flagged });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
