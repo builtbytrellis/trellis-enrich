@@ -64,7 +64,7 @@ module.exports = async (req, res) => {
   const session = await verifySession(req, res);
   if (!session || session.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
 
-  const { dryRun = true, singlePlan = null, skipExisting = true, updateExisting = false } = req.body || {};
+  const { dryRun = true, singlePlan = null, skipExisting = true, updateExisting = false, exportOnly = false } = req.body || {};
   const davidKey = process.env.DAVID_FUB_KEY;
   const lorryKey = process.env.LORRY_FUB_KEY;
   if (!davidKey || !lorryKey) return res.status(500).json({ error: 'Missing DAVID_FUB_KEY or LORRY_FUB_KEY' });
@@ -75,6 +75,27 @@ module.exports = async (req, res) => {
     // Optionally restrict to a single plan by name (for the test-one-first step)
     if (singlePlan) {
       srcPlans = srcPlans.filter(p => p.name.trim().toLowerCase() === singlePlan.trim().toLowerCase());
+    }
+
+    // EXPORT MODE: dump David's full canonical plans as JSON (master template source of truth)
+    if (exportOnly) {
+      const master = [];
+      for (const plan of srcPlans) {
+        const full = await fubGet(`/actionPlans/${plan.id}`, davidKey);
+        if (!full.steps?.length) continue;
+        master.push({
+          name: full.name,
+          stopOnContacted: full.stopOnContacted || false,
+          sendToAll: full.sendToAll !== false,
+          steps: full.steps.map(s => ({
+            action: s.action, position: s.position, runAfterDays: s.runAfterDays || 0,
+            taskName: s.taskName || null, taskType: s.taskType || 'Follow Up',
+            emailTemplateId: s.emailTemplateId || null, stopActionPlanId: s.stopActionPlanId || null,
+            noteDesc: s.noteDesc || null
+          }))
+        });
+      }
+      return res.status(200).json({ success: true, exported: master.length, master });
     }
 
     // Current Lorry plan names (to skip existing if requested)
