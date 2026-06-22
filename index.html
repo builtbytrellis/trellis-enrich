@@ -506,14 +506,23 @@ function deriveProf(jobTitle, company) {
 
 // ── Auth ──────────────────────────────────────────────────────────────
 let fubDomain = null;
+let fubDomainCache = {};
+function currentViewAgentId() { return (impersonating && impersonating.agentId) ? impersonating.agentId : (currentUserId || '__self__'); }
 async function loadFubDomain() {
-  if (fubDomain) return fubDomain;
+  const aid = currentViewAgentId();
+  if (Object.prototype.hasOwnProperty.call(fubDomainCache, aid)) { fubDomain = fubDomainCache[aid]; return fubDomain; }
   try {
-    const res = await fetch('/api/fub-identity', { headers: authHeaders() });
-    if (res.ok) { const d = await res.json(); fubDomain = d.domain || null; }
-  } catch(e) {}
+    const q = (impersonating && impersonating.agentId) ? ('?agentId=' + encodeURIComponent(impersonating.agentId)) : '';
+    const res = await fetch('/api/fub-identity' + q, { headers: authHeaders() });
+    if (res.ok) { const d = await res.json(); fubDomainCache[aid] = d.domain || null; }
+    else { fubDomainCache[aid] = null; }
+  } catch(e) { fubDomainCache[aid] = null; }
+  fubDomain = fubDomainCache[aid];
   return fubDomain;
 }
+// SAFETY: null the domain immediately on any agent switch so no cross-tenant link
+// can render during the async reload. A missing link is safe; a wrong-tenant link is not.
+function resetFubDomain() { fubDomain = null; loadFubDomain(); }
 function fubProfileUrl(fubId) {
   if (!fubId || !fubDomain) return null;
   return `https://${fubDomain}.followupboss.com/2/people/view/${fubId}`;
@@ -809,6 +818,7 @@ async function signOut() {
   document.getElementById('auth-screen').classList.remove('hidden');
   document.getElementById('login-password').value = '';
   currentUserId = null; currentSession = null; impersonating = null;
+  fubDomain = null; fubDomainCache = {};
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────
@@ -915,6 +925,7 @@ async function toggleDemoMode() {
 
       // Impersonate demo agent — this switches all tabs to demo data
       impersonating = { agentId: 'agent_demo', name: 'Demo Agent' };
+      resetFubDomain();
       demoModeActive = true;
       btn.textContent = 'Disable Demo Mode';
       btn.style.color = '#2980b9';
@@ -934,6 +945,7 @@ async function toggleDemoMode() {
   } else {
     // Deactivate — stop impersonating
     impersonating = null;
+    resetFubDomain();
     demoModeActive = false;
     btn.textContent = 'Enable Demo Mode';
     btn.style.color = 'var(--ink-muted)';
@@ -1306,6 +1318,7 @@ async function enrichAsAgent(agentId, agentName) {
     const data = await res.json();
     impersonating = { agentId, name: agentName, fubApiKey: data.fubApiKey || '' };
   } catch(e) { impersonating = { agentId, name: agentName, fubApiKey: '' }; }
+  resetFubDomain();
   currentUserId = agentId;
   document.getElementById('user-name').textContent = agentName + ' (via Admin)';
   document.getElementById('user-avatar').textContent = agentName[0].toUpperCase();
@@ -1323,6 +1336,7 @@ async function enrichAsAgent(agentId, agentName) {
 function stopImpersonating() {
   if (!impersonating) return;
   impersonating = null;
+  resetFubDomain();
   currentUserId = currentSession.agentId;
   document.getElementById('user-name').textContent = currentSession.name;
   document.getElementById('user-avatar').textContent = currentSession.name[0].toUpperCase();
