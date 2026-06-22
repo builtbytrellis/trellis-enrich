@@ -1,0 +1,3828 @@
+{
+  "_meta": {
+    "source": "David Speedie canonical",
+    "exported_count": 27,
+    "note": "Master action plan template. Source of truth for new agent onboarding."
+  },
+  "plans": [
+    {
+      "name": "New Lead Nurturing - Investor",
+      "stopOnContacted": true,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Intro call \u2014 understand their goals: cash flow, appreciation, or both? Single family, multi-unit, or condo? Active timeline or just exploring?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 1,
+          "taskName": "Send a quick investment snapshot \u2014 avg cap rates in their target area, recent rental demand stats, price-to-rent ratios. Show you speak numbers",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 3,
+          "taskName": "\"Do you have financing in place already or still working through that? Happy to connect you with a broker who specializes in investment properties\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 5,
+          "taskName": "Send a real example \u2014 a property, what it rented for, what it sold for, estimated cash flow. Make the opportunity feel tangible",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 11,
+          "taskName": "Follow up \u2014 any questions on the numbers? Have they seen anything they liked? Gauge how serious and how fast they move",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 9,
+          "taskName": "Follow up \u2014 any questions on the numbers? Have they seen anything they liked? Gauge how serious and how fast they move",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 15,
+          "taskName": "Market pulse \u2014 \"Vacancy rates in [neighbourhood] are sitting around X%. Rents up Y% year over year. Strong fundamentals for investors right now\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 15,
+          "taskName": "Are they still actively looking? Any shifts in budget, property type, or target neighbourhood?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 30,
+          "taskName": "Share a recent off-market or quiet listing opportunity \u2014 show you bring access they cannot get on their own",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 30,
+          "taskName": "\"Just helped an investor client pick up a property in [neighbourhood] \u2014 tenanted day one. Happy to walk you through how we found it\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 60,
+          "taskName": "6 month check-in \u2014 has anything changed? Market timing concern? Financing hurdle? Try to identify the real blocker",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 90,
+          "taskName": "\"Fall market update \u2014 here is what the investment landscape looks like right now vs 6 months ago\" with relevant sold data",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 65,
+          "taskName": "\"Spring market is historically strong for investor purchases before rents reset. Worth a conversation if you are still looking\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 30,
+          "taskName": "1 year follow-up \u2014 full reconnect. If still not moving, assess fit and either keep nurturing or move to sphere",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "New Lead Nurturing: DOWNSIZER",
+      "stopOnContacted": true,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Intro \u2014 understand their situation (empty nest? retirement? lifestyle change?) and what downsizing means to them",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 1,
+          "taskName": "\"Downsizing in Toronto \u2014 condo vs smaller freehold vs townhouse\" breakdown. Show you understand their options",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 3,
+          "taskName": "Are you thinking of staying in the same neighbourhood or open to exploring?\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 5,
+          "taskName": "Send 2-3 examples of what their budget could get them in their target area \u2014 make it feel real and exciting",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 11,
+          "taskName": "Follow up \u2014 any questions from the listings? Have they thought about timing tied to their current home sale?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 9,
+          "taskName": "\"How to buy and sell at the same time without the stress\" \u2014 bridge financing, timing strategies",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 15,
+          "taskName": "\"Just had clients in a similar situation close last month \u2014 moved from a 4-bed house to a beautiful condo in [neighbourhood]. Happy to share how we coordinated it\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 15,
+          "taskName": "Any shifts in their thinking? More clarity on timeline or destination neighbourhood?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 30,
+          "taskName": "Neighbourhood spotlight \u2014 walkability, amenities, building quality in areas that suit downsizers",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 30,
+          "taskName": "\"Market update \u2014 great inventory right now for [condo/townhouse]. Good time to be a buyer\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 60,
+          "taskName": "6 month check-in \u2014 have life circumstances changed? Closer to pulling the trigger?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 90,
+          "taskName": "\"What your current home is worth today\" \u2014 tie their selling opportunity to their buying power",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 65,
+          "taskName": "\"Spring market is a great time for downsizers \u2014 more inventory to choose from. Worth a conversation?\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 30,
+          "taskName": "1 year follow-up \u2014 full reconnect",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "New Lead Nurturing: SELLER",
+      "stopOnContacted": true,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Intro \u2014 understand their timeline, reason for selling, and what they need from the process",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 1,
+          "taskName": "Send recent comparable sales in their neighbourhood. Show you already know their street",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 3,
+          "taskName": "\"Quick question \u2014 are you thinking of listing this spring/fall or more flexible on timing?\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 5,
+          "taskName": "\"What your home could sell for today vs in 60 days with these prep steps\" \u2014 light staging/prep value-add",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 11,
+          "taskName": "Follow up on timeline. Offer to do a walkthrough and give a no-obligation pricing opinion",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 9,
+          "taskName": "Share a recent listing you sold (or one nearby) \u2014 what it listed for, what it sold for, days on market",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 15,
+          "taskName": "Market pulse \u2014 \"X homes sold on your street/area in the last 30 days. Inventory is [low/moving fast]\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 15,
+          "taskName": "Are they any closer to a decision? Any concerns about the process?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 30,
+          "taskName": "\"Spring/fall market is coming \u2014 here is why listing now vs waiting could mean $X more\"",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 30,
+          "taskName": "\"Just listed a home nearby \u2014 if you want I can show you the marketing package I put together for it\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 60,
+          "taskName": "6 month check-in \u2014 re-qualify. Still planning to sell? Timeline shift?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 90,
+          "taskName": "Market update with neighbourhood stats \u2014 sold prices, days on market, buyer demand",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 65,
+          "taskName": "\"Spring market is heating up \u2014 great time to talk if you're still considering selling\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 30,
+          "taskName": "1 year follow-up \u2014 full reconnect",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "New Lead Nurturing - FTB",
+      "stopOnContacted": true,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Intro call \u2014 learn their timeline, budget, neighbourhood wishlist. Let them know you specialize in helping FTBs understand the full process",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 2,
+          "taskName": "Send FTB process overview \u2014 what happens from offer to keys. Position yourself as the guide who makes this less overwhelming",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 2,
+          "taskName": "\"Have you spoken to a mortgage broker yet? Happy to recommend a couple of great ones if not\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 5,
+          "taskName": "Send neighbourhood breakdown of areas in their budget \u2014 show your local knowledge",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 11,
+          "taskName": "Check in on mortgage pre-approval status. Share 2-3 active listings that match their criteria",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 9,
+          "taskName": "\"What to look for at showings\" guide \u2014 things FTBs miss (HVAC age, electrical panels, etc.)",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 15,
+          "taskName": "Quick market update \u2014 \"X homes sold in [neighbourhood] this month, avg price was $X. Starting to see your budget work well there\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 15,
+          "taskName": "Are they still actively looking? Any shifts in budget or timeline?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 30,
+          "taskName": "Send a recent sale they missed + what it sold for vs asking \u2014 shows you're watching the market for them",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 30,
+          "taskName": "\"Just had a FTB client close last week on a great place in [neighbourhood]. Keeping my eye out for you too\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 60,
+          "taskName": "6 month check-in \u2014 has anything changed? Still in the market?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 90,
+          "taskName": "Market update \u2014 spring/fall market insight relevant to their search",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 65,
+          "taskName": "\"Coming up on a year \u2014 still thinking about buying? Rates and inventory are looking [X] right now\"",
+          "taskType": "Text",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 30,
+          "taskName": "1 year follow-up \u2014 full reconnect, reassess timeline and motivation",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Landlord - Closing",
+      "stopOnContacted": false,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Confirm key exchange time/location with tenant agent",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Confirm ALL utility confirmations, key deposit, first and last month received by landlord",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Confirm landlord has all signed documents",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Arrange pre-closing walkthrough inspection with landlord",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Send closing day reminder to landlord",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "changeStage",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": null,
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Add tags: Past Client, Landlord",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 1,
+          "taskName": "Closing day check-in with landlord - how did key exchange go?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 5,
+          "taskName": "One week in - glad we found a great tenant",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 53,
+          "taskName": "60 day landlord check-in",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 280,
+          "taskName": "60 Days until Renewal - Check in",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 365,
+          "taskName": "1 year anniversary - touch base + market update. Switch to Yearly Nurture Plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Landlord - Conditional",
+      "stopOnContacted": false,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Add conditions expiry date into Google Calendar",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Receive deposit cheque from tenant (confirm with tenant agent)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Run credit check on applicant(s)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Verify employment letter and pay stubs",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Check references (previous landlord, employer)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Send reference check results to landlord for approval",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Conditions removed? Prepare Notice of Fulfillment (NoF)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 1,
+          "taskName": "NoF Signed? Confirm both parties signed",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 1,
+          "taskName": "Prepare OSL lease agreement for signing",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 1,
+          "taskName": "Send deposit receipt to both parties",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Landlord - Listing",
+      "stopOnContacted": false,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Confirm listing details - price, term, inclusions",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Prep listing paperwork - Listing Agreement",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Book photographer / Source photos from previous listing",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Draft MLS listing - save as draft",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Create Instagram/Facebook",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Upload showing instructions to BrokerBay",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Install lockbox",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Add property to agent website",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Go Live on MLS - send landlord MLS link",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Set up neighbourhood PM match",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 3,
+          "taskName": "Showing feedback update to landlord",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 7,
+          "taskName": "Weekly update call/email to landlord",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 14,
+          "taskName": "Two-week review - adjust price or strategy if needed",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Tenant - Closing",
+      "stopOnContacted": false,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Confirm key exchange time/location with listing agent",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Confirm key deposit amount delivered",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Confirm utilities transferred (hydro, internet, tenant insurance)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Send final moving day checklist to tenant",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "OSL Signed?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "sendEmail",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": null,
+          "taskType": "Follow Up",
+          "emailTemplateId": 110,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "changeStage",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": null,
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Add tags: Past Client, Tenant, Potential First Time Buyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 2,
+          "taskName": "Check in - How did the move go?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 7,
+          "taskName": "One week in - how are you settling in?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 20,
+          "taskName": "30 day check-in - loving your new place?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "90 Day Reminder - Lease coming to an end",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 365,
+          "taskName": "1 year home anniversary - send note + market update. Switch to Yearly Nurture Plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Tenant - Conditional",
+      "stopOnContacted": false,
+      "sendToAll": false,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send Deposit Email",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Add conditions expiry date(s) into Google Calendars",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Get Deposit Receipt & send to client for their records",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Delete prospect match",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Add client to Facebook Page",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Add client to Instagram",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Conditions removed? Prepare Notice of Fulfillment (NoF)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 1,
+          "taskName": "NoF Signed? Confirm both parties signed",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 1,
+          "taskName": "Send Next Steps Email (Once deposit received + all conditions waived)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 1,
+          "taskName": "Send introduction email for tenant/listing agent to arrange key exchange",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 23,
+          "taskName": "Send 1 week to closing email - hydro set up? Key deposit ready?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 29,
+          "taskName": "Send \"Here to help\" email 1 day before closing",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 30,
+          "taskName": "Send text on closing day - good luck!",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "changeStage",
+          "position": 14,
+          "runAfterDays": 30,
+          "taskName": null,
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 15,
+          "runAfterDays": 30,
+          "taskName": "Add tags: Past Client, Tenant, Potential First Time Buyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 16,
+          "runAfterDays": 30,
+          "taskName": "Switch to Tenant - Closing action plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 17,
+          "runAfterDays": 31,
+          "taskName": "1 day after closing - How did it go?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 18,
+          "runAfterDays": 37,
+          "taskName": "7 days after closing - how are you settling in? Anything I can do to help?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 19,
+          "runAfterDays": 60,
+          "taskName": "30 Days - How's it going?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 20,
+          "runAfterDays": 120,
+          "taskName": "Hows your place? Hows the landlord?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 21,
+          "runAfterDays": 210,
+          "taskName": "Still liking your place?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 22,
+          "runAfterDays": 305,
+          "taskName": "Send 90 Day Reminder Email",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 23,
+          "runAfterDays": 385,
+          "taskName": "Send Handwritten Card - Happy 1 Year!",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 24,
+          "runAfterDays": 395,
+          "taskName": "Happy 1 Year Anniversary! - Switch to Yearly Nurture Plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Post Closing Plan #2",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 30,
+          "taskName": "Send handwritten card to congratulate on new home",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 30,
+          "taskName": "Check in - is there anything you can do to help?",
+          "taskType": "Call",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 30,
+          "taskName": "Send handwritten note with a couple of recommendations (service providers, restaurants)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 45,
+          "taskName": "How are they settling in? Enjoying the neighborhood?",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 45,
+          "taskName": "Would be willing to write you a review?",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 45,
+          "taskName": "Call/Text to check-in",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 45,
+          "taskName": "Ask if they know anyone that is looking to sell their home soon - offer a home evaluation",
+          "taskType": "Email",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 85,
+          "taskName": "Send card/gift to congratulate on upcoming home anniversary",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Buyer - Conditional (Condo)",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send deposit instructions to client",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Create FUB deal + Drive folder, tag Conditional",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Add condition expiry dates to Google Calendar",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Suspend MLS prospect match",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Request lawyer + mortgage broker info",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 1,
+          "taskName": "Add lawyer + mortgage broker info to FUB notes",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Deposit Received? Send Next Steps email",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "[If status condition] Confirm Status Certificate ordered with LA",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 2,
+          "taskName": "[If status condition] Check in after 2 days if status cert not received",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Check in on Finance Condition with Mortgage broker/client",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 0,
+          "taskName": "Check MLS status changed to SC",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 1,
+          "taskName": "[If status condition] Send Status Cert to lawyer when received (state deadline)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "CHECK IN - FINANCING CONFIRMED?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 1,
+          "taskName": "Send docs to lawyer + mortgage broker",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 15,
+          "runAfterDays": 2,
+          "taskName": "Follow up with client on condition progress",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 16,
+          "runAfterDays": 3,
+          "taskName": "Mid-condition client check-in if not firm yet",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 17,
+          "runAfterDays": 3,
+          "taskName": "Prep Notice of Fulfillment, client signs, then forward to LA",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 18,
+          "runAfterDays": 3,
+          "taskName": "Send Acknowledged NoF to Lawyer, MB, Clients + Add to FUB",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 19,
+          "runAfterDays": 1,
+          "taskName": "Check MLS status changed from SC to Sold",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 20,
+          "runAfterDays": 0,
+          "taskName": "Transition to Buyer Firm (Condo) plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Buyer - Conditional (Freehold)",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send deposit instructions to client",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Create FUB deal + Drive folder, tag Conditional",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Add condition expiry dates to Google Calendar",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 1,
+          "taskName": "[If inspection condition] Coordinate home inspection booking",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Suspend MLS prospect match",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Request lawyer + mortgage broker info via client portal",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 1,
+          "taskName": "Add lawyer + mortgage broker info to FUB notes",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 1,
+          "taskName": "Send Next Steps email after deposit received",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "[If inspection condition] Confirm inspection completed + report received",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Check MLS status changed to SC",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 1,
+          "taskName": "Send docs to lawyer + mortgage broker",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 2,
+          "taskName": "Follow up on financing condition",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 3,
+          "taskName": "Mid-condition client check-in if not firm yet",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 3,
+          "taskName": "Prep Notice of Fulfillment, client signs, then forward to LA",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 15,
+          "runAfterDays": 3,
+          "taskName": "Send Acknowledged NoF to Lawyer, MB, Clients + Add to FUB",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 16,
+          "runAfterDays": 1,
+          "taskName": "Check MLS status changed from SC to Sold",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 17,
+          "runAfterDays": 0,
+          "taskName": "Transition to Buyer Firm (Freehold) plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Buyer - Firm/Closing (Condo)",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send congratulations on firm + closing overview",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Update FUB to Firm + add closing date to calendar",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 1,
+          "taskName": "Check MLS status changed to Sold Firm",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 1,
+          "taskName": "Notify lawyer + mortgage broker of firm",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "FINTRAC + Receipt of Funds done?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 1,
+          "taskName": "Create deal in ROOMS / Send PPW to deal dept",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 5,
+          "taskName": "Schedule pre-closing visit(s) per VISIT CLAUSE in accepted offer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 7,
+          "taskName": "Send countdown-to-closing email (ADJUST TO CLOSING DATE, ~30 days out)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 1,
+          "taskName": "Confirm with lawyer + mortgage broker all docs in order (ADJUST TO CLOSING DATE, ~7 days out)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 3,
+          "taskName": "Closing day call (ADJUST TO CLOSING DATE)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 2,
+          "taskName": "Order closing gift",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 1,
+          "taskName": "Confirm deal closed with lawyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 1,
+          "taskName": "Send 1-day post-closing check-in",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Transition to Post-Closing 12 Month plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 15,
+          "runAfterDays": 36,
+          "taskName": "Set up time to drop off gift/post closing visit",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Buyer - Firm/Closing (Freehold)",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send congratulations on firm + closing overview",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Update FUB to Firm + add closing date to calendar",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 1,
+          "taskName": "Check MLS status changed to Sold Firm",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 1,
+          "taskName": "Notify lawyer + mortgage broker of firm",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 1,
+          "taskName": "Send deal summary + paperwork to deals dept",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 2,
+          "taskName": "Order closing gift (ADJUST TO CLOSING DATE, ~3 weeks out for lead time)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 5,
+          "taskName": "Schedule pre-closing visit(s) per VISIT CLAUSE in accepted offer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 7,
+          "taskName": "Send countdown-to-closing email (ADJUST TO CLOSING DATE, ~30 days out)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 1,
+          "taskName": "Confirm with lawyer + mortgage broker all docs in order (ADJUST TO CLOSING DATE, ~7 days out)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Call to LA - Sale Sign removed?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 3,
+          "taskName": "Closing day call (ADJUST TO CLOSING DATE)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 1,
+          "taskName": "Confirm deal closed with lawyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 1,
+          "taskName": "Send 1-day post-closing check-in",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Transition to Post-Closing 12 Month plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Conditional (Condo)",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send congrats + next steps to seller",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Update FUB to Conditional + add condition expiry to calendar",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Confirm deposit received",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 1,
+          "taskName": "Check MLS status changed to SC",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 1,
+          "taskName": "[If status condition] Confirm buyer ordered Status Certificate",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 2,
+          "taskName": "[If status condition] Provide status cert to buyer side when ready",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 2,
+          "taskName": "Follow up on condition progress",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 3,
+          "taskName": "Monitor for waivers / firm",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 1,
+          "taskName": "Check MLS status changed from SC to Sold",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Transition to Firm (Condo) plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - PRE-Listing (Condo)",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Prep Listing Paperwork",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Set up building PM",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Send next steps email (Prepping your condo)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Book Stager (Confirm date/time with agent)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Book Photographer (Confirm date/time with agent + stager)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Contact Property Manager re: showing, LBX and sign restrictions",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Order Status Certificate (Client)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "PPW Signed? Draft MLS Listing - Save as Drafts",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Upload Showing Instructions to BrokerBay",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Prepare Feature Sheet",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 0,
+          "taskName": "Design + Print Flyer for Mailroom",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "FS approved? Send to Marketing for Printing",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "Coordinate Delivery of Marketing Materials",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Send Day of Live Listing Email",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Conditional - Condo",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Order status certificate (if not already done)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Send BA status cert when received",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Suspend prospect match (or remind agent to)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Change MLS listing to 'sold conditional'",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Still showing while SC and update status in Broker Bay",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Save conditions & closing date in Google calendars",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Send docs to lawyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Send docs to mortgage broker (if also buying)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Follow Up with BA that Status Condtion coming along fine",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Get NofF for Status Condition from BA & send back acknowledged",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 0,
+          "taskName": "Get NofF for Financing Condition from BA & send back acknowledged",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "Check if Any Amendments to Prices or Dates",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "Change MLS to sold firm",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Delete prospect match (or remind agent to)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Conditional - Freehold",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Suspend prospect match (or remind agent to)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Change MLS listing to 'sold conditional'",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Save conditions & closing date in Google calendars",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Send docs to lawyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Send docs to mortgage broker (if also buying)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Follow Up with BA that Financing Condtion coming along fine",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Follow Up with BA that H.I. Condtion coming along fine",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Get NofF for Financing Condition from BA & send back acknowledged",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Get NofF for H.I. Condition from BA & send back acknowledged",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Change MLS to sold firm",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 0,
+          "taskName": "Delete prospect match (or remind agent to)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "Create a Folder for Transaction with all completed files under 2026 Transactions",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "Change Plan to Seller - Firm - Freehold",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Firm",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Arrange Staging removal",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Send \"Closing Countdown\" email (ADJUST DATE - 30 Days before Closing)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Anything I can do to help? (1 Week after firm)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Check in: 2 Weeks before closing (ADJUST DATE)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Happy Closing Day! Send Email (ADJUST DATE)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Upload Transaction to ROOMS",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Trade record received?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Payment received?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Closing - Condo",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send \"Closing Countdown\" email - ADJUST DATE - 30 DAYS BEFORE CLOSING",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Arrange closing gift",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Arrange closing gift delivery",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Anything I can do to help?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Prepare Just Sold Postcards",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Prepare Canada Postal Walk",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Prepare Just Sold SM post",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Send approved designs for Print",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Arrange Postcard Delivery",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Send friendly reminder: All personal belongings/garbage removed from locker/parking space/unit/mailbox?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 0,
+          "taskName": "Add Closing Date as annual anniversary for next 10 years",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "Add birthdays from Fintrac - Assign yearly reminder",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "All paperwork completed in file?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Check in: Closing Day!",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Closing - Freehold",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send \"Closing Countdown\" email - ADJUST DATE - 30 DAYS BEFORE CLOSING",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Arrange closing gift",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Arrange closing gift delivery",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Anything I can do to help?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Prepare Just Sold Postcards",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Prepare Canada Postal Walk",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Prepare Just Sold SM post",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Send approved designs for Print",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Arrange Postcard Delivery",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Add Closing Date as annual anniversary for next 10 years",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 0,
+          "taskName": "Add birthdays from Fintrac - Assign yearly reminder",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "All paperwork completed in file?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "Sellers - Reminder email - inclusions/exclusions/how to prepare your home for your buyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Check in: Closing Day!",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - PRE-Listing - Freehold",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "PPW Signed? Draft MLS Listing - Save as Drafts",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Prep Listing Paperwork",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Set up neighbourhood PM match",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 1,
+          "taskName": "Arrange staging walkthrough - Discuss decluttering",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Book Stager (Confirm date/time with agent)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Book Photographer (Confirm date/time with agent + stager) (HDR Photos + 90-second Motion Video Drone Footage , Floor plans Property Website (non branded & branded links)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Book Home Inspection (Confirm date/time with agent)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Book Movers (if things need to move to storage)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Book Cleaners (for when staging is complete)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Prepare Feature Sheet",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 0,
+          "taskName": "FS approved? Send to Marketing for Printing",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "Upload Showing Instructions to BrokerBay",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "Install Lockbox",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Order Sign Installation - Exclusive sticker, www.XXXX.com sign rider to be installed",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 15,
+          "runAfterDays": 0,
+          "taskName": "Prepare Coming Soon Email (Coming soon email blast to over agents & client database- with exterior photos & exterior video)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 16,
+          "runAfterDays": 0,
+          "taskName": "Add property to agent website",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 17,
+          "runAfterDays": 0,
+          "taskName": "Coordinate Delivery of Marketing Materials",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 18,
+          "runAfterDays": 0,
+          "taskName": "Begin Insta & Facebook Campaigns",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 19,
+          "runAfterDays": 0,
+          "taskName": "Send Day of Live Listing Email - Live on MLS - Send email to client with MLS link/Realtor.ca link. Google drive folder with all photos/videos of their property",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Listing - Live",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Send We're Live! Template",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 3,
+          "taskName": "Send feedback summary from showings",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 3,
+          "taskName": "Send feedback summary from showings",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 3,
+          "taskName": "Send feedback summary from showings",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 4,
+          "taskName": "Suggest Price Change",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - Offer Date",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Offer Date on MLS?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Add Offer Date to Calendar w/ reminder 2 days before to send out Offer Instructions Email",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Prep Offer Instructions Email",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Day of Offer Date - Page and email out to all showing agents to let them know how many offers are registered",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Day of offer Date - All 801 forms received from offers?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Day of offer Date - Offer Accepted?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Day of offer Date - Update showing agents on status if offer accepted",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Update status to SC on MLS",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Apply Closing Plan - FIRM or CONDITIONAL",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Update Front Desk of Status  - no more showings?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Post Closing - 12 Month Nurturing Plan",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 6,
+          "taskName": "How's everything going with the place so far?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 23,
+          "taskName": "Send Local Recommendations",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 30,
+          "taskName": "Personal Check-In Call - Ask how they\u2019re settling in, Ask about renovations or upgrades Ask how they\u2019re liking the neighbourhood, Mention you\u2019re always available for referrals/questions",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 30,
+          "taskName": "Send Homeowner / Market Value Message",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 30,
+          "taskName": "Know anyone looking to make a move?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 30,
+          "taskName": "Happy New Year!",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 30,
+          "taskName": "Mid-Year Market Update",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 30,
+          "taskName": "Client Appreciation Touchpoint Ideas:  coffee gift card holiday drop-off pumpkin pie ice cream gift card handwritten card",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 60,
+          "taskName": "Personal Voice Note:  Summer check-in, Ask about travel/family/plans Congratulate milestones Keep it relationship-focused",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 30,
+          "taskName": "Know anyone looking to make a move?",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 35,
+          "taskName": "Happy One Year Anniversary!",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - PRE-Listing - Condo",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Prep Listing Paperwork",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "PPW Signed? Draft MLS Listing - Save as Drafts",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Set up neighbourhood PM match",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 1,
+          "taskName": "Arrange staging walkthrough - Discuss decluttering",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 0,
+          "taskName": "Book Stager (Confirm date/time with agent)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 0,
+          "taskName": "Book Photographer (Confirm date/time with agent + stager) (HDR Photos + 90-second Motion Video Drone Footage , Floor plans Property Website (non branded & branded links)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 0,
+          "taskName": "Order Status Certificate",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 0,
+          "taskName": "Book Movers (if things need to move to storage)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 0,
+          "taskName": "Book Cleaners (for when staging is complete)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "Prepare Feature Sheet",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 1,
+          "taskName": "FS approved? Send to Marketing for Printing",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 12,
+          "runAfterDays": 0,
+          "taskName": "Prepare Mailroom Flyer",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 13,
+          "runAfterDays": 0,
+          "taskName": "Upload Showing Instructions to BrokerBay",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 14,
+          "runAfterDays": 0,
+          "taskName": "Install Lockbox",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 15,
+          "runAfterDays": 0,
+          "taskName": "Prepare Coming Soon Email (Coming soon email blast to over agents & client database- with exterior photos & exterior video)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 16,
+          "runAfterDays": 0,
+          "taskName": "Add property to agent website",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 17,
+          "runAfterDays": 0,
+          "taskName": "Coordinate Delivery of Marketing Materials",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 18,
+          "runAfterDays": 0,
+          "taskName": "Begin Insta & Facebook Campaigns",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    },
+    {
+      "name": "Seller - LIVE Listing",
+      "stopOnContacted": true,
+      "sendToAll": true,
+      "steps": [
+        {
+          "action": "createTask",
+          "position": 1,
+          "runAfterDays": 0,
+          "taskName": "Confirm listing live on MLS + Realtor.ca, verify all photos/video/links display correctly",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 2,
+          "runAfterDays": 0,
+          "taskName": "Confirm showing instructions live on BrokerBay",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 3,
+          "runAfterDays": 0,
+          "taskName": "Send Day of Live Listing Email - Live on MLS - Send email to client with MLS link/Realtor.ca link. Google drive folder with all photos/videos of their property",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 4,
+          "runAfterDays": 0,
+          "taskName": "Confirm social campaign live (Insta/FB), ads running",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 5,
+          "runAfterDays": 1,
+          "taskName": "Early activity check-in: call/text client with first showing feedback",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 6,
+          "runAfterDays": 4,
+          "taskName": "Weekly seller update call: showings, feedback, online views, market activity",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 7,
+          "runAfterDays": 6,
+          "taskName": "Refresh social campaign with new creative/angle",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 8,
+          "runAfterDays": 5,
+          "taskName": "Second weekly seller update call + Price/strategy check-in",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 9,
+          "runAfterDays": 5,
+          "taskName": "3-week listing review: full activity report + recommendation (hold/adjust)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 10,
+          "runAfterDays": 0,
+          "taskName": "If price reduction needed, prep Amendment and transition to Price Reduction plan",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        },
+        {
+          "action": "createTask",
+          "position": 11,
+          "runAfterDays": 15,
+          "taskName": "market review (new comps, competing listings)",
+          "taskType": "Follow Up",
+          "emailTemplateId": null,
+          "stopActionPlanId": null,
+          "noteDesc": null
+        }
+      ]
+    }
+  ]
+}
