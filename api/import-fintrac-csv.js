@@ -59,6 +59,10 @@ module.exports = async (req, res) => {
       'sue':['susan'],'susan':['sue'],'barb':['barbara'],'barbara':['barb'],
       'lauren':['laurel','laura'],'laurel':['lauren'],
       'lexi':['alexis','alexandra'],'ally':['allison'],'allison':['ally'],
+      'steve':['stephen','steven'],'stephen':['steve','steven'],'steven':['steve','stephen'],
+      'nikki':['nicole','nicola'],'nicole':['nikki'],'connie':['consuelo','constance'],'consuelo':['connie'],
+      'andy':['andrew','andreanne'],'andreanne':['andy','andrea'],'kate':['katherine','kathryn','kathy','katie','kat'],
+      'kat':['katherine','kate','kathleen'],'mike':['michael','micheal'],'micheal':['michael','mike'],
     };
 
     function getNicks(name) { return [name, ...(NICKNAMES[name] || [])]; }
@@ -99,9 +103,10 @@ module.exports = async (req, res) => {
         }
       }
 
-      // Only auto-apply score 3 (exact first + exact last name)
-      // Score 2 (nickname) and score 1 (prefix) are too risky — always require human review
-      if (bestMatch && bestScore >= 3) {
+      // Auto-apply score 3 (exact first+last) AND score 2 (nickname + exact surname) —
+      // nickname+exact-surname is high-confidence (Steve/Stephen Retchford, Nikki/Nicole Chow).
+      // Score 1 (loose prefix) still requires human review.
+      if (bestMatch && bestScore >= 2) {
         // Convert MM/DD/YYYY to YYYY-MM-DD
         let dob = row.date_of_birth || '';
         if (dob && dob.includes('/')) {
