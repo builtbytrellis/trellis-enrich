@@ -377,12 +377,18 @@ const { getAreaFromAddress, getStreetFromAddress } = require('./toronto-areas');
       }
 
       // Fuzzy: same last name + first name matches via nickname/prefix (used for TRADES)
+      function surnamesMatch(a, b) {
+        if (a === b) return true;
+        const sp = s => s.split(/[-\s]+/).filter(Boolean);
+        const sa = new Set(sp(a));
+        for (const part of sp(b)) if (sa.has(part)) return true;
+        return false;
+      }
       function nameMatchFuzzy(a, b) {
         const ta = normName(a).split(' ').filter(t=>t.length>=2);
         const tb = normName(b).split(' ').filter(t=>t.length>=2);
         if (!ta.length || !tb.length) return false;
-        const lastMatch = ta[ta.length-1] === tb[tb.length-1];
-        if (!lastMatch) return false;
+        if (!surnamesMatch(ta[ta.length-1], tb[tb.length-1])) return false;
         return firstNamesMatch(ta[0], tb[0]);
       }
 
