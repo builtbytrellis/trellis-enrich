@@ -1,5 +1,16 @@
 const fetch = require('node-fetch');
 
+// Surname-aware name matching to verify FUB dedup hits (prevents wrong-person links + duplicates)
+const _NICK = {'kat':'katherine','katherine':'kat','kate':'katherine','katie':'katherine','kathy':'katherine',
+  'dave':'david','david':'dave','matt':'matthew','mike':'michael','chris':'christopher','nick':'nicholas',
+  'rob':'robert','will':'william','dan':'daniel','tony':'anthony','jen':'jennifer','jenny':'jennifer',
+  'liz':'elizabeth','beth':'elizabeth','steph':'stephanie','greg':'gregory','andy':'andrew','ben':'benjamin',
+  'tom':'thomas','rick':'richard','zach':'zachary','alex':'alexander','jac':'jacquelyn','jacquelyn':'jac','nikki':'nicole'};
+function _norm(n){return (n||'').toLowerCase().replace(/\s+/g,' ').trim();}
+function _firstMatch(a,b){ if(a===b)return true; if(_NICK[a]===b||_NICK[b]===a)return true; if(a.length>=3&&b.length>=3&&(a.startsWith(b)||b.startsWith(a)))return true; return false; }
+function _surMatch(a,b){ if(a===b)return true; const sp=s=>s.split(/[-\s]+/).filter(Boolean); const sa=new Set(sp(a)); for(const p of sp(b)) if(sa.has(p))return true; return false; }
+function nameMatchFuzzy(a,b){ const ta=_norm(a).split(' ').filter(t=>t.length>=2),tb=_norm(b).split(' ').filter(t=>t.length>=2); if(!ta.length||!tb.length)return false; if(!_surMatch(ta[ta.length-1],tb[tb.length-1]))return false; return _firstMatch(ta[0],tb[0]); }
+
 async function ensureTagExists(tagName, headers) {
   try {
     await fetch('https://api.followupboss.com/v1/tags', {
@@ -212,17 +223,24 @@ module.exports = async (req, res) => {
     let payload = {};
     let action = 'created';
 
-    // If no fub_id stored, search FUB by name first to avoid duplicates
+    // If no fub_id stored, search FUB by LAST NAME and VERIFY with fuzzy match before
+    // accepting — prevents (a) missing "Kat" when searching "Kathleen", and
+    // (b) blindly linking to an unrelated people[0]. Surname-aware (Chiu ~ Chiu-Stacey).
     if (!existingId && contact.full_name) {
       try {
+        const lastName = _norm(contact.full_name).split(' ').slice(-1)[0];
         const searchRes = await fetch(
-          `https://api.followupboss.com/v1/people?q=${encodeURIComponent(contact.full_name)}&limit=1`,
+          `https://api.followupboss.com/v1/people?q=${encodeURIComponent(lastName)}&limit=25`,
           { method: 'GET', headers }
         );
         if (searchRes.ok) {
           const searchData = await searchRes.json();
-          const match = searchData.people?.[0];
-          if (match) existingId = match.id;
+          const people = searchData.people || [];
+          const verified = people.find(p => {
+            const pn = p.name || ((p.firstName||'') + ' ' + (p.lastName||'')).trim();
+            return nameMatchFuzzy(contact.full_name, pn);
+          });
+          if (verified) existingId = verified.id;
         }
       } catch(e) { console.warn('FUB name search failed:', e.message); }
     }
