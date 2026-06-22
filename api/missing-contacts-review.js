@@ -145,8 +145,12 @@ module.exports = async (req, res) => {
       // decisions = { "name": "create"|"skip", ... }  OR createAll/skipNames pattern
       const map = decisions || {};
       for (const cand of queue) {
-        if (cand.status === 'created') continue;
-        const d = map[cand.name] || map[cand.name.toLowerCase()] || (req.body.default || 'create');
+        // Only act on PENDING. Never override 'skipped' (household dupes),
+        // 'exists_in_fub' (already in FUB), or 'created'. An explicit per-name
+        // decision in `decisions` can still override a pending item.
+        const explicit = map[cand.name] || map[cand.name.toLowerCase()];
+        if (cand.status !== 'pending' && !explicit) continue;
+        const d = explicit || (req.body.default || 'create');
         if (d === 'create') {
           const record = buildRecord(cand);
           await redis.set(record.contactId, JSON.stringify(record));
@@ -188,6 +192,23 @@ module.exports = async (req, res) => {
       }
       await redis.set(KEY, JSON.stringify(queue));
       return res.status(200).json({ success: true, checked, already_in_fub: flagged });
+    }
+
+    // DELETE a contact by contactId (cleanup for wrongly-created records)
+    if (action === 'delete_contact') {
+      const { contactId } = req.body;
+      if (!contactId) return res.status(400).json({ error: 'contactId required' });
+      await redis.lrem(`agent:${agentId}:contacts`, 0, contactId);
+      await redis.del(contactId);
+      // reset any queue candidate that pointed to it back to pending-or-skip
+      const existing = await redis.get(KEY);
+      let queue = existing ? (typeof existing === 'string' ? JSON.parse(existing) : existing) : [];
+      let reset = 0;
+      for (const c of queue) {
+        if (c.contactId === contactId) { delete c.contactId; if (c.status==='created') c.status='pending'; reset++; }
+      }
+      await redis.set(KEY, JSON.stringify(queue));
+      return res.status(200).json({ success: true, deleted: contactId, queue_reset: reset });
     }
 
     return res.status(400).json({ error: 'Unknown action' });
