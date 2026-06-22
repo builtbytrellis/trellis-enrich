@@ -25,11 +25,19 @@ function firstNamesMatch(a, b) {
   if (a.length >= 3 && b.length >= 3 && (a.startsWith(b) || b.startsWith(a))) return true;
   return false;
 }
+function surnamesMatch(a, b) {
+  // Handle compound/hyphenated/maiden+married surnames: "chiu" matches "chiu-stacey".
+  if (a === b) return true;
+  const split = s => s.split(/[-\s]+/).filter(Boolean);
+  const sa = new Set(split(a));
+  for (const part of split(b)) if (sa.has(part)) return true;
+  return false;
+}
 function nameMatchFuzzy(a, b) {
   const ta = normName(a).split(' ').filter(t=>t.length>=2);
   const tb = normName(b).split(' ').filter(t=>t.length>=2);
   if (!ta.length || !tb.length) return false;
-  if (ta[ta.length-1] !== tb[tb.length-1]) return false;
+  if (!surnamesMatch(ta[ta.length-1], tb[tb.length-1])) return false;
   return firstNamesMatch(ta[0], tb[0]);
 }
 
