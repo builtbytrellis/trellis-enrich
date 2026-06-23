@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
   const keyEnv = AGENT_KEY_ENV[agentId];
   const fubApiKey = keyEnv ? process.env[keyEnv] : null;
   if (!fubApiKey) return res.status(400).json({ error: 'no key for agent', agentId });
-  if (!fubId && !req.query.list && !req.query.deals && !req.query.dealsRaw && !req.query.deleteDeal) return res.status(400).json({ error: 'fubId required' });
+  if (!fubId && !req.query.list && !req.query.deals && !req.query.dealsRaw && !req.query.deleteDeal && !req.query.pipelines) return res.status(400).json({ error: 'fubId required' });
 
   const headers = {
     'Content-Type': 'application/json',
@@ -49,6 +49,12 @@ module.exports = async (req, res) => {
     const del=await fetch(`https://api.followupboss.com/v1/deals/${id}`,{method:'DELETE',headers});
     const chk=await fetch(`https://api.followupboss.com/v1/deals/${id}`,{headers});
     return res.status(200).json({ id, deleteStatus:del.status, stillExists: chk.status===200 });
+  }
+
+  if (req.query.pipelines) {
+    const r=await fetch('https://api.followupboss.com/v1/pipelines',{headers});
+    const d=await r.json(); const pls=d.pipelines||d||[];
+    return res.status(200).json({pipelines:(Array.isArray(pls)?pls:[]).map(p=>({name:p.name,stages:(p.stages||[]).map(s=>s.name)}))});
   }
 
   if (req.query.deals) {
