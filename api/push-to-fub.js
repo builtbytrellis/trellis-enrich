@@ -317,10 +317,17 @@ module.exports = async (req, res) => {
       } catch(e) { console.warn('FUB name search failed:', e.message); }
     }
 
+    // Verify resolved FUB id still points to a live person (handles deleted/merged → recreate).
+    let existingObj = null;
+    if (existingId) {
+      existingObj = await getFubContact(existingId, headers);
+      if (!existingObj) existingId = null;
+    }
+
     if (existingId) {
       // ── SMART UPDATE: fetch existing contact, only patch missing/changed fields ──
       action = 'updated';
-      const existing = await getFubContact(existingId, headers);
+      const existing = existingObj;
 
       // Email — add if FUB has none
       const existingEmails = existing?.emails?.map(e => e.value?.toLowerCase()) || [];
