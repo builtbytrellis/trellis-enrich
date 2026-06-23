@@ -86,7 +86,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
         const td = await tr.json();
         const seen = new Set();
         for (const t of (td.tasks || [])) {
-          const k = `${t.name}__${(t.dueDate || '').split('T')[0]}`;
+          const k = `${(t.name||'').replace(/^[^A-Za-z0-9]+/, '').trim()}__${(t.dueDate || '').split('T')[0]}`;
           if (seen.has(k)) {
             try { await fetch(`https://api.followupboss.com/v1/tasks/${t.id}`, { method: 'DELETE', headers }); } catch(e) {}
           } else { seen.add(k); existingKeys.add(k); }
@@ -104,7 +104,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
         if (new Date(startYear, d.getMonth(), d.getDate()) < now) startYear++;
         for (let y = startYear; y < startYear + 10; y++) {
           const due = new Date(y, d.getMonth(), d.getDate()).toISOString().split('T')[0];
-          await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, due, headers, assignedUserId, existingKeys);
+          await createFubTask(personId, `Birthday — call/text to wish happy birthday`, due, headers, assignedUserId, existingKeys);
           seeded = true;
         }
       }
@@ -139,7 +139,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
           const leaseEnd = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
           const reminder = new Date(leaseEnd); reminder.setDate(reminder.getDate() - 90);
           if (reminder > new Date()) {
-            await createFubTask(personId, `🔑 Lease ending soon (~${leaseEnd.toISOString().split('T')[0]}) — reach out about renewal or next move`, reminder.toISOString().split('T')[0], headers, assignedUserId, existingKeys);
+            await createFubTask(personId, `Lease ending soon (~${leaseEnd.toISOString().split('T')[0]}) — reach out about renewal or next move`, reminder.toISOString().split('T')[0], headers, assignedUserId, existingKeys);
             seeded = true;
           }
         }
@@ -153,7 +153,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
           for (let y = startYear; y < startYear + 10; y++) {
             const due = new Date(y, cd.getMonth(), cd.getDate()).toISOString().split('T')[0];
             const yrsIn = y - cd.getFullYear();
-            await createFubTask(personId, `🏠 Closing anniversary (${yrsIn} yr) — check in`, due, headers, assignedUserId, existingKeys);
+            await createFubTask(personId, `Closing anniversary (${yrsIn} yr) — check in`, due, headers, assignedUserId, existingKeys);
             seeded = true;
           }
         }
@@ -165,7 +165,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
     if (seeded) {
       const now = new Date();
       const reassessDue = new Date(now.getFullYear() + 10, now.getMonth(), now.getDate()).toISOString().split('T')[0];
-      await createFubTask(personId, `♻️ Reassess client status — 10yr of touches end here; confirm still active & re-seed anniversaries`, reassessDue, headers, assignedUserId, existingKeys);
+      await createFubTask(personId, `Reassess client status — 10yr of touches end here; confirm still active & re-seed anniversaries`, reassessDue, headers, assignedUserId, existingKeys);
     }
 
     if (Object.keys(updates).length) {
@@ -179,7 +179,7 @@ async function applyDatesAndTasks(personId, contact, headers) {
 // ── Create a FUB task for a contact ──
 async function createFubTask(personId, name, dueDate, headers, assignedUserId, existingKeys) {
   if (!personId || !dueDate) return null;
-  const key = `${name}__${dueDate}`;
+  const key = `${name.replace(/^[^A-Za-z0-9]+/, '').trim()}__${dueDate}`;
   if (existingKeys && existingKeys.has(key)) return 'skipped';
   try {
     const body = { personId, name, dueDate, type: 'Follow Up' };
