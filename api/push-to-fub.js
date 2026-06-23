@@ -188,11 +188,9 @@ module.exports = async (req, res) => {
   try {
     const approvedTags = contact.approved_tags || [];
 
-    // Auto-add profession tag from occupation
-    const professionTag = getProfessionTag(contact.job_title, contact.company);
-    if (professionTag && !approvedTags.includes(professionTag)) {
-      approvedTags.push(professionTag);
-    }
+    // OCCUPATION SUPPRESSED — source data truncated (first-word only).
+    // Will be pushed in a later pass once re-extracted from FINTRAC PDFs.
+    // const professionTag = getProfessionTag(contact.job_title, contact.company);
 
     for (const tag of approvedTags) {
       await ensureTagExists(tag, headers);
@@ -204,13 +202,7 @@ module.exports = async (req, res) => {
 
     // Build structured background block — job/company always first, clean format
     const structuredLines = [];
-    if (contact.job_title && contact.company) {
-      structuredLines.push(`${contact.job_title} at ${contact.company}`);
-    } else if (contact.job_title && contact.job_title !== 'unknown') {
-      structuredLines.push(contact.job_title);
-    } else if (contact.company && contact.company !== 'unknown') {
-      structuredLines.push(contact.company);
-    }
+    // OCCUPATION SUPPRESSED — truncated source; push later once fixed.
     if (contact.birthday) structuredLines.push(`Birthday: ${contact.birthday}`);
     if (contact.spouse_name) structuredLines.push(`Spouse: ${contact.spouse_name}`);
     const structuredBlock = structuredLines.join('\n');
