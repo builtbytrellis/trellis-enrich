@@ -616,11 +616,17 @@ async function loadReviewQueue() {
     if (impersonating) body.targetAgentId = impersonating.agentId;
     const res = await fetch('/api/review-queue', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
     const d = await res.json();
-    const pending = (d.items||[]).filter(i => i.status === 'pending');
-    updateReviewBadge(pending.length);
-    if (!d.items || !d.items.length) { listEl.innerHTML=''; emptyEl.style.display='block'; return; }
+    // True review set: needs human ID only — no last name, not auto-resolved, no linked deal.
+    const needsId = (d.items||[]).filter(i =>
+      i.status === 'pending' &&
+      !/auto-resolved/i.test((i.note||'') + ' ' + (i.detail||'') + ' ' + (i.reason||'')) &&
+      !(i.name||'').trim().includes(' ') &&
+      !i.has_deal
+    );
+    updateReviewBadge(needsId.length);
+    if (!needsId.length) { listEl.innerHTML=''; emptyEl.style.display='block'; return; }
     emptyEl.style.display = 'none';
-    listEl.innerHTML = d.items.map(it => `
+    listEl.innerHTML = needsId.map(it => `
       <div class="card" style="${it.status!=='pending'?'opacity:.55':''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="flex:1">
