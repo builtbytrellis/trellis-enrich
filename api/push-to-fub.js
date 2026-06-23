@@ -205,6 +205,30 @@ module.exports = async (req, res) => {
   const encoded = Buffer.from(fubApiKey + ':').toString('base64');
   const headers = { 'Content-Type': 'application/json', 'Authorization': `Basic ${encoded}` };
 
+  // Redis key for writeback (inner create path reassigns contactId, so capture now)
+  const redisKey = contactId;
+  let _redis = null;
+  function getRedis() {
+    if (!_redis) {
+      const { Redis } = require('@upstash/redis');
+      _redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+    }
+    return _redis;
+  }
+  async function persistFubId(fid) {
+    if (!redisKey || !fid) return;
+    try {
+      const r = getRedis();
+      const raw = await r.get(redisKey);
+      const c = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : contact;
+      c.fub_data = { ...(c.fub_data || {}), fub_id: fid };
+      c.fubPersonId = fid;
+      await r.set(redisKey, JSON.stringify(c));
+    } catch (e) { console.warn('persistFubId failed', e.message); }
+  }
+  const DEFAULT_STAGE = contact.stage || 'Past Client';
+  const DEFAULT_SOURCE = contact.source || 'Import';
+
   try {
     // Auto-apply suggested_tags when nothing's been explicitly approved.
     // These are factual (Past Client, year/role, Repeat Client) — no judgment needed.
@@ -280,8 +304,8 @@ module.exports = async (req, res) => {
       }
 
       // Stage — only set if FUB stage is empty/Lead and we have something better
-      if (contact.stage && (!existing?.stage || existing.stage === 'Lead')) {
-        payload.stage = contact.stage;
+      if (!existing?.stage || existing.stage === 'Lead') {
+        payload.stage = DEFAULT_STAGE;
       }
 
       // Background/description — append new info if not already present
@@ -318,6 +342,7 @@ module.exports = async (req, res) => {
 
       // If nothing changed, skip the PUT
       if (!Object.keys(payload).length) {
+        await persistFubId(existingId);
         return res.status(200).json({ success: true, fubId: existingId, action: 'no_changes', tags_applied: 0 });
       }
 
@@ -335,7 +360,8 @@ module.exports = async (req, res) => {
       // ── NEW CONTACT: build full payload ──
       if (contact.email) payload.emails = [{ value: contact.email, type: 'home' }];
       if (contact.phone) payload.phones = [{ value: contact.phone, type: 'mobile' }];
-      if (contact.stage) payload.stage = contact.stage;
+      payload.stage = DEFAULT_STAGE;
+      payload.source = DEFAULT_SOURCE;
       if (structuredBlock || notesBlock) payload.background = newDescription;
       if (approvedTags.length) payload.tags = approvedTags;
 
@@ -370,11 +396,13 @@ module.exports = async (req, res) => {
       }
 
       await applyDatesAndTasks(contactId, contact, headers);
+      await persistFubId(contactId);
       return res.status(200).json({ success: true, fubId: contactId, action: 'created', tags_applied: approvedTags.length });
     }
 
     // ── Post-push: closing anniversary, birthday + closing + lease tasks ──
     await applyDatesAndTasks(existingId, contact, headers);
+    await persistFubId(existingId);
 
     const tagsApplied = payload.tags ? payload.tags.length : 0;
     return res.status(200).json({ success: true, fubId: existingId, action, tags_applied: tagsApplied });
