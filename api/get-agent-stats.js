@@ -24,7 +24,7 @@ module.exports = async (req, res) => {
     // Count enriched vs not
     let enriched = 0, pushed = 0, fintrac = 0;
     if (contactIds.length) {
-      const sample = contactIds.slice(0, 200);
+      const sample = contactIds;  // scan ALL, no cap
       const raws = await Promise.all(sample.map(id => redis.get(id)));
       for (const raw of raws) {
         if (!raw) continue;
