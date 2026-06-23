@@ -20,10 +20,9 @@ async function findStage(headers, side, closeDate){
   const stages=(pl.stages||pl.dealStages||[]);
   if(!stages.length) return {stage:null,status:r.status};
   const n=s=>(s.name||s.title||s.label||'').toLowerCase();
-  const cd=closeDate?new Date(closeDate):null; const past=cd&&cd<new Date();
-  const stage=past
-    ?(stages.find(s=>/\bwon\b/.test(n(s)))||stages.find(s=>/\bclosed\b/.test(n(s))&&!/lost/.test(n(s)))||stages.find(s=>/\bsold\b/.test(n(s)))||stages[stages.length-1])
-    :(stages.find(s=>/\bpending\b/.test(n(s)))||stages.find(s=>/\bactive\b/.test(n(s)))||stages[0]);
+  // All trades are historical/firm -> always Closed.
+  const stage=stages.find(s=>/\bclosed\b/.test(n(s))&&!/lost/.test(n(s)))
+    ||stages.find(s=>/\bwon\b/.test(n(s)))||stages.find(s=>/\bsold\b/.test(n(s)))||stages[stages.length-1];
   return {stage, pipeline:pl.name};
 }
 
@@ -44,6 +43,16 @@ module.exports = async (req,res)=>{
   const dedupeKey=`david:deal:${trade.trade_number}`;
 
   try{
+    if(req.body.reset){
+      const ex=await redis.get(dedupeKey);
+      if(ex){ const id=typeof ex==='string'?ex:ex.dealId||ex;
+        try{ await fubFetch('/deals/'+id,'DELETE',headers); }catch(e){}
+        await redis.del(dedupeKey);
+        return res.status(200).json({reset:true, deleted_deal:id, trade_number:trade.trade_number});
+      }
+      await redis.del(dedupeKey);
+      return res.status(200).json({reset:true, deleted_deal:null});
+    }
     // dedup by trade number (idempotent)
     const existing=await redis.get(dedupeKey);
     if(existing){ const id=typeof existing==='string'?existing:existing.dealId||existing;
@@ -57,8 +66,8 @@ module.exports = async (req,res)=>{
       name:`${trade.address||'Property'} — ${trade.client_label||'Client'}`,
       stageId:stage.id,
       ...(trade.close_date?{projectedCloseDate:trade.close_date}:{}),
-      ...(trade.gci?{price:trade.gci}:{}),                 // value = gross GCI (locked)
-      ...(trade.gci?{commissionValue:trade.gci}:{}),
+      ...(trade.sale_price?{price:trade.sale_price}:{}),    // sale price -> tracks volume
+      ...(trade.gci?{commissionValue:trade.gci}:{}),         // GCI -> tracks commission
       ...(trade.peopleIds?.length?{peopleIds:trade.peopleIds}:{}),
       description:[
         `Trade #: ${trade.trade_number}`,
