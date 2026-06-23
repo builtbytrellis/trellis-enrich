@@ -11,10 +11,15 @@ module.exports=async(req,res)=>{
   if(!key||!fubId)return res.status(400).json({error:'need key+fubId'});
   const headers={'Content-Type':'application/json','Authorization':`Basic ${Buffer.from(key+':').toString('base64')}`};
   try{
-    const tr=await fetch(`https://api.followupboss.com/v1/tasks?personId=${fubId}&limit=200`,{headers});
-    const tasks=tr.ok?((await tr.json()).tasks||[]):[];
     let deleted=0;
-    for(const t of tasks){ if(/Closing anniversary/.test(t.name||'')){ try{await fetch(`https://api.followupboss.com/v1/tasks/${t.id}`,{method:'DELETE',headers});deleted++;}catch(e){} } }
+    for(let pass=0; pass<5; pass++){
+      const tr=await fetch(`https://api.followupboss.com/v1/tasks?personId=${fubId}&limit=200`,{headers});
+      const tasks=tr.ok?((await tr.json()).tasks||[]):[];
+      const anniv=tasks.filter(t=>/Closing anniversary/.test(t.name||''));
+      if(!anniv.length) break;
+      for(const t of anniv){ try{await fetch(`https://api.followupboss.com/v1/tasks/${t.id}`,{method:'DELETE',headers});deleted++;}catch(e){} await new Promise(r=>setTimeout(r,120)); }
+      await new Promise(r=>setTimeout(r,400));
+    }
     let created=0;
     if(close_date){
       const cd=new Date(close_date); const now=new Date();
