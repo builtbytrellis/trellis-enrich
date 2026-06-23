@@ -86,7 +86,13 @@ async function applyDatesAndTasks(personId, contact, headers) {
         const td = await tr.json();
         const seen = new Set();
         for (const t of (td.tasks || [])) {
-          const k = `${(t.name||'').replace(/^[^A-Za-z0-9]+/, '').trim()}__${(t.dueDate || '').split('T')[0]}`;
+          const nm = (t.name||'');
+          // Nuke ALL closing-anniversary tasks — corrected logic re-creates the right set.
+          if (/Closing anniversary/.test(nm)) {
+            try { await fetch(`https://api.followupboss.com/v1/tasks/${t.id}`, { method: 'DELETE', headers }); } catch(e) {}
+            continue;
+          }
+          const k = `${nm.replace(/^[^A-Za-z0-9]+/, '').trim()}__${(t.dueDate || '').split('T')[0]}`;
           if (seen.has(k)) {
             try { await fetch(`https://api.followupboss.com/v1/tasks/${t.id}`, { method: 'DELETE', headers }); } catch(e) {}
           } else { seen.add(k); existingKeys.add(k); }
@@ -144,15 +150,14 @@ async function applyDatesAndTasks(personId, contact, headers) {
           }
         }
       } else {
-        // Sale: closing anniversary tasks — day of, next 10 years
+        // Sale: closing anniversary — anniversaries 1..10 FROM CLOSE, future-only.
         const cd = new Date(latest.close_date);
         if (!isNaN(cd.getTime())) {
           const now = new Date();
-          let startYear = now.getFullYear();
-          if (new Date(startYear, cd.getMonth(), cd.getDate()) < now) startYear++;
-          for (let y = startYear; y < startYear + 10; y++) {
-            const due = new Date(y, cd.getMonth(), cd.getDate()).toISOString().split('T')[0];
-            const yrsIn = y - cd.getFullYear();
+          for (let yrsIn = 1; yrsIn <= 10; yrsIn++) {
+            const dd = new Date(cd.getFullYear() + yrsIn, cd.getMonth(), cd.getDate());
+            if (dd <= now) continue; // anniversary already passed
+            const due = dd.toISOString().split('T')[0];
             await createFubTask(personId, `Closing anniversary (${yrsIn} yr) — check in`, due, headers, assignedUserId, existingKeys);
             seeded = true;
           }
