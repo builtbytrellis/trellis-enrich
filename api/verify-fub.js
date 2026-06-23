@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
   const keyEnv = AGENT_KEY_ENV[agentId];
   const fubApiKey = keyEnv ? process.env[keyEnv] : null;
   if (!fubApiKey) return res.status(400).json({ error: 'no key for agent', agentId });
-  if (!fubId && !req.query.list) return res.status(400).json({ error: 'fubId required' });
+  if (!fubId && !req.query.list && !req.query.deals) return res.status(400).json({ error: 'fubId required' });
 
   const headers = {
     'Content-Type': 'application/json',
