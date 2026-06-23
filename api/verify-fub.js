@@ -82,7 +82,8 @@ module.exports = async (req, res) => {
     const today=new Date().toISOString().split('T')[0];
     const createdToday=all.filter(p=>(p.created||'').startsWith(today));
     const bySource={}; for(const p of createdToday){const s=p.source||'(none)'; bySource[s]=(bySource[s]||0)+1;}
-    return res.status(200).json({ totalPeople: all.length, createdToday: createdToday.length, createdTodayBySource: bySource,
+    const firstNameOnly=all.filter(p=>{const nm=(p.name||'').trim(); return nm && !nm.includes(' ');}).map(p=>({id:p.id,name:p.name,source:p.source}));
+    return res.status(200).json({ totalPeople: all.length, firstNameOnlyCount:firstNameOnly.length, firstNameOnly:firstNameOnly.slice(0,60), createdToday: createdToday.length, createdTodayBySource: bySource,
       sample: createdToday.slice(0,8).map(p=>({id:p.id,name:p.name,source:p.source,stage:p.stage,created:p.created})) });
   }
 
