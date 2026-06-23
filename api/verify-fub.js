@@ -39,6 +39,20 @@ module.exports = async (req, res) => {
     'Authorization': `Basic ${Buffer.from(fubApiKey + ':').toString('base64')}`
   };
 
+  if (req.query.deals) {
+    let all=[], offset=0;
+    while(true){
+      const r=await fetch(`https://api.followupboss.com/v1/deals?limit=100&offset=${offset}`,{headers});
+      if(!r.ok) break;
+      const d=await r.json(); const ds=d.deals||[];
+      all=all.concat(ds); if(ds.length<100) break; offset+=100; if(offset>2000) break;
+    }
+    let price=0, comm=0; const byStage={};
+    for(const x of all){ price+=(x.price||0); comm+=(x.commissionValue||0);
+      const k=(x.stage&&x.stage.name)||x.stageName||'?'; byStage[k]=(byStage[k]||0)+1; }
+    return res.status(200).json({ dealCount: all.length, totalPrice: price, totalCommission: comm, byStage });
+  }
+
   if (req.query.list) {
     let all=[], offset=0;
     while(true){
