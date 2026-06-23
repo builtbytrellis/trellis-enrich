@@ -27,6 +27,18 @@ module.exports = async (req, res) => {
     return res.status(200).json({ deleted: fId, ok: dr.ok, status: dr.status });
   }
 
+  const agentId = req.query.agentId;
+  const fubId = req.query.fubId;
+  const keyEnv = AGENT_KEY_ENV[agentId];
+  const fubApiKey = keyEnv ? process.env[keyEnv] : null;
+  if (!fubApiKey) return res.status(400).json({ error: 'no key for agent', agentId });
+  if (!fubId && !req.query.list) return res.status(400).json({ error: 'fubId required' });
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Basic ${Buffer.from(fubApiKey + ':').toString('base64')}`
+  };
+
   if (req.query.list) {
     let all=[], offset=0;
     while(true){
@@ -42,17 +54,6 @@ module.exports = async (req, res) => {
       sample: createdToday.slice(0,8).map(p=>({id:p.id,name:p.name,source:p.source,stage:p.stage,created:p.created})) });
   }
 
-  const agentId = req.query.agentId;
-  const fubId = req.query.fubId;
-  const keyEnv = AGENT_KEY_ENV[agentId];
-  const fubApiKey = keyEnv ? process.env[keyEnv] : null;
-  if (!fubApiKey) return res.status(400).json({ error: 'no key for agent', agentId });
-  if (!fubId) return res.status(400).json({ error: 'fubId required' });
-
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Basic ${Buffer.from(fubApiKey + ':').toString('base64')}`
-  };
 
   try {
     const pr = await fetch(`https://api.followupboss.com/v1/people/${fubId}?fields=id,name,stage,source,tags,customBirthday,customClosingAnniversary`, { headers });
