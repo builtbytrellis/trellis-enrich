@@ -179,8 +179,28 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { fubApiKey, contact, updateOnly } = req.body;
-  if (!fubApiKey || !contact) return res.status(400).json({ error: 'Missing data' });
+  let { fubApiKey, contact, updateOnly, targetAgentId, contactId } = req.body;
+
+  // Server-side key lookup by agent (env DAVID_FUB_KEY / LORRY_FUB_KEY, or generic per-agent env)
+  const AGENT_KEY_ENV = {
+    'agent_467eec9a95fe3d59': 'DAVID_FUB_KEY',
+    'agent_d9e8a457198abcf1': 'LORRY_FUB_KEY'
+  };
+  if (!fubApiKey && targetAgentId && AGENT_KEY_ENV[targetAgentId]) {
+    fubApiKey = process.env[AGENT_KEY_ENV[targetAgentId]];
+  }
+
+  // If only contactId given, load the contact from Redis (so callers don't pass the whole object)
+  if (!contact && contactId) {
+    try {
+      const { Redis } = require('@upstash/redis');
+      const redis = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+      const raw = await redis.get(contactId);
+      if (raw) contact = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch(e) {}
+  }
+
+  if (!fubApiKey || !contact) return res.status(400).json({ error: 'Missing data', detail: { hasKey: !!fubApiKey, hasContact: !!contact } });
 
   const encoded = Buffer.from(fubApiKey + ':').toString('base64');
   const headers = { 'Content-Type': 'application/json', 'Authorization': `Basic ${encoded}` };
