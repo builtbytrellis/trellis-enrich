@@ -259,7 +259,7 @@ module.exports = async (req, res) => {
     } catch (e) { console.warn('persistFubId failed', e.message); }
   }
   const DEFAULT_STAGE = contact.stage || 'Past Client';
-  const DEFAULT_SOURCE = contact.source || 'Import';
+  const DEFAULT_SOURCE = 'Import';
 
   try {
     // Auto-apply suggested_tags when nothing's been explicitly approved.
