@@ -619,9 +619,8 @@ async function loadReviewQueue() {
     // True review set: needs human ID only — no last name, not auto-resolved, no linked deal.
     const needsId = (d.items||[]).filter(i =>
       i.status === 'pending' &&
-      !/auto-resolved/i.test((i.note||'') + ' ' + (i.detail||'') + ' ' + (i.reason||'')) &&
-      !(i.name||'').trim().includes(' ') &&
-      !i.has_deal
+      !i.has_deal &&
+      !/auto-resolved/i.test((i.note||'') + ' ' + (i.detail||'') + ' ' + (i.reason||''))
     );
     updateReviewBadge(needsId.length);
     if (!needsId.length) { listEl.innerHTML=''; emptyEl.style.display='block'; return; }
