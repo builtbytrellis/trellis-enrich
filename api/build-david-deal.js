@@ -96,7 +96,6 @@ module.exports = async (req,res)=>{
     const payload={
       name:`${trade.address||'Property'}${trade.name_suffix||''}`,
       stageId:stage.id,
-      ...(teamUserId?{users:[{id:teamUserId}]}:{}),
       ...(trade.close_date?{projectedCloseDate:trade.close_date}:{}),
       ...(trade.sale_price?{price:trade.sale_price}:{}),    // sale price -> tracks volume
       ...(trade.gci?{commissionValue:trade.gci}:{}),         // GCI -> tracks commission
