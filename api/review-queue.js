@@ -59,29 +59,33 @@ module.exports = async (req, res) => {
           return String(d).slice(0,10);
         }
         const encoded = Buffer.from(fubApiKey + ':').toString('base64');
+        const NICK = {kathleen:['kat','kathy','katie'],jacquelyn:['jac','jackie','jacqui'],robert:['rob','bob','bobby'],william:['will','bill','billy'],richard:['rich','rick','dick'],michael:['mike','mick'],christopher:['chris'],matthew:['matt'],joseph:['joe','joey'],james:['jim','jimmy'],daniel:['dan','danny'],thomas:['tom','tommy'],anthony:['tony'],nicholas:['nick'],alexander:['alex','xander'],alexandros:['alex'],benjamin:['ben'],samuel:['sam'],andrew:['andy','drew'],edward:['ed','eddie','ted'],charles:['charlie','chuck'],patricia:['pat','patty','tricia'],jennifer:['jen','jenny'],elizabeth:['liz','beth','lizzie','eliza'],margaret:['maggie','meg','peggy'],katherine:['kate','katie','kathy','kat'],stephanie:['steph'],cynthia:['cindy'],deborah:['deb','debbie'],rebecca:['becca','becky'],victoria:['vicky','tori'],nicole:['nikki'],vincent:['vince'],theodore:['ted','teddy'],gregory:['greg'],jonathan:['jon','jonny'],timothy:['tim'],ronald:['ron','ronnie'],kenneth:['ken','kenny'],joshua:['josh'],nathaniel:['nate','nat'],frederick:['fred','freddie']};
+        function fnMatch(a,b){a=(a||'').toLowerCase().trim();b=(b||'').toLowerCase().trim();if(!a||!b)return false;if(a===b)return true;if(a[0]===b[0]&&(a.length<=2||b.length<=2))return true;if(a.startsWith(b)||b.startsWith(a))return true;for(const[full,nicks]of Object.entries(NICK)){const set=[full,...nicks];if(set.includes(a)&&set.includes(b))return true;}return false;}
+        function lnMatch(a,b){a=(a||'').toLowerCase().trim();b=(b||'').toLowerCase().trim();return a&&b&&(a===b||a.includes(b)||b.includes(a));}
         let changed = false;
         for (const item of queue) {
-          if (item.status !== 'pending' || !item.birthday) continue;
-          const lastName = (item.name||'').split(' ').slice(-1)[0];
+          if (item.status !== 'pending') continue;
+          const parts = (item.name||'').trim().split(/\s+/);
+          const itemFirst = parts[0]||''; const lastName = parts.slice(-1)[0]||'';
           if (!lastName) continue;
           try {
-            const r = await fetch(`https://api.followupboss.com/v1/people?q=${encodeURIComponent(lastName)}&limit=10&fields=id,firstName,lastName,customBirthday`, {
+            const r = await fetch(`https://api.followupboss.com/v1/people?q=${encodeURIComponent(lastName)}&limit=15&fields=id,firstName,lastName,name,customBirthday`, {
               headers: { 'Authorization': `Basic ${encoded}` }
             });
             if (!r.ok) continue;
             const data = await r.json();
-            const wantDob = normDob(item.birthday);
-            // If ANY contact with a matching first name already has this exact birthday, resolve it
-            const itemFirst = (item.name||'').split(' ')[0].toLowerCase();
-            const match = (data.people||[]).find(p => {
-              const pf = (p.firstName||'').toLowerCase();
-              const sameDob = p.customBirthday && normDob(p.customBirthday) === wantDob;
-              return sameDob;
-            });
+            const wantDob = item.birthday ? normDob(item.birthday) : null;
+            // Tier 1: exact birthday already present
+            let match = wantDob ? (data.people||[]).find(p => p.customBirthday && normDob(p.customBirthday)===wantDob) : null;
+            let how = match ? 'already has this birthday' : null;
+            // Tier 2: nickname/initial-safe name match (last name + first-name variant)
+            if (!match) {
+              match = (data.people||[]).find(p => lnMatch(p.lastName, lastName) && fnMatch(p.firstName, itemFirst));
+              if (match) how = `matched contact ${match.firstName} ${match.lastName}`;
+            }
             if (match) {
-              item.status = 'done';
-              item.appliedTo = match.id;
-              item.note = (item.note ? item.note + ' | ' : '') + `Auto-resolved: ${match.firstName} ${match.lastName} already has this birthday`;
+              item.status = 'done'; item.appliedTo = match.id; item.has_deal = true;
+              item.note = (item.note ? item.note + ' | ' : '') + `Auto-resolved: ${how}`;
               changed = true;
             }
           } catch(e) { /* skip on error */ }
