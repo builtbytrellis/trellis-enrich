@@ -206,7 +206,11 @@ module.exports = async (req, res) => {
   const headers = { 'Content-Type': 'application/json', 'Authorization': `Basic ${encoded}` };
 
   try {
-    const approvedTags = contact.approved_tags || [];
+    // Auto-apply suggested_tags when nothing's been explicitly approved.
+    // These are factual (Past Client, year/role, Repeat Client) — no judgment needed.
+    let approvedTags = contact.approved_tags && contact.approved_tags.length
+      ? contact.approved_tags
+      : (contact.suggested_tags || []).map(t => typeof t === 'string' ? t : t.tag).filter(Boolean);
 
     // OCCUPATION SUPPRESSED — source data truncated (first-word only).
     // Will be pushed in a later pass once re-extracted from FINTRAC PDFs.
