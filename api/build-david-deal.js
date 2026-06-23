@@ -35,9 +35,14 @@ async function findStage(headers, side, closeDate, isLease){
   const stages=(pl.stages||pl.dealStages||[]);
   if(!stages.length) return {stage:null,status:r.status};
   const n=s=>(s.name||s.title||s.label||'').toLowerCase();
-  // All trades are historical/firm -> always Closed.
-  const stage=stages.find(s=>/\bclosed\b/.test(n(s))&&!/lost/.test(n(s)))
-    ||stages.find(s=>/\bwon\b/.test(n(s)))||stages.find(s=>/\bsold\b/.test(n(s)))||stages[stages.length-1];
+  let stage;
+  if(isLease){
+    const wantTenant=['tenant','buyer'].includes(side);
+    stage = wantTenant ? (stages.find(s=>/tenant/.test(n(s)))||stages[0])
+                       : (stages.find(s=>/landlord/.test(n(s)))||stages[stages.length-1]);
+  } else {
+    stage=stages.find(s=>/\bclosed\b/.test(n(s))&&!/lost/.test(n(s)))||stages.find(s=>/\bwon\b/.test(n(s)))||stages.find(s=>/\bsold\b/.test(n(s)))||stages[stages.length-1];
+  }
   return {stage, pipeline:pl.name};
 }
 
