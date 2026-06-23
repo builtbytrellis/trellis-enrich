@@ -3,6 +3,19 @@
 // POST { targetAgentId, trade } where trade = {trade_number, address, close_date, gci, sale_price, ends, side, peopleIds[]}
 const { Redis } = require('@upstash/redis');
 const AGENT_KEY_ENV = { 'agent_467eec9a95fe3d59':'DAVID_FUB_KEY', 'agent_d9e8a457198abcf1':'LORRY_FUB_KEY' };
+let _teamUserId=null;
+async function getTeamUserId(headers){
+  if(_teamUserId!==null) return _teamUserId;
+  try{
+    const r=await fetch('https://api.followupboss.com/v1/users?limit=20',{headers});
+    if(r.ok){ const d=await r.json(); const us=d.users||[];
+      const david=us.find(u=>/speedie/i.test((u.name||'')+(u.email||'')))
+        || us.find(u=>u.email&&!/builtbytrellis/i.test(u.email)) || us[0];
+      _teamUserId=david?david.id:false;
+    } else _teamUserId=false;
+  }catch(e){ _teamUserId=false; }
+  return _teamUserId;
+}
 const TOKEN_OK = t => t===process.env.ADMIN_SESSION_TOKEN || t==='a758e83489b1a84d6cae9e400f95bf8268231c627e299bfc4faac3b4881da9e3';
 
 async function fubFetch(path, method, headers, body){
@@ -10,13 +23,15 @@ async function fubFetch(path, method, headers, body){
   const r=await fetch('https://api.followupboss.com/v1'+path,opts);
   let b=null; try{b=await r.json();}catch{}; return {ok:r.ok,status:r.status,body:b};
 }
-async function findStage(headers, side, closeDate){
+async function findStage(headers, side, closeDate, isLease){
   const r=await fubFetch('/pipelines','GET',headers);
   let pls=Array.isArray(r.body)?r.body:(r.body?.pipelines||null);
   if(!pls && r.body) for(const k of Object.keys(r.body)) if(Array.isArray(r.body[k])){pls=r.body[k];break;}
   if(!pls||!pls.length) return {stage:null,status:r.status};
   const buy=['buyer','tenant'].includes(side), list=['seller','landlord'].includes(side);
-  const pl=buy?(pls.find(p=>/\bbuyer/i.test(p.name))||pls[0]):list?(pls.find(p=>/\bseller|\blisting/i.test(p.name))||pls[0]):pls[0];
+  let pl;
+  if(isLease){ pl=pls.find(p=>/\blease/i.test(p.name))||pls.find(p=>/\brental/i.test(p.name))||pls[0]; }
+  else { pl=buy?(pls.find(p=>/\bbuyer/i.test(p.name))||pls[0]):list?(pls.find(p=>/\bseller|\blisting/i.test(p.name))||pls[0]):pls[0]; }
   const stages=(pl.stages||pl.dealStages||[]);
   if(!stages.length) return {stage:null,status:r.status};
   const n=s=>(s.name||s.title||s.label||'').toLowerCase();
@@ -58,13 +73,15 @@ module.exports = async (req,res)=>{
     if(existing){ const id=typeof existing==='string'?existing:existing.dealId||existing;
       return res.status(200).json({success:true, duplicate:true, dealId:id, trade_number:trade.trade_number}); }
 
-    const {stage}=await findStage(headers, trade.side, trade.close_date);
+    const isLease=(trade.deal_type||'').includes('lease');
+    const teamUserId=await getTeamUserId(headers);
+    const {stage}=await findStage(headers, trade.side, trade.close_date, isLease);
     if(!stage) return res.status(200).json({success:false, error:'no deal stage found — enable Deals in FUB'});
 
-    const isLease=(trade.deal_type||'').includes('lease');
     const payload={
-      name:`${trade.address||'Property'} — ${trade.client_label||'Client'}`,
+      name:`${trade.address||'Property'}${trade.name_suffix||''}`,
       stageId:stage.id,
+      ...(teamUserId?{users:[{id:teamUserId}]}:{}),
       ...(trade.close_date?{projectedCloseDate:trade.close_date}:{}),
       ...(trade.sale_price?{price:trade.sale_price}:{}),    // sale price -> tracks volume
       ...(trade.gci?{commissionValue:trade.gci}:{}),         // GCI -> tracks commission
