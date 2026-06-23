@@ -27,6 +27,21 @@ module.exports = async (req, res) => {
     return res.status(200).json({ deleted: fId, ok: dr.ok, status: dr.status });
   }
 
+  if (req.query.list) {
+    let all=[], offset=0;
+    while(true){
+      const lr=await fetch(`https://api.followupboss.com/v1/people?limit=100&offset=${offset}&fields=id,name,source,stage,created`,{headers});
+      if(!lr.ok) break;
+      const d=await lr.json(); const ppl=d.people||[];
+      all=all.concat(ppl); if(ppl.length<100) break; offset+=100; if(offset>3000) break;
+    }
+    const today=new Date().toISOString().split('T')[0];
+    const createdToday=all.filter(p=>(p.created||'').startsWith(today));
+    const bySource={}; for(const p of createdToday){const s=p.source||'(none)'; bySource[s]=(bySource[s]||0)+1;}
+    return res.status(200).json({ totalPeople: all.length, createdToday: createdToday.length, createdTodayBySource: bySource,
+      sample: createdToday.slice(0,8).map(p=>({id:p.id,name:p.name,source:p.source,stage:p.stage,created:p.created})) });
+  }
+
   const agentId = req.query.agentId;
   const fubId = req.query.fubId;
   const keyEnv = AGENT_KEY_ENV[agentId];
