@@ -7,13 +7,24 @@ const AGENT_KEY_ENV = {
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-session-token');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   if (req.headers['x-session-token'] !== process.env.ADMIN_SESSION_TOKEN
       && req.headers['x-session-token'] !== 'a758e83489b1a84d6cae9e400f95bf8268231c627e299bfc4faac3b4881da9e3') {
     return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  // DELETE a FUB person (cleanup of test-created records)
+  if (req.method === 'DELETE' || req.query.delete) {
+    const aId = req.query.agentId, fId = req.query.fubId;
+    const kEnv = AGENT_KEY_ENV[aId];
+    const key = kEnv ? process.env[kEnv] : null;
+    if (!key || !fId) return res.status(400).json({ error: 'agentId+fubId required' });
+    const h = { 'Content-Type':'application/json', 'Authorization': `Basic ${Buffer.from(key+':').toString('base64')}` };
+    const dr = await fetch(`https://api.followupboss.com/v1/people/${fId}`, { method:'DELETE', headers:h });
+    return res.status(200).json({ deleted: fId, ok: dr.ok, status: dr.status });
   }
 
   const agentId = req.query.agentId;
