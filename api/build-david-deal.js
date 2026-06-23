@@ -58,6 +58,21 @@ module.exports = async (req,res)=>{
   const dedupeKey=`david:deal:${trade.trade_number}`;
 
   try{
+    if(req.body.resetAll){
+      let deleted=0, scanned=0, offset=0;
+      while(true){
+        const r=await fubFetch(`/deals?limit=100&offset=${offset}`,'GET',headers);
+        if(!r.ok) break; const ds=r.body?.deals||[]; if(!ds.length) break;
+        for(const d of ds){ scanned++;
+          if((d.description||'').includes('Trade #:')){
+            try{ await fubFetch('/deals/'+d.id,'DELETE',headers); deleted++; }catch(e){}
+          }
+        }
+        if(ds.length<100) break; offset+=100; if(offset>2000) break;
+      }
+      try{ const keys=await redis.keys('david:deal:*'); if(keys&&keys.length) await redis.del(...keys); }catch(e){}
+      return res.status(200).json({resetAll:true, scanned, deleted});
+    }
     if(req.body.reset){
       const ex=await redis.get(dedupeKey);
       if(ex){ const id=typeof ex==='string'?ex:ex.dealId||ex;
