@@ -50,6 +50,10 @@ module.exports = async (req, res) => {
     const dr = await fetch(`https://api.followupboss.com/v1/deals?personId=${fubId}&limit=50`, { headers });
     const deals = dr.ok ? (await dr.json()).deals || [] : [];
 
+    if (req.query.raw) {
+      return res.status(200).json({ taskCount: tasks.length,
+        tasks: tasks.map(t=>({name:t.name, dueDate:t.dueDate, id:t.id})) });
+    }
     return res.status(200).json({
       person: { id: person.id, name: person.name, stage: person.stage, source: person.source,
                 tags: person.tags, birthday: person.customBirthday, closingAnniv: person.customClosingAnniversary },
