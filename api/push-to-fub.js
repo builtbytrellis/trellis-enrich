@@ -77,6 +77,24 @@ async function applyDatesAndTasks(personId, contact, headers) {
     } catch(e) { /* non-fatal */ }
     const updates = {};
 
+    // Pull existing tasks once: self-heal duplicates (keep first, delete extras) and
+    // seed a skip-set so re-pushes never re-create the same task. Makes bulk idempotent.
+    const existingKeys = new Set();
+    try {
+      const tr = await fetch(`https://api.followupboss.com/v1/tasks?personId=${personId}&limit=100`, { headers });
+      if (tr.ok) {
+        const td = await tr.json();
+        const seen = new Set();
+        for (const t of (td.tasks || [])) {
+          const k = `${t.name}__${(t.dueDate || '').split('T')[0]}`;
+          if (seen.has(k)) {
+            try { await fetch(`https://api.followupboss.com/v1/tasks/${t.id}`, { method: 'DELETE', headers }); } catch(e) {}
+          } else { seen.add(k); existingKeys.add(k); }
+        }
+      }
+    } catch(e) { /* non-fatal */ }
+    let seeded = false;
+
     // Birthday tasks — day of, next 10 years
     if (contact.birthday) {
       const d = new Date(contact.birthday);
@@ -86,7 +104,8 @@ async function applyDatesAndTasks(personId, contact, headers) {
         if (new Date(startYear, d.getMonth(), d.getDate()) < now) startYear++;
         for (let y = startYear; y < startYear + 10; y++) {
           const due = new Date(y, d.getMonth(), d.getDate()).toISOString().split('T')[0];
-          await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, due, headers, assignedUserId);
+          await createFubTask(personId, `🎂 Birthday — call/text to wish happy birthday`, due, headers, assignedUserId, existingKeys);
+          seeded = true;
         }
       }
     }
@@ -120,7 +139,8 @@ async function applyDatesAndTasks(personId, contact, headers) {
           const leaseEnd = new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
           const reminder = new Date(leaseEnd); reminder.setDate(reminder.getDate() - 90);
           if (reminder > new Date()) {
-            await createFubTask(personId, `🔑 Lease ending soon (~${leaseEnd.toISOString().split('T')[0]}) — reach out about renewal or next move`, reminder.toISOString().split('T')[0], headers, assignedUserId);
+            await createFubTask(personId, `🔑 Lease ending soon (~${leaseEnd.toISOString().split('T')[0]}) — reach out about renewal or next move`, reminder.toISOString().split('T')[0], headers, assignedUserId, existingKeys);
+            seeded = true;
           }
         }
       } else {
@@ -133,10 +153,19 @@ async function applyDatesAndTasks(personId, contact, headers) {
           for (let y = startYear; y < startYear + 10; y++) {
             const due = new Date(y, cd.getMonth(), cd.getDate()).toISOString().split('T')[0];
             const yrsIn = y - cd.getFullYear();
-            await createFubTask(personId, `🏠 Closing anniversary (${yrsIn} yr) — check in`, due, headers, assignedUserId);
+            await createFubTask(personId, `🏠 Closing anniversary (${yrsIn} yr) — check in`, due, headers, assignedUserId, existingKeys);
+            seeded = true;
           }
         }
       }
+    }
+
+    // Anniversary/birthday streams stop at 10yr — drop a reassess checkpoint so the
+    // agent re-evaluates the relationship and re-seeds rather than tasks running blind.
+    if (seeded) {
+      const now = new Date();
+      const reassessDue = new Date(now.getFullYear() + 10, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+      await createFubTask(personId, `♻️ Reassess client status — 10yr of touches end here; confirm still active & re-seed anniversaries`, reassessDue, headers, assignedUserId, existingKeys);
     }
 
     if (Object.keys(updates).length) {
@@ -148,8 +177,10 @@ async function applyDatesAndTasks(personId, contact, headers) {
 }
 
 // ── Create a FUB task for a contact ──
-async function createFubTask(personId, name, dueDate, headers, assignedUserId) {
+async function createFubTask(personId, name, dueDate, headers, assignedUserId, existingKeys) {
   if (!personId || !dueDate) return null;
+  const key = `${name}__${dueDate}`;
+  if (existingKeys && existingKeys.has(key)) return 'skipped';
   try {
     const body = { personId, name, dueDate, type: 'Follow Up' };
     if (assignedUserId) body.assignedUserId = assignedUserId;
@@ -157,6 +188,7 @@ async function createFubTask(personId, name, dueDate, headers, assignedUserId) {
       method: 'POST', headers,
       body: JSON.stringify(body)
     });
+    if (r.ok && existingKeys) existingKeys.add(key);
     return r.ok;
   } catch(e) { return null; }
 }
