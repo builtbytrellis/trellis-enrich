@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
 
 
   try {
-    const pr = await fetch(`https://api.followupboss.com/v1/people/${fubId}?fields=id,name,stage,source,tags,customBirthday,customClosingAnniversary`, { headers });
+    const pr = await fetch(`https://api.followupboss.com/v1/people/${fubId}?fields=id,name,stage,source,tags,customBirthday,phones,emails`, { headers });
     if (!pr.ok) return res.status(404).json({ error: `person ${fubId} not found`, status: pr.status });
     const person = await pr.json();
 
