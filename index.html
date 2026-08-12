@@ -122,6 +122,9 @@ textarea.notes{width:100%;min-height:72px;padding:10px 12px;font-size:13px;borde
 .history-meta{font-size:11px;color:var(--ink-muted);margin-top:2px}
 .history-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .history-tag{font-size:10px;background:var(--green-light);color:var(--green);padding:2px 7px;border-radius:10px}
+#demo-mask-banner{display:none;position:fixed;top:0;left:0;right:0;z-index:2000;background:#2980b9;color:white;text-align:center;padding:9px 16px;font-size:13px;font-weight:500;letter-spacing:.02em;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+body.demo-mask .sidebar{padding-top:64px}
+body.demo-mask .main{margin-top:36px}
 </style>
 </head>
 <body>
@@ -485,6 +488,60 @@ let historyFiltered = [];
 let dsAccessToken = null, dsAccountId = null, dsBaseUri = null, dsTransactions = [];
 let tradeResults = [];
 
+// ── Demo Mode (display-layer PII mask) ────────────────────────────────
+// Masks client-identifying data (names, addresses, phones, emails, DOBs)
+// at RENDER time only. Counts, dollars, tags, close dates and neighbourhood
+// data stay real. Stored records are never modified, and every FUB write is
+// blocked while the mask is on.
+let demoMode = localStorage.getItem('trellis_demo_mask') === 'true';
+const _demoLabels = new Map();
+let _demoClientSeq = 0, _demoHouseholdSeq = 0;
+
+function maskName(name) {
+  if (!demoMode || !name) return name;
+  const raw = String(name).trim();
+  if (!raw || raw === 'Unknown' || raw === '—' || /^(Client|Household)\s\d+$/.test(raw)) return raw;
+  const isHousehold = /\s(?:&|and|\/)\s/i.test(raw) || /&/.test(raw);
+  // canonical key: same contact → same label everywhere; couples sorted so "A & B" === "B & A"
+  let key = raw.toLowerCase().replace(/\s+/g, ' ');
+  if (isHousehold) key = key.split(/\s*(?:&|\band\b|\/)\s*/).sort().join(' & ');
+  const mapKey = (isHousehold ? 'h:' : 'c:') + key;
+  if (!_demoLabels.has(mapKey)) {
+    _demoLabels.set(mapKey, isHousehold ? 'Household ' + (++_demoHouseholdSeq) : 'Client ' + (++_demoClientSeq));
+  }
+  return _demoLabels.get(mapKey);
+}
+
+function maskAddress(addr, hood) {
+  if (!demoMode || !addr) return addr;
+  const s = String(addr);
+  const hasUnit = /(#|\bunit\b|\bapt\b|\bsuite\b|\bph\s*\d)/i.test(s);
+  let t = s.replace(/\b[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d\b/gi, ' ');            // postal code
+  t = t.replace(/(?:#|\b(?:unit|apt|apartment|suite|penthouse)\b\.?|\bph(?=\s*\d))\s*[\w-]*/gi, ' '); // unit
+  t = t.split(',')[0];
+  t = t.replace(/^[\s\d-]+/, '').replace(/\s+/g, ' ').trim();                    // street number
+  const type = hasUnit ? 'condo' : 'home';
+  if (t) return t + ' ' + type;
+  return hood ? hood + ' ' + type : 'Toronto ' + type;
+}
+
+function maskPhone(p) { return (demoMode && p) ? '(•••) •••-••••' : p; }
+function maskEmail(e) { return (demoMode && e) ? 'client@•••••.com' : e; }
+function ageFromDOB(d) {
+  const b = new Date(d); if (isNaN(b)) return null;
+  const now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  if (now < new Date(now.getFullYear(), b.getMonth(), b.getDate())) a--;
+  return (a > 0 && a < 120) ? a : null;
+}
+function maskDOB(d) { if (!demoMode || !d) return d; const a = ageFromDOB(d); return a ? a + ' yrs' : '••/••/••••'; }
+function maskNotes(n) { return (demoMode && n) ? '(notes hidden in Demo Mode)' : n; }
+function demoGuard() {
+  if (!demoMode) return false;
+  alert('Demo Mode is ON — writing to FUB is disabled so masked data can never be pushed.\n\nTurn off Demo Mode first.');
+  return true;
+}
+
 // ── Profession derivation (mirrors server logic) ──────────────────────────
 function deriveProf(jobTitle, company) {
   const text = ((jobTitle || '') + ' ' + (company || '')).toLowerCase();
@@ -528,6 +585,7 @@ function fubProfileUrl(fubId) {
   return `https://${fubDomain}.followupboss.com/2/people/view/${fubId}`;
 }
 function fubLink(name, fubId) {
+  if (demoMode) return maskName(name);   // no FUB links in demo — FUB itself shows real data
   const url = fubProfileUrl(fubId);
   if (!url) return name;
   return `<a href="${url}" target="_blank" rel="noopener" style="color:var(--gold);text-decoration:none" title="Open in Follow Up Boss">${name} ↗</a>`;
@@ -629,16 +687,16 @@ async function loadReviewQueue() {
       <div class="card" style="${it.status!=='pending'?'opacity:.55':''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
           <div style="flex:1">
-            <div style="font-weight:600;font-size:15px">${it.name||'Unknown'} ${fubDomain ? `<a href="https://${fubDomain}.followupboss.com/2/people?q=${encodeURIComponent((it.name||'').split(' ').slice(-1)[0])}" target="_blank" rel="noopener" style="font-size:11px;color:var(--gold);text-decoration:none">↗ FUB</a>` : ''}</div>
+            <div style="font-weight:600;font-size:15px">${maskName(it.name)||'Unknown'} ${(fubDomain && !demoMode) ? `<a href="https://${fubDomain}.followupboss.com/2/people?q=${encodeURIComponent((it.name||'').split(' ').slice(-1)[0])}" target="_blank" rel="noopener" style="font-size:11px;color:var(--gold);text-decoration:none">↗ FUB</a>` : ''}</div>
             <div style="font-size:12px;color:var(--ink-muted);margin-top:2px">${it.reason||''}</div>
-            ${it.detail?`<div style="font-size:12px;color:var(--ink-muted)">${it.detail}</div>`:''}
-            ${it.birthday?`<div style="font-size:12px;color:var(--ink-muted)">🎂 ${it.birthday}</div>`:''}
+            ${(it.detail && !demoMode)?`<div style="font-size:12px;color:var(--ink-muted)">${it.detail}</div>`:''}
+            ${it.birthday?`<div style="font-size:12px;color:var(--ink-muted)">🎂 ${maskDOB(it.birthday)}</div>`:''}
             ${it.occupation?`<div style="font-size:12px;color:var(--ink-muted)">💼 ${it.occupation}</div>`:''}
-            ${it.address?`<div style="font-size:12px;color:var(--ink-muted)">📍 ${it.address} ${it.year?'('+it.year+')':''}</div>`:''}
+            ${it.address?`<div style="font-size:12px;color:var(--ink-muted)">📍 ${maskAddress(it.address)} ${it.year?'('+it.year+')':''}</div>`:''}
           </div>
           <span class="pill ${it.status==='pending'?'pill-pending':it.status==='done'?'pill-done':'pill-review'}">${it.status}</span>
         </div>
-        <textarea placeholder="Add a note..." onchange="saveReviewNote('${it.id}', this.value)" style="width:100%;margin-top:10px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;min-height:50px">${it.note||''}</textarea>
+        <textarea placeholder="Add a note..." ${demoMode?'readonly':''} onchange="saveReviewNote('${it.id}', this.value)" style="width:100%;margin-top:10px;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;min-height:50px">${maskNotes(it.note)||''}</textarea>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           ${it.birthday ? `<button class="btn btn-primary btn-sm" onclick="findContactToApply('${it.id}','${(it.name||'').replace(/'/g,"\\'")}','${it.birthday}')">🔗 Apply to contact</button>` : ''}
           <button class="btn btn-primary btn-sm" style="background:var(--green)" onclick="setReviewStatus('${it.id}','done')">✓ Done</button>
@@ -652,6 +710,7 @@ async function loadReviewQueue() {
 }
 
 async function findContactToApply(itemId, name, birthday) {
+  if (demoGuard()) return;
   const box = document.getElementById('apply-box-' + itemId);
   box.style.display = 'block';
   box.innerHTML = 'Searching FUB for matching contacts...';
@@ -676,6 +735,7 @@ async function findContactToApply(itemId, name, birthday) {
 }
 
 async function applyReviewToContact(itemId, fubContactId) {
+  if (demoGuard()) return;
   try {
     const body = { action: 'apply', itemId, fubContactId, fubApiKey: getFUBKey() };
     if (impersonating) body.targetAgentId = impersonating.agentId;
@@ -766,6 +826,7 @@ async function showApp(agent) {
     localStorage.removeItem('trellis_token');
   }
   document.getElementById('app-shell').classList.add('visible');
+  updateDemoUI();   // re-apply persisted Demo Mode mask banner/state on load
   // Show demo banner if in demo mode
   if (localStorage.getItem('trellis_demo_mode') === 'true' && !document.getElementById('global-demo-banner')) {
     const b = document.createElement('div');
@@ -859,11 +920,11 @@ async function loadAdminPanel() {
         <!-- Demo Mode Toggle -->
         <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;color:var(--ink-muted)">Demo Mode — hide real client data during presentations</span>
-          <button onclick="toggleDemoMode()" id="demo-mode-btn" style="background:none;border:1px solid rgba(52,152,219,.4);border-radius:20px;padding:4px 14px;font-size:12px;cursor:pointer;color:#2980b9;font-weight:500">🎬 Demo Mode</button>
+          <button onclick="toggleDemoMode()" id="demo-mode-btn" style="background:none;border:1px solid rgba(52,152,219,.4);border-radius:20px;padding:4px 14px;font-size:12px;cursor:pointer;color:#2980b9;font-weight:500">${demoMode ? 'Disable Demo Mode' : '🎬 Demo Mode'}</button>
         </div>
         <!-- Demo Mode Banner -->
-        <div id="demo-banner" style="display:none;background:rgba(52,152,219,.1);border-bottom:.5px solid rgba(52,152,219,.3);padding:10px 20px;font-size:13px;color:#2980b9;font-weight:500;text-align:center">
-          🎬 Demo Mode Active — showing sample data only. Real client data is hidden.
+        <div id="demo-banner" style="display:${demoMode ? 'block' : 'none'};background:rgba(52,152,219,.1);border-bottom:.5px solid rgba(52,152,219,.3);padding:10px 20px;font-size:13px;color:#2980b9;font-weight:500;text-align:center">
+          🎬 Demo Mode Active — client identities hidden. Counts, totals and tags are real. FUB pushing disabled.
         </div>
 
         ${agents.map(a => `
@@ -905,61 +966,57 @@ async function loadAdminPanel() {
   } catch(e) { panel.innerHTML = `<div style="color:var(--red)">${e.message}</div>`; }
 }
 
-let demoModeActive = false;
-
-function exitDemo() {
+// Demo Mode is a pure display-layer mask (helpers defined near the top).
+// It does NOT switch accounts, seed sample data, or touch stored records —
+// it re-renders the current views with client identities hidden, keeps every
+// count/dollar/tag real, and blocks all FUB writes while active.
+function exitDemo() {   // used by the ?demo=true guest-login flow — unchanged
   localStorage.removeItem('trellis_demo_mode');
   localStorage.removeItem('trellis_token');
   window.location.href = '/';
 }
 
-async function toggleDemoMode() {
-  const btn = document.getElementById('demo-mode-btn');
-  const banner = document.getElementById('demo-banner');
+function toggleDemoMode() { setDemoMode(!demoMode); }
 
-  if (!demoModeActive) {
-    // Activate — seed demo agent if needed, then impersonate
-    btn.textContent = 'Setting up...';
-    btn.disabled = true;
-    try {
-      const res = await fetch('/api/seed-demo-agent', {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({})
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+function setDemoMode(on) {
+  demoMode = !!on;
+  localStorage.setItem('trellis_demo_mask', demoMode ? 'true' : 'false');
+  updateDemoUI();
+  refreshAllViews();
+}
 
-      // Impersonate demo agent — this switches all tabs to demo data
-      impersonating = { agentId: 'agent_demo', name: 'Demo Agent' };
-      resetFubDomain();
-      demoModeActive = true;
-      btn.textContent = 'Disable Demo Mode';
-      btn.style.color = '#2980b9';
-      btn.style.borderColor = 'rgba(52,152,219,.4)';
-      btn.disabled = false;
-      banner.style.display = 'block';
-      document.querySelectorAll('[id^="profile-"]').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('[id^="chevron-"]').forEach(el => el.textContent = '▸');
-      // Reload current tab with demo data
-      const activeTab = document.querySelector('.tab-btn.active');
-      if (activeTab) activeTab.click();
-    } catch(e) {
-      alert('Demo setup failed: ' + e.message);
-      btn.textContent = 'Enable Demo Mode';
-      btn.disabled = false;
-    }
-  } else {
-    // Deactivate — stop impersonating
-    impersonating = null;
-    resetFubDomain();
-    demoModeActive = false;
-    btn.textContent = 'Enable Demo Mode';
-    btn.style.color = 'var(--ink-muted)';
-    btn.style.borderColor = 'var(--border)';
-    banner.style.display = 'none';
-    // Reload current tab with real data
-    const activeTab = document.querySelector('.tab-btn.active');
-    if (activeTab) activeTab.click();
+function updateDemoUI() {
+  document.body.classList.toggle('demo-mask', demoMode);
+  let b = document.getElementById('demo-mask-banner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'demo-mask-banner';
+    b.innerHTML = '🎬 <b>DEMO MODE</b> — client names, addresses &amp; contact info hidden. Counts and totals are real. FUB pushing disabled. <a href="javascript:toggleDemoMode()" style="color:white;text-decoration:underline;margin-left:8px">Turn off</a>';
+    document.body.appendChild(b);
   }
+  b.style.display = demoMode ? 'block' : 'none';
+  const btn = document.getElementById('demo-mode-btn');
+  if (btn) btn.textContent = demoMode ? 'Disable Demo Mode' : '🎬 Demo Mode';
+  const adminBanner = document.getElementById('demo-banner');
+  if (adminBanner) adminBanner.style.display = demoMode ? 'block' : 'none';
+  ['history-push-all-btn', 'push-all-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = demoMode;
+  });
+}
+
+let _lastSingle = null;
+let _lastFintracData = null;
+
+function refreshAllViews() {
+  try { renderHistory(); } catch (e) {}
+  try { renderQueue(); } catch (e) {}
+  try { loadVoiceReviewList(); } catch (e) {}
+  try { if (tradeResults.length) renderTradeResults(); } catch (e) {}
+  try { if (dsTransactions.length) renderTransactions(); } catch (e) {}
+  try { if (_lastFintracData) renderFintracCsvResults(_lastFintracData); } catch (e) {}
+  try { if (_lastSingle) renderSingleResult(_lastSingle.d, _lastSingle.id); } catch (e) {}
+  try { if (document.getElementById('panel-review').classList.contains('active')) loadReviewQueue(); } catch (e) {}
 }
 
 const statsCache = {};
@@ -994,8 +1051,8 @@ async function reviewMissingContacts(agentId, name) {
           ${pending.map(c => `
             <div id="cand-${c.name.replace(/[^a-z0-9]/gi,'')}" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:.5px solid var(--border)">
               <div style="flex:1">
-                <div style="font-weight:600">${c.name}</div>
-                <div style="font-size:11px;color:var(--ink-muted)">${c.address} · ${c.year} · ${c.deal_type==='lease'?'🔑 Lease':'🏠 Sale'}</div>
+                <div style="font-weight:600">${maskName(c.name)}</div>
+                <div style="font-size:11px;color:var(--ink-muted)">${maskAddress(c.address)} · ${c.year} · ${c.deal_type==='lease'?'🔑 Lease':'🏠 Sale'}</div>
               </div>
               <button class="btn btn-primary btn-sm" style="background:var(--green)" onclick="decideMissing('${agentId}','${c.name.replace(/'/g,"\\'")}','create')">+ Create</button>
               <button class="btn btn-outline btn-sm" onclick="decideMissing('${agentId}','${c.name.replace(/'/g,"\\'")}','skip')">Skip</button>
@@ -1007,6 +1064,7 @@ async function reviewMissingContacts(agentId, name) {
 }
 
 async function decideMissing(agentId, contactName, decision) {
+  if (demoGuard()) return;
   const safeId = contactName.replace(/[^a-z0-9]/gi,'');
   const row = document.getElementById(`cand-${safeId}`);
   if (row) row.style.opacity = '0.4';
@@ -1054,14 +1112,14 @@ async function reconcileTrades(e, agentId, name) {
         Clients with no contact record: <strong style="color:#e67e22">${d.clients_with_no_contact}</strong><br><br>
         ${d.deals_missing > 0 ? `
           <strong style="color:var(--red)">Missing deals (all clients will be imported):</strong><br>
-          ${d.missing_list.slice(0,25).map(t => `&nbsp;&nbsp;· ${t.clients} — ${t.address} (${t.close_date||'?'}) ${t.type==='lease'?'🔑':'🏠'}`).join('<br>')}
+          ${d.missing_list.slice(0,25).map(t => `&nbsp;&nbsp;· ${maskName(t.clients)} — ${maskAddress(t.address)} (${t.close_date||'?'}) ${t.type==='lease'?'🔑':'🏠'}`).join('<br>')}
           ${d.deals_missing > 25 ? `<br>&nbsp;&nbsp;…and ${d.deals_missing - 25} more` : ''}
           <br><br>
           <button class="btn btn-primary btn-sm" onclick="applyReconcile('${agentId}','${name}')" style="background:var(--green)">✓ Import ${d.deals_missing} Missing Deals</button>
         ` : '<strong style="color:var(--green)">✓ Nothing missing — all master deals are in the system!</strong>'}
         ${d.clients_with_no_contact > 0 ? `<br><br>
           <strong style="color:#e67e22">Clients with no contact record (consider creating):</strong><br>
-          ${d.no_contact_list.slice(0,20).map(t => `&nbsp;&nbsp;· ${t.name} — ${t.address} (${t.year||'?'})`).join('<br>')}
+          ${d.no_contact_list.slice(0,20).map(t => `&nbsp;&nbsp;· ${maskName(t.name)} — ${maskAddress(t.address)} (${t.year||'?'})`).join('<br>')}
           ${d.clients_with_no_contact > 20 ? `<br>&nbsp;&nbsp;…and ${d.clients_with_no_contact - 20} more` : ''}
         ` : ''}
       </div>`;
@@ -1071,6 +1129,7 @@ async function reconcileTrades(e, agentId, name) {
 }
 
 async function applyReconcile(agentId, name) {
+  if (demoGuard()) return;
   const csvText = reconcileCache[agentId];
   if (!csvText) return alert('Please re-upload the CSV');
   const statsEl = document.getElementById(`stats-${agentId}`);
@@ -1103,7 +1162,7 @@ async function runAudit(agentId, name) {
         Birthdays: ${s.contacts_with_birthday} · Job titles: ${s.contacts_with_job_title} · Contacts w/ trade history: ${s.contacts_with_trade_history}<br><br>
         <strong style="color:var(--red)">Gaps</strong><br>
         Trades w/o contact match: <strong>${g.trades_without_contact_match}</strong><br>
-        ${(g.trades_without_contact_list||[]).slice(0,15).map(t => `&nbsp;&nbsp;· ${t.client} — ${t.address} (${t.close_date||'?'})`).join('<br>')}
+        ${(g.trades_without_contact_list||[]).slice(0,15).map(t => `&nbsp;&nbsp;· ${maskName(t.client)} — ${maskAddress(t.address)} (${t.close_date||'?'})`).join('<br>')}
         ${g.trades_without_contact_match > 15 ? '<br>&nbsp;&nbsp;…and more' : ''}<br><br>
         Past Clients missing trade record: <strong>${g.past_clients_missing_trade_record}</strong><br>
         Trade clients missing FINTRAC: <strong>${g.trade_clients_missing_fintrac}</strong>
@@ -1438,15 +1497,16 @@ function renderHistory() {
   }
   document.getElementById('history-list').innerHTML = historyFiltered.map((c, idx) => {
     const approvedTags = c.approved_tags || [];
-    const initials = (c.full_name || c.name || '?').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+    const dispName = maskName(c.full_name || c.name) || 'Unknown';
+    const initials = dispName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
     const date = c.savedAt ? new Date(c.savedAt).toLocaleDateString('en-CA') : '';
     return `<div>
       <div class="history-item" onclick="toggleHistoryExpand(${idx})">
         <div class="history-avatar">${initials}</div>
         <div style="flex:1">
-          <div class="history-name">${c.full_name || c.name || 'Unknown'}</div>
+          <div class="history-name">${dispName}</div>
           <div class="history-meta">${[c.job_title, c.location].filter(Boolean).join(' · ')}${date ? ' · ' + date : ''}</div>
-          ${(c.birthday || c.fintrac_verified) ? `<div style="font-size:11px;margin-top:2px;display:flex;gap:8px;align-items:center">${c.birthday ? '<span style="color:var(--gold)">🎂 ' + c.birthday + '</span>' : ''}${c.fintrac_verified ? '<span style="color:var(--green);font-size:10px">✓ FINTRAC</span>' : ''}</div>` : ''}
+          ${(c.birthday || c.fintrac_verified) ? `<div style="font-size:11px;margin-top:2px;display:flex;gap:8px;align-items:center">${c.birthday ? '<span style="color:var(--gold)">🎂 ' + maskDOB(c.birthday) + '</span>' : ''}${c.fintrac_verified ? '<span style="color:var(--green);font-size:10px">✓ FINTRAC</span>' : ''}</div>` : ''}
           ${approvedTags.length ? `<div class="history-tags">${approvedTags.slice(0,4).map(t => `<span class="history-tag">${t}</span>`).join('')}${approvedTags.length > 4 ? `<span class="history-tag">+${approvedTags.length-4}</span>` : ''}</div>` : ''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
@@ -1504,26 +1564,28 @@ function toggleHistoryExpand(idx) {
   const tagsHtml = (c.suggested_tags || []).map((t, i) => {
     const state = tagStates[hid][i] || 'pending';
     const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
-    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason||''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
+  const _hFirst = demoMode ? (maskName(c.full_name||c.name)||'') : (c.full_name||'').split(' ')[0];
+  const _hLast = demoMode ? '' : (c.full_name||'').split(' ').slice(1).join(' ');
   panel.innerHTML = `
     <div class="edit-grid" style="margin-bottom:12px">
-      <div class="edit-field"><label>First name</label><input id="hf-first-${hid}" value="${(c.full_name||'').split(' ')[0]}"/></div>
-      <div class="edit-field"><label>Last name</label><input id="hf-last-${hid}" value="${(c.full_name||'').split(' ').slice(1).join(' ')}"/></div>
-      <div class="edit-field"><label>Email</label><input id="hf-email-${hid}" value="${c.email||c.fub_data?.email||''}"/></div>
-      <div class="edit-field"><label>Phone</label><input id="hf-phone-${hid}" value="${c.phone||c.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>First name</label><input id="hf-first-${hid}" ${demoMode?'readonly':''} value="${_hFirst}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="hf-last-${hid}" ${demoMode?'readonly':''} value="${_hLast}"/></div>
+      <div class="edit-field"><label>Email</label><input id="hf-email-${hid}" ${demoMode?'readonly':''} value="${maskEmail(c.email||c.fub_data?.email)||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="hf-phone-${hid}" ${demoMode?'readonly':''} value="${maskPhone(c.phone||c.fub_data?.phone)||''}"/></div>
       <div class="edit-field"><label>City</label><input id="hf-city-${hid}" value="${c.location||''}"/></div>
-      <div class="edit-field"><label>Birthday</label><input id="hf-birthday-${hid}" placeholder="e.g. 1985-06-15" value="${c.birthday||''}"/></div>
+      <div class="edit-field"><label>Birthday</label><input id="hf-birthday-${hid}" ${demoMode?'readonly':''} placeholder="e.g. 1985-06-15" value="${maskDOB(c.birthday)||''}"/></div>
       <div class="edit-field"><label>Job title</label><input id="hf-jobtitle-${hid}" value="${c.job_title||''}"/></div>
       <div class="edit-field"><label>Company / Employer</label><input id="hf-company-${hid}" value="${c.company||''}"/></div>
-      <div class="edit-field"><label>Spouse name</label><input id="hf-spouse-${hid}" value="${c.spouse_name||''}"/></div>
+      <div class="edit-field"><label>Spouse name</label><input id="hf-spouse-${hid}" ${demoMode?'readonly':''} value="${demoMode?(c.spouse_name?'(hidden)':''):(c.spouse_name||'')}"/></div>
       <div class="edit-field"><label>Stage</label>
         <select id="hf-stage-${hid}">
           <option value="">— select —</option>
           ${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}" ${c.stage===s?'selected':''}>${s}</option>`).join('')}
         </select>
       </div>
-      <div class="edit-field full"><label>Notes</label><textarea id="hf-notes-${hid}">${c.notes||''}</textarea></div>
+      <div class="edit-field full"><label>Notes</label><textarea id="hf-notes-${hid}" ${demoMode?'readonly':''}>${maskNotes(c.notes)||''}</textarea></div>
     </div>
     <div class="section-label">Tags — click to approve / reject</div>
     <div class="tags-wrap" id="htags-${hid}">${tagsHtml}</div>
@@ -1536,7 +1598,7 @@ function toggleHistoryExpand(idx) {
       <button class="btn btn-outline btn-sm" onclick="addHistoryCustomTag(${idx})">+ Add</button>
     </div>
     <div class="action-row" style="margin-top:14px">
-      <button class="btn btn-green" onclick="pushHistoryContact(${idx})">Push to FUB</button>
+      <button class="btn btn-green" onclick="pushHistoryContact(${idx})" ${demoMode?'disabled title="Disabled in Demo Mode"':''}>Push to FUB</button>
       <span class="push-msg" id="hpmsg-${hid}"></span>
     </div>`;
   panel.classList.add('open');
@@ -1551,7 +1613,7 @@ function toggleHistoryTag(idx, i) {
   wrap.innerHTML = (c.suggested_tags || []).map((t, i) => {
     const state = tagStates[hid][i] || 'pending';
     const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
-    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${t.reason||''}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
@@ -1583,6 +1645,7 @@ function addHistoryManualTag(idx) {
 }
 
 async function pushHistoryContact(idx) {
+  if (demoGuard()) return;
   const hid = 'h' + idx;
   const fubKey = getFUBKey();
   if (!fubKey) { setHistMsg(hid, 'Add FUB key in sidebar', 'err'); return; }
@@ -1617,6 +1680,7 @@ async function pushHistoryContact(idx) {
 }
 
 async function runCorrections() {
+  if (demoGuard()) return;
   try {
     const body = { dryRun: true };
     if (impersonating) body.agentId = impersonating.agentId;
@@ -1636,6 +1700,7 @@ async function runCorrections() {
 }
 
 async function rematchFintrac() {
+  if (demoGuard()) return;
   try {
     const body = { dryRun: true };
     if (impersonating) body.agentId = impersonating.agentId;
@@ -1662,6 +1727,7 @@ async function rematchFintrac() {
 }
 
 async function fixAgeTags() {
+  if (demoGuard()) return;
   const fubKey = getFUBKey();
   if (!fubKey) { alert('Add FUB API key first.'); return; }
   try {
@@ -1684,6 +1750,7 @@ async function fixAgeTags() {
 }
 
 async function bulkTagContacts() {
+  if (demoGuard()) return;
   const fubKey = getFUBKey();
   if (!fubKey) { alert('Add FUB API key in sidebar first.'); return; }
 
@@ -1715,6 +1782,7 @@ async function bulkTagContacts() {
 }
 
 async function fixISPContacts() {
+  if (demoGuard()) return;
   // First do a dry run to show what will be fixed
   try {
     const body = { dryRun: true };
@@ -1739,6 +1807,7 @@ async function fixISPContacts() {
 }
 
 async function deduplicateHistory() {
+  if (demoGuard()) return;
   if (!confirm('Merge duplicate contacts by name?\n\nKeeps the record with the most data, merges the rest. Cannot be undone.')) return;
   try {
     const body = {};
@@ -1758,6 +1827,7 @@ async function deduplicateHistory() {
 }
 
 async function pushAllHistory() {
+  if (demoGuard()) return;
   const fubKey = getFUBKey();
   if (!fubKey) { alert('Add FUB API key in sidebar first.'); return; }
   if (!historyContacts.length) { alert('No contacts in History.'); return; }
@@ -1957,30 +2027,35 @@ async function enrichSingle() {
 }
 
 function renderSingleResult(d, id) {
+  _lastSingle = { d, id };   // so toggling Demo Mode can re-render this card masked/unmasked
   const conf = d.confidence_overall;
   const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':'var(--red)';
   const fubInfo = d.fub_data ? `<div style="background:var(--green-light);border-radius:4px;padding:8px 12px;font-size:12px;color:var(--green);margin-bottom:12px">Found in FUB — editing will update existing contact</div>` : '';
   const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
+  const dispName = maskName(d.full_name) || d.full_name;
+  const dispInit = demoMode ? dispName.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase() : (d.initials||'?');
+  const _sFirst = demoMode ? dispName : (d.full_name||'').split(' ')[0];
+  const _sLast = demoMode ? '' : (d.full_name||'').split(' ').slice(1).join(' ');
   document.getElementById('single-result').innerHTML = `<div class="card">
     ${d.warning?`<div class="warning-box">${d.warning}</div>`:''}${fubInfo}
     <div class="result-header">
-      <div class="avatar">${d.initials||'?'}</div>
-      <div><div class="result-name">${d.full_name}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' · ')||'No title found'}</div></div>
+      <div class="avatar">${dispInit}</div>
+      <div><div class="result-name">${dispName}</div><div class="result-sub">${[d.job_title,d.company].filter(Boolean).join(' · ')||'No title found'}</div></div>
       <div style="margin-left:auto;font-size:12px;font-weight:500;color:${confColor}">${conf} confidence</div>
     </div>
     <div class="section-label">Contact details — edit before pushing</div>
     <div class="edit-grid">
-      <div class="edit-field"><label>First name</label><input id="ef-first-${id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
-      <div class="edit-field"><label>Last name</label><input id="ef-last-${id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
-      <div class="edit-field"><label>Email</label><input id="ef-email-${id}" value="${d.fub_data?.email||''}"/></div>
-      <div class="edit-field"><label>Phone</label><input id="ef-phone-${id}" value="${d.fub_data?.phone||''}"/></div>
+      <div class="edit-field"><label>First name</label><input id="ef-first-${id}" ${demoMode?'readonly':''} value="${_sFirst}"/></div>
+      <div class="edit-field"><label>Last name</label><input id="ef-last-${id}" ${demoMode?'readonly':''} value="${_sLast}"/></div>
+      <div class="edit-field"><label>Email</label><input id="ef-email-${id}" ${demoMode?'readonly':''} value="${maskEmail(d.fub_data?.email)||''}"/></div>
+      <div class="edit-field"><label>Phone</label><input id="ef-phone-${id}" ${demoMode?'readonly':''} value="${maskPhone(d.fub_data?.phone)||''}"/></div>
       <div class="edit-field"><label>City</label><input id="ef-city-${id}" value="${d.location||''}"/></div>
       <div class="edit-field"><label>Birthday</label><input id="ef-birthday-${id}" placeholder="e.g. 1985-06-15" value=""/></div>
       <div class="edit-field"><label>Spouse name</label><input id="ef-spouse-${id}" value=""/></div>
       <div class="edit-field"><label>Stage</label>
         <select id="ef-stage-${id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
       </div>
-      <div class="edit-field full"><label>Notes</label><textarea id="ef-notes-${id}">${d.notes||''}</textarea></div>
+      <div class="edit-field full"><label>Notes</label><textarea id="ef-notes-${id}" ${demoMode?'readonly':''}>${maskNotes(d.notes)||''}</textarea></div>
     </div>
     <hr class="divider"/>
     <div class="section-label">Suggested tags — click to approve / reject</div>
@@ -1991,8 +2066,8 @@ function renderSingleResult(d, id) {
       <button class="btn btn-outline btn-sm" onclick="addManualTag('${id}')">Add</button>
     </div>
     <div class="action-row" style="margin-top:16px">
-      <button class="btn btn-green" onclick="pushSingleContact('${id}')">Push to FUB</button>
-      <button class="btn btn-outline" onclick="document.getElementById('single-result').innerHTML=''">Clear</button>
+      <button class="btn btn-green" onclick="pushSingleContact('${id}')" ${demoMode?'disabled title="Disabled in Demo Mode"':''}>Push to FUB</button>
+      <button class="btn btn-outline" onclick="_lastSingle=null;document.getElementById('single-result').innerHTML=''">Clear</button>
       <span class="push-msg" id="pmsg-${id}"></span>
     </div>
   </div>`;
@@ -2015,7 +2090,7 @@ function renderTagsFor(id, tags) {
   wrap.innerHTML = tags.map((t, i) => {
     const state = tagStates[id]?.[i] || 'pending';
     const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
-    return `<span class="tag ${state}" onclick="toggleTag('${id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleTag('${id}',${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
@@ -2027,6 +2102,7 @@ function toggleTag(id, i) {
 }
 
 async function pushSingleContact(id) {
+  if (demoGuard()) return;
   const fubKey = getFUBKey(); if (!fubKey) { setMsg(id, 'Add FUB API key in sidebar', 'err'); return; }
   const item = queue.find(q => q.id === id); const data = item?.result; if (!data) return;
   const approved = (data.suggested_tags||[]).filter((_,i) => tagStates[id]?.[i]==='approved').map(t => t.tag);
@@ -2208,7 +2284,7 @@ function renderQueue() {
     const confColor = conf==='high'?'var(--green)':conf==='medium'?'var(--amber)':conf==='low'?'var(--red)':'var(--ink-muted)';
     return `<div>
       <div class="queue-row" onclick="toggleQueueExpand('${item.id}')">
-        <div><div style="font-size:13px;font-weight:500">${item.name}</div>${item.city?`<div style="font-size:11px;color:var(--ink-muted)">${item.city}</div>`:''}</div>
+        <div><div style="font-size:13px;font-weight:500">${maskName(item.name)}</div>${item.city?`<div style="font-size:11px;color:var(--ink-muted)">${item.city}</div>`:''}</div>
         <div>${topTags}</div>
         <div style="font-size:12px;font-weight:500;color:${confColor}">${conf}</div>
         <div><span class="pill ${pillClass}">${item.status==='review'?'needs review':item.status}</span></div>
@@ -2224,23 +2300,25 @@ function renderExpandContent(item) {
   const tagsHtml = (d.suggested_tags||[]).map((t,i) => {
     const state = tagStates[item.id]?.[i]||'pending';
     const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
-    return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
+  const _qFirst = demoMode ? (maskName(d.full_name||item.name)||'') : (d.full_name||'').split(' ')[0];
+  const _qLast = demoMode ? '' : (d.full_name||'').split(' ').slice(1).join(' ');
   return `${d.warning?`<div class="warning-box" style="margin-bottom:12px">${d.warning}</div>`:''}
   <div class="edit-grid" style="margin-bottom:12px">
-    <div class="edit-field"><label>First name</label><input id="qf-first-${item.id}" value="${(d.full_name||'').split(' ')[0]}"/></div>
-    <div class="edit-field"><label>Last name</label><input id="qf-last-${item.id}" value="${(d.full_name||'').split(' ').slice(1).join(' ')}"/></div>
-    <div class="edit-field"><label>Email</label><input id="qf-email-${item.id}" value="${item.email||d.fub_data?.email||''}"/></div>
-    <div class="edit-field"><label>Phone</label><input id="qf-phone-${item.id}" value="${d.fub_data?.phone||''}"/></div>
+    <div class="edit-field"><label>First name</label><input id="qf-first-${item.id}" ${demoMode?'readonly':''} value="${_qFirst}"/></div>
+    <div class="edit-field"><label>Last name</label><input id="qf-last-${item.id}" ${demoMode?'readonly':''} value="${_qLast}"/></div>
+    <div class="edit-field"><label>Email</label><input id="qf-email-${item.id}" ${demoMode?'readonly':''} value="${maskEmail(item.email||d.fub_data?.email)||''}"/></div>
+    <div class="edit-field"><label>Phone</label><input id="qf-phone-${item.id}" ${demoMode?'readonly':''} value="${maskPhone(d.fub_data?.phone)||''}"/></div>
     <div class="edit-field"><label>City</label><input id="qf-city-${item.id}" value="${d.location||item.city||''}"/></div>
-    <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" placeholder="e.g. 1985-06-15" value="${d.birthday||''}"/>${d.fintrac_verified?'<span style="font-size:10px;color:var(--green)">✓ FINTRAC verified</span>':''}</div>
-    <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" value="${d.spouse_name||''}"/></div>
+    <div class="edit-field"><label>Birthday</label><input id="qf-birthday-${item.id}" ${demoMode?'readonly':''} placeholder="e.g. 1985-06-15" value="${maskDOB(d.birthday)||''}"/>${d.fintrac_verified?'<span style="font-size:10px;color:var(--green)">✓ FINTRAC verified</span>':''}</div>
+    <div class="edit-field"><label>Spouse name</label><input id="qf-spouse-${item.id}" ${demoMode?'readonly':''} value="${demoMode?(d.spouse_name?'(hidden)':''):(d.spouse_name||'')}"/></div>
     <div class="edit-field"><label>Stage</label>
       <select id="qf-stage-${item.id}"><option value="">— select —</option>${['Lead','Hot Prospect','Nurture','Active Client','Pending','Closed','Past Client','Sphere','Trash','Unresponsive'].map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
     </div>
     <div class="edit-field"><label>Job title</label><input id="qf-job-${item.id}" value="${d.job_title||''}"/></div>
     <div class="edit-field"><label>Company</label><input id="qf-company-${item.id}" value="${d.company||''}"/></div>
-    <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}">${d.notes||''}</textarea></div>
+    <div class="edit-field full"><label>Notes</label><textarea id="qf-notes-${item.id}" ${demoMode?'readonly':''}>${maskNotes(d.notes)||''}</textarea></div>
   </div>
   <div class="section-label">Tags — click to approve</div>
   <div class="tags-wrap">${tagsHtml}</div>
@@ -2249,7 +2327,7 @@ function renderExpandContent(item) {
     <button class="btn btn-outline btn-sm" onclick="addQueueManualTag('${item.id}')">Add</button>
   </div>
   <div class="action-row" style="margin-top:14px">
-    <button class="btn btn-green btn-sm" onclick="pushQueueItem('${item.id}')">Push to FUB</button>
+    <button class="btn btn-green btn-sm" onclick="pushQueueItem('${item.id}')" ${demoMode?'disabled title="Disabled in Demo Mode"':''}>Push to FUB</button>
     <span class="push-msg" id="pmsg-${item.id}"></span>
   </div>`;
 }
@@ -2268,6 +2346,7 @@ function toggleQueueExpand(id) { const item = queue.find(q => q.id === id); if(!
 function toggleQueueTag(id, i) { if(!tagStates[id]) return; const s = tagStates[id][i]; tagStates[id][i] = s==='pending'?'approved':s==='approved'?'rejected':'pending'; renderQueue(); }
 
 async function pushQueueItem(id) {
+  if (demoGuard()) return;
   const fubKey = getFUBKey(); if(!fubKey){setMsg(id,'Add FUB API key','err');return;}
   const item = queue.find(q => q.id === id); if(!item?.result) return;
   const approved = (item.result.suggested_tags||[]).filter((_,i) => tagStates[id]?.[i]==='approved').map(t => t.tag);
@@ -2299,6 +2378,7 @@ async function pushQueueItem(id) {
 }
 
 async function pushAll() {
+  if (demoGuard()) return;
   for(const item of queue.filter(q => (q.status==='done'||q.status==='review') && q.result)) {
     Object.keys(tagStates[item.id]||{}).forEach(i => { if(tagStates[item.id][i]==='pending') tagStates[item.id][i]='approved'; });
     await pushQueueItem(item.id);
@@ -2341,7 +2421,7 @@ function loadVoiceReviewList() {
   }
 
   listEl.innerHTML = voiceReviewList.map((c, i) => {
-    const name = c.full_name || c.name || 'Unknown';
+    const name = maskName(c.full_name || c.name) || 'Unknown';
     const initials = name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
     const meta = [c.location, c.birthday ? '🎂' : null].filter(Boolean).join(' · ');
     return `<div onclick="selectVoiceContact(${i})" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background=''">
@@ -2360,11 +2440,12 @@ function selectVoiceContact(idx) {
   if (!c) return;
   voiceSelectedContact = c;
   const name = c.full_name || c.name || '';
-  document.getElementById('v-name').value = name;
+  const dispName = maskName(name) || name;
+  document.getElementById('v-name').value = dispName;
   document.getElementById('v-name-results').style.display = 'none';
   const sel = document.getElementById('v-selected-contact');
   sel.style.display = 'block';
-  sel.textContent = `✓ Selected: ${name}${c.birthday ? ' · 🎂 ' + c.birthday : ''}${c.fintrac_verified ? ' · ✓ FINTRAC' : ''}`;
+  sel.textContent = `✓ Selected: ${dispName}${c.birthday ? ' · 🎂 ' + maskDOB(c.birthday) : ''}${c.fintrac_verified ? ' · ✓ FINTRAC' : ''}`;
   // Scroll to recording section
   document.getElementById('record-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -2393,13 +2474,14 @@ function searchVoiceContact(query) {
   }
   results.innerHTML = matches.map(c => {
     const name = c.full_name || c.name || '';
+    const dispName = maskName(name) || name;
     const meta = [c.job_title !== 'unknown' ? c.job_title : null, c.location].filter(Boolean).join(' · ');
     const tagCount = (c.approved_tags||[]).length;
-    const initials = name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    const initials = dispName.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
     return `<div onclick="selectVoiceFromSearch(${JSON.stringify(name)})" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:.5px solid var(--border);transition:background .1s" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background=''">
       <div style="width:28px;height:28px;border-radius:50%;background:var(--gold-pale);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--gold);flex-shrink:0">${initials}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500">${name}${c.birthday ? ' 🎂' : ''}${c.fintrac_verified ? ' <span style="color:var(--green);font-size:10px">✓</span>' : ''}</div>
+        <div style="font-size:13px;font-weight:500">${dispName}${c.birthday ? ' 🎂' : ''}${c.fintrac_verified ? ' <span style="color:var(--green);font-size:10px">✓</span>' : ''}</div>
         ${meta ? `<div style="font-size:11px;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${meta}</div>` : ''}
       </div>
       ${tagCount ? `<span style="font-size:10px;color:var(--ink-muted)">${tagCount} tags</span>` : ''}
@@ -2411,11 +2493,12 @@ function selectVoiceFromSearch(name) {
   const c = historyContacts.find(c => (c.full_name || c.name || '') === name);
   if (!c) return;
   voiceSelectedContact = c;
-  document.getElementById('v-name').value = name;
+  const dispName = maskName(name) || name;
+  document.getElementById('v-name').value = dispName;
   document.getElementById('v-name-results').style.display = 'none';
   const sel = document.getElementById('v-selected-contact');
   sel.style.display = 'flex';
-  document.getElementById('v-linked-label').textContent = `✓ LINKED — ${name}${c.birthday ? ' · 🎂 ' + c.birthday : ''}${c.fintrac_verified ? ' · ✓ FINTRAC' : ''}`;
+  document.getElementById('v-linked-label').textContent = `✓ LINKED — ${dispName}${c.birthday ? ' · 🎂 ' + maskDOB(c.birthday) : ''}${c.fintrac_verified ? ' · ✓ FINTRAC' : ''}`;
   updateVoiceSaveLabel();
 }
 
@@ -2429,7 +2512,7 @@ function updateVoiceSaveLabel() {
   const btn = document.getElementById('voice-save-btn');
   if (!btn) return;
   if (voiceSelectedContact) {
-    btn.textContent = 'Save to ' + (voiceSelectedContact.full_name || voiceSelectedContact.name);
+    btn.textContent = 'Save to ' + (maskName(voiceSelectedContact.full_name || voiceSelectedContact.name) || '');
   } else {
     const name = document.getElementById('v-name')?.value?.trim();
     btn.textContent = name ? 'Save as new contact' : 'Save to queue';
@@ -2487,7 +2570,7 @@ function renderVoiceTags() {
   document.getElementById('voice-tags').innerHTML = currentVoiceTags.map((t, i) => {
     const state = voiceTagStates[i];
     const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
-    return `<span class="tag ${state}" onclick="toggleVoiceTag(${i})" title="${t.reason}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleVoiceTag(${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
@@ -2664,6 +2747,7 @@ async function handleFintracCsv(e) {
 }
 
 function renderFintracCsvResults(data) {
+  _lastFintracData = data;   // so toggling Demo Mode can re-render masked/unmasked
   const total = (data.matched?.length||0) + (data.unmatched?.length||0);
   document.getElementById('fintrac-count').textContent = `${total} contacts processed — ✓ ${data.matched?.length||0} matched & updated, ${data.unmatched?.length||0} unmatched`;
   document.getElementById('fintrac-results').style.display = 'block';
@@ -2671,9 +2755,9 @@ function renderFintracCsvResults(data) {
     <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:500">${m.fintrac_name}</div>
-        <div style="font-size:11px;color:var(--ink-muted)">→ Matched to <b>${m.matched_to}</b> (${m.score}% match)</div>
-        ${m.birthday ? `<div style="font-size:11px;color:var(--green)">Birthday: ${m.birthday}</div>` : ''}
+        <div style="font-size:13px;font-weight:500">${maskName(m.fintrac_name)}</div>
+        <div style="font-size:11px;color:var(--ink-muted)">→ Matched to <b>${maskName(m.matched_to)}</b> (${m.score}% match)</div>
+        ${m.birthday ? `<div style="font-size:11px;color:var(--green)">Birthday: ${maskDOB(m.birthday)}</div>` : ''}
         ${m.occupation ? `<div style="font-size:11px;color:var(--ink-muted)">Occupation: ${m.occupation}</div>` : ''}
       </div>
       <span class="pill pill-pushed">Updated</span>
@@ -2682,11 +2766,11 @@ function renderFintracCsvResults(data) {
     <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></div>
       <div style="flex:1">
-        <div style="font-size:13px;font-weight:500">${u.full_name||'—'}</div>
+        <div style="font-size:13px;font-weight:500">${maskName(u.full_name)||'—'}</div>
         <div style="font-size:11px;color:var(--ink-muted)">No match in History</div>
-        ${u.date_of_birth ? `<div style="font-size:11px;color:var(--ink-muted)">DOB: ${u.date_of_birth}</div>` : ''}
+        ${u.date_of_birth ? `<div style="font-size:11px;color:var(--ink-muted)">DOB: ${maskDOB(u.date_of_birth)}</div>` : ''}
         ${u.occupation ? `<div style="font-size:11px;color:var(--ink-muted)">Occupation: ${u.occupation}</div>` : ''}
-        ${u._possible_match ? `<div style="font-size:11px;color:var(--amber)">⚠️ Possible match: ${u._possible_match} (${u._possible_score})</div>` : ''}
+        ${u._possible_match ? `<div style="font-size:11px;color:var(--amber)">⚠️ Possible match: ${maskName(u._possible_match)} (${u._possible_score})</div>` : ''}
       </div>
       <span class="pill ${u._possible_match ? 'pill-review' : 'pill-pending'}">${u._possible_match ? 'Review' : 'Unmatched'}</span>
     </div>`).join('');
@@ -2884,12 +2968,12 @@ function renderTradeResults() {
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:600;margin-bottom:2px">${clientDisplayName || '—'}</div>
-          <div style="font-size:15px;font-weight:500">${r.property_address || 'Address unknown'}</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px">${maskName(clientDisplayName) || '—'}</div>
+          <div style="font-size:15px;font-weight:500">${maskAddress(r.property_address) || 'Address unknown'}</div>
           <div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${dealTypeBadge}${sideLabel ? ' • ' + sideLabel : ''}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-          ${buyerMatch ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ ${buyerMatch.full_name||buyerMatch.name} in contacts</div>` : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
+          ${buyerMatch ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ ${maskName(buyerMatch.full_name||buyerMatch.name)} in contacts</div>` : `<div style="background:var(--amber-light);color:var(--amber);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">No contact match</div>`}
           ${r._pushStatus === 'pushed' ? `<div style="background:var(--green-light);color:var(--green);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✓ FUB Deal #${r._fubDealId}</div>`
           : r._pushStatus === 'duplicate' ? `<div style="background:var(--blue-light);color:var(--blue);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">↺ Already in FUB</div>`
           : r._pushStatus === 'failed' ? `<div style="background:var(--red-light);color:var(--red);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500">✗ Push failed</div>`
@@ -2897,8 +2981,8 @@ function renderTradeResults() {
         </div>
       </div>
       <div class="field-grid">
-        <div class="field"><div class="field-key">${isLease ? 'Tenant' : 'Buyer'}</div><div class="field-val">${partyName||'—'}</div></div>
-        <div class="field"><div class="field-key">${isLease ? 'Landlord' : 'Seller'}</div><div class="field-val">${counterpartyName||'—'}</div></div>
+        <div class="field"><div class="field-key">${isLease ? 'Tenant' : 'Buyer'}</div><div class="field-val">${maskName(partyName)||'—'}</div></div>
+        <div class="field"><div class="field-key">${isLease ? 'Landlord' : 'Seller'}</div><div class="field-val">${maskName(counterpartyName)||'—'}</div></div>
         <div class="field"><div class="field-key">${isLease ? 'Monthly rent' : 'Sale price'}</div><div class="field-val">${fmtMoney(isLease ? r.monthly_rent : r.sale_price)}</div></div>
         <div class="field"><div class="field-key">Close date</div><div class="field-val">${r.close_date||'—'}</div></div>
         <div class="field"><div class="field-key">Agent share</div><div class="field-val">${fmtMoney(r.agent_share_pretax)||'—'}</div></div>
@@ -2914,7 +2998,7 @@ function renderTradeResults() {
             <option value="both" ${r.agent_side==='both'?'selected':''}>Both</option>
           </select>
         </label>
-        <button class="btn btn-green btn-sm" onclick="pushTradeToFub(${idx}, event)">Push to FUB</button>
+        <button class="btn btn-green btn-sm" onclick="pushTradeToFub(${idx}, event)" ${demoMode?'disabled title="Disabled in Demo Mode"':''}>Push to FUB</button>
         <div id="trade-push-msg-${idx}" style="font-size:12px;min-height:16px;flex:1"></div>
       </div>
     </div>`;
@@ -2925,6 +3009,7 @@ function renderTradeResults() {
 }
 
 async function pushTradeToFub(idx, ev) {
+  if (demoGuard()) return;
   const valid = tradeResults.filter(r => !r.error);
   const trade = { ...valid[idx] };
   if (!trade) return;
@@ -2980,6 +3065,7 @@ async function saveFubKey() {
 }
 
 async function deleteFubDeal() {
+  if (demoGuard()) return;
   const dealId = document.getElementById('cleanup-deal-id').value.trim();
   const el = document.getElementById('cleanup-result');
   if (!dealId) { el.innerHTML = '<span style="color:#d4ae72">Enter a dealId first.</span>'; return; }
@@ -3049,8 +3135,8 @@ function renderTransactions() {
   document.getElementById('transactions-list').innerHTML = dsTransactions.map((t, idx) => {
     const fintracCount = (t.fintracData || []).length;
     return `<div style="display:grid;grid-template-columns:2fr 1.5fr 1fr 1fr 80px;gap:8px;padding:14px 16px;border-bottom:.5px solid var(--border);align-items:center">
-      <div><div style="font-size:13px;font-weight:500">${t.address||t.name||'Unknown'}</div>${t.city?`<div style="font-size:11px;color:var(--ink-muted)">${t.city}</div>`:''}</div>
-      <div style="font-size:12px;color:var(--ink-muted)">${(t.fintracData||[]).map(f=>f.full_name).filter(Boolean).join(', ')||'—'}</div>
+      <div><div style="font-size:13px;font-weight:500">${maskAddress(t.address||t.name)||'Unknown'}</div>${t.city?`<div style="font-size:11px;color:var(--ink-muted)">${t.city}</div>`:''}</div>
+      <div style="font-size:12px;color:var(--ink-muted)">${(t.fintracData||[]).map(f=>maskName(f.full_name)).filter(Boolean).join(', ')||'—'}</div>
       <div style="font-size:12px">${t.closingDate?new Date(t.closingDate).toLocaleDateString('en-CA'):'—'}</div>
       <div><span class="pill ${t.status==='Active'?'pill-done':'pill-pending'}">${t.status||'—'}</span></div>
       <div><span class="pill ${fintracCount>0?'pill-pushed':'pill-pending'}">${fintracCount>0?fintracCount+' found':'none'}</span></div>
@@ -3062,9 +3148,10 @@ function exportTransactions() {
   if (!dsTransactions.length) return;
   const rows = [['Address','City','Status','Close Date','Sale Price','Client Name','DOB','Occupation','Phone','ID Type']];
   dsTransactions.forEach(t => {
+    const addr = maskAddress(t.address||t.name)||'';
     if (t.fintracData && t.fintracData.length) {
-      t.fintracData.forEach(f => rows.push([t.address||t.name||'',t.city||'',t.status||'',t.closingDate||'',t.salePrice||'',f.full_name||'',f.date_of_birth||'',f.occupation||'',f.phone||'',f.id_type||'']));
-    } else rows.push([t.address||t.name||'',t.city||'',t.status||'',t.closingDate||'',t.salePrice||'','','','','','']);
+      t.fintracData.forEach(f => rows.push([addr,t.city||'',t.status||'',t.closingDate||'',t.salePrice||'',maskName(f.full_name)||'',maskDOB(f.date_of_birth)||'',f.occupation||'',maskPhone(f.phone)||'',f.id_type||'']));
+    } else rows.push([addr,t.city||'',t.status||'',t.closingDate||'',t.salePrice||'','','','','','']);
   });
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
