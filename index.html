@@ -534,7 +534,26 @@ function ageFromDOB(d) {
   if (now < new Date(now.getFullYear(), b.getMonth(), b.getDate())) a--;
   return (a > 0 && a < 120) ? a : null;
 }
-function maskDOB(d) { if (!demoMode || !d) return d; const a = ageFromDOB(d); return a ? a + ' yrs' : '••/••/••••'; }
+// Birthday keeps month + day + age (drives the birthday-touch + Age-tag demo
+// story) — only the birth YEAR is hidden, since full DOB is an identity field.
+function maskDOB(d) {
+  if (!demoMode || !d) return d;
+  const m = String(d).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  const b = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(d);
+  if (isNaN(b)) return '••/••/••••';
+  const now = new Date();
+  let a = now.getFullYear() - b.getFullYear();
+  if (now < new Date(now.getFullYear(), b.getMonth(), b.getDate())) a--;
+  const md = b.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+  return md + ((a > 0 && a < 120) ? ' · ' + a + ' yrs' : '');
+}
+// Tag tooltips: Age/Profession reasons are generic ("Calculated from birthday",
+// job-title derived) and support the tagging demo; other reasons can quote
+// personal details, so they stay hidden while masked.
+function maskTagReason(t) {
+  if (!demoMode) return t.reason || '';
+  return /^(Age|Profession):/.test(t.tag || '') ? (t.reason || '') : '';
+}
 function maskNotes(n) { return (demoMode && n) ? '(notes hidden in Demo Mode)' : n; }
 function demoGuard() {
   if (!demoMode) return false;
@@ -895,6 +914,13 @@ async function loadAdminPanel() {
     const res = await fetch('/api/create-agent', { headers: authHeaders() });
     const data = await res.json();
     const agents = data.agents || [];
+    // Demo Mode: show only the logged-in account — other agents' names stay off-screen
+    let visAgents = agents;
+    if (demoMode) {
+      const myId = currentSession?.agentId || currentUserId;
+      visAgents = agents.filter(a => a.agentId === myId);
+      if (!visAgents.length) visAgents = agents.filter(a => a.role === 'admin');
+    }
     const tagOptions = FUB_TAGS.map(t => `<option value="${t}">${t}</option>`).join('');
     panel.innerHTML = `
       <div class="page-title">Admin</div>
@@ -916,7 +942,7 @@ async function loadAdminPanel() {
         </div>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
-        <div style="padding:16px 20px;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">Active agents (${agents.length})</div>
+        <div style="padding:16px 20px;border-bottom:.5px solid var(--border);font-size:13px;font-weight:500">${demoMode ? 'My account' : `Active agents (${agents.length})`}</div>
         <!-- Demo Mode Toggle -->
         <div style="padding:12px 20px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;color:var(--ink-muted)">Demo Mode — hide real client data during presentations</span>
@@ -927,7 +953,7 @@ async function loadAdminPanel() {
           🎬 Demo Mode Active — client identities hidden. Counts, totals and tags are real. FUB pushing disabled.
         </div>
 
-        ${agents.map(a => `
+        ${visAgents.map(a => `
           <!-- Agent Row -->
           <div>
             <div onclick="toggleAgentProfile('${a.agentId}')" style="display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:.5px solid var(--border);flex-wrap:wrap;cursor:pointer;transition:background .15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background=''">
@@ -944,7 +970,10 @@ async function loadAdminPanel() {
             <!-- Expandable Profile Card -->
             <div id="profile-${a.agentId}" style="display:none;background:var(--surface-2);border-bottom:.5px solid var(--border);padding:20px">
               <div id="stats-${a.agentId}" style="color:var(--ink-muted);font-size:13px">Loading stats...</div>
-              ${a.agentId !== 'admin_trellis' ? `
+              ${demoMode ? `
+              <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-outline btn-sm" onclick="setupAgent('${a.agentId}','${a.name}');event.stopPropagation()" style="color:var(--green);border-color:rgba(39,174,96,.3)">Setup Agent (Plans + Templates)</button>
+              </div>` : a.agentId !== 'admin_trellis' ? `
               <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
                 <button class="btn btn-outline btn-sm" onclick="enrichAsAgent('${a.agentId}','${a.name}');event.stopPropagation()">Enrich as Agent</button>
                 <button class="btn btn-outline btn-sm" onclick="runAudit('${a.agentId}','${a.name}');event.stopPropagation()" style="color:#2980b9;border-color:rgba(41,128,185,.3)">Audit Data</button>
@@ -1017,6 +1046,7 @@ function refreshAllViews() {
   try { if (_lastFintracData) renderFintracCsvResults(_lastFintracData); } catch (e) {}
   try { if (_lastSingle) renderSingleResult(_lastSingle.d, _lastSingle.id); } catch (e) {}
   try { if (document.getElementById('panel-review').classList.contains('active')) loadReviewQueue(); } catch (e) {}
+  try { if (document.getElementById('panel-admin').classList.contains('active')) loadAdminPanel(); } catch (e) {}
 }
 
 const statsCache = {};
@@ -1324,6 +1354,7 @@ async function setupAgent(agentId, agentName) {
     if (!res.ok) throw new Error(data.error);
 
     if (!confirm(`Setup ${agentName}:\n\n${data.steps.join('\n')}\n\nThis will create all action plans and email templates in their FUB account.\n\nProceed?`)) return;
+    if (demoGuard()) return;   // demo can preview the plan list above, but never write to FUB
 
     const btn = event?.target;
     if (btn) { btn.disabled = true; btn.textContent = 'Setting up...'; }
@@ -1564,7 +1595,7 @@ function toggleHistoryExpand(idx) {
   const tagsHtml = (c.suggested_tags || []).map((t, i) => {
     const state = tagStates[hid][i] || 'pending';
     const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
-    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${maskTagReason(t)}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
   const _hFirst = demoMode ? (maskName(c.full_name||c.name)||'') : (c.full_name||'').split(' ')[0];
   const _hLast = demoMode ? '' : (c.full_name||'').split(' ').slice(1).join(' ');
@@ -1613,7 +1644,7 @@ function toggleHistoryTag(idx, i) {
   wrap.innerHTML = (c.suggested_tags || []).map((t, i) => {
     const state = tagStates[hid][i] || 'pending';
     const conf = t.confidence === 'high' ? 'high' : t.confidence === 'medium' ? 'med' : 'low';
-    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleHistoryTag(${idx},${i})" title="${maskTagReason(t)}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
@@ -2090,7 +2121,7 @@ function renderTagsFor(id, tags) {
   wrap.innerHTML = tags.map((t, i) => {
     const state = tagStates[id]?.[i] || 'pending';
     const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
-    return `<span class="tag ${state}" onclick="toggleTag('${id}',${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleTag('${id}',${i})" title="${maskTagReason(t)}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
@@ -2300,7 +2331,7 @@ function renderExpandContent(item) {
   const tagsHtml = (d.suggested_tags||[]).map((t,i) => {
     const state = tagStates[item.id]?.[i]||'pending';
     const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
-    return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleQueueTag('${item.id}',${i})" title="${maskTagReason(t)}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
   const _qFirst = demoMode ? (maskName(d.full_name||item.name)||'') : (d.full_name||'').split(' ')[0];
   const _qLast = demoMode ? '' : (d.full_name||'').split(' ').slice(1).join(' ');
@@ -2570,7 +2601,7 @@ function renderVoiceTags() {
   document.getElementById('voice-tags').innerHTML = currentVoiceTags.map((t, i) => {
     const state = voiceTagStates[i];
     const conf = t.confidence==='high'?'high':t.confidence==='medium'?'med':'low';
-    return `<span class="tag ${state}" onclick="toggleVoiceTag(${i})" title="${demoMode?'':(t.reason||'')}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
+    return `<span class="tag ${state}" onclick="toggleVoiceTag(${i})" title="${maskTagReason(t)}"><span class="conf-dot conf-${conf}"></span>${t.tag}</span>`;
   }).join('');
 }
 
