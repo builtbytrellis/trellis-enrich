@@ -3000,7 +3000,8 @@ function renderTradeResults() {
     const buyerMatch = findContactMatch(r.agent_side === 'seller' || r.agent_side === 'landlord' ? r.seller_or_landlord_name : partyName);
     const dealTypeBadge = r.deal_type === 'sale' ? '🏠 Sale' : r.deal_type === 'lease' ? '🔑 Lease' : r.deal_type === 'lease_renewal' ? '🔄 Lease Renewal' : '📋 Sale';
     const sideLabel = r.agent_side === 'buyer' ? 'Buy side' : r.agent_side === 'seller' ? 'List side' : r.agent_side === 'tenant' ? 'Tenant side' : r.agent_side === 'landlord' ? 'Landlord side' : r.agent_side === 'both' ? 'Double-ended' : '';
-    const clientDisplayName = r.agent_side === 'seller' || r.agent_side === 'landlord' ? r.seller_or_landlord_name : r.buyer_or_tenant_name;
+    const clientDisplayName = r.client_name || (r.agent_side === 'seller' || r.agent_side === 'landlord' ? r.seller_or_landlord_name : r.buyer_or_tenant_name);
+    const noClient = !clientDisplayName;
 
     return `
     <div class="card" style="margin-bottom:12px">
@@ -3025,7 +3026,15 @@ function renderTradeResults() {
         <div class="field"><div class="field-key">Close date</div><div class="field-val">${r.close_date||'—'}</div></div>
         <div class="field"><div class="field-key">Agent share</div><div class="field-val">${fmtMoney(r.agent_share_pretax)||'—'}</div></div>
         <div class="field"><div class="field-key">Deposit</div><div class="field-val">${fmtMoney(r.deposit)||'—'}</div></div>
+        ${r.commission_gross || r.commission ? `<div class="field"><div class="field-key">Commission</div><div class="field-val">${fmtMoney(r.commission_gross) || r.commission}</div></div>` : ''}
       </div>
+      ${noClient ? `
+      <div style="display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px;background:var(--amber-light);border-radius:6px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:600;color:var(--amber)">Client unknown</span>
+        <input list="contact-names-list" id="connect-name-${idx}" placeholder="Type or pick client name..." ${demoMode?'readonly':''} style="flex:1;min-width:180px;font-size:12px;padding:6px 10px;border:.5px solid var(--border);border-radius:4px;background:var(--cream)"/>
+        <button class="btn btn-sm" onclick="connectClient('${r._tradeId||''}', ${idx}, event)" ${demoMode?'disabled title="Disabled in Demo Mode"':''}>Connect client + FUB</button>
+        <div id="connect-msg-${idx}" style="font-size:11px;flex-basis:100%"></div>
+      </div>` : ''}
       <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap">
         <label style="font-size:11px;color:var(--ink-muted)">Side repped:
           <select id="trade-side-${idx}" style="margin-left:6px;font-size:12px;padding:4px 8px;border:.5px solid var(--border);border-radius:4px;background:var(--cream)">
@@ -3043,7 +3052,35 @@ function renderTradeResults() {
   }).join('');
 
   const errorRows = errors.length ? `<div class="card" style="background:var(--red-light)"><div style="font-size:12px;color:var(--red)">${errors.length} files could not be processed</div></div>` : '';
-  document.getElementById('trade-list').innerHTML = cards + errorRows;
+  const contactOptions = `<datalist id="contact-names-list">${historyContacts.map(c => `<option value="${(c.full_name || c.name || '').replace(/"/g, '&quot;')}">`).join('')}</datalist>`;
+  document.getElementById('trade-list').innerHTML = cards + errorRows + contactOptions;
+}
+
+async function connectClient(tradeId, idx, ev) {
+  if (demoGuard()) return;
+  const msg = document.getElementById('connect-msg-' + idx);
+  if (!tradeId) { if (msg) { msg.textContent = 'Trade not saved yet — reload the page first.'; msg.style.color = 'var(--red)'; } return; }
+  const name = (document.getElementById('connect-name-' + idx)?.value || '').trim();
+  if (!name) { if (msg) { msg.textContent = 'Enter a client name first.'; msg.style.color = 'var(--red)'; } return; }
+  const side = document.getElementById('trade-side-' + idx)?.value;
+  const btn = ev && ev.target;
+  if (btn) { btn.disabled = true; btn.textContent = 'Connecting...'; }
+  if (msg) { msg.textContent = 'Saving client + checking FUB...'; msg.style.color = 'var(--ink-muted)'; }
+  try {
+    const body = { tradeId, clientName: name, agentSide: side, ensureFub: true };
+    if (impersonating) body.targetAgentId = impersonating.agentId;
+    const res = await fetch('/api/connect-client', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-session-token': getToken() }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!res.ok || !d.success) throw new Error(d.error || `HTTP ${res.status}`);
+    const target = tradeResults.find(t => t._tradeId === tradeId);
+    if (target) Object.assign(target, d.trade);
+    const fubNote = d.fubPerson ? (d.fubPerson.created ? `FUB profile created (#${d.fubPerson.id})` : `linked to existing FUB #${d.fubPerson.id}`) : 'no FUB link';
+    if (msg) { msg.textContent = `✓ ${name} connected — ${fubNote}`; msg.style.color = 'var(--green)'; }
+    setTimeout(() => renderTradeResults(), 1200);
+  } catch (e) {
+    if (msg) { msg.textContent = '✗ ' + e.message; msg.style.color = 'var(--red)'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Connect client + FUB'; }
+  }
 }
 
 async function pushTradeToFub(idx, ev) {

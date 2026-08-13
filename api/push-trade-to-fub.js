@@ -207,6 +207,31 @@ module.exports = async (req, res) => {
       const personResult = await findFubPersonRobust(clientName, headers);
       fubPerson = personResult.person;
       outcome.steps.push({ step: 'find_person', name: clientName, normalized: normalizeNameFromTrade(clientName), found: !!fubPerson, fubId: fubPerson?.id, tried: personResult.tried });
+
+      // No profile in FUB — create one so the deal always has a person attached
+      if (!fubPerson) {
+        const normalized = normalizeNameFromTrade(clientName);
+        const parts = normalized.split(/\s+/);
+        const createRes = await fubFetch('/people', 'POST', headers, {
+          firstName: parts[0],
+          lastName: parts.slice(1).join(' ') || '',
+          source: 'Trellis Enrich',
+          tags: ['Past Client'],
+        });
+        const newId = createRes.body?.id;
+        if (createRes.ok && newId) {
+          // FUB success messages lie — fetch the record back to confirm
+          const verify = await fubFetch(`/people/${newId}?fields=id,firstName,lastName`, 'GET', headers);
+          if (verify.ok && verify.body?.id) {
+            fubPerson = verify.body;
+            outcome.steps.push({ step: 'create_person', ok: true, fubId: newId, verified: true });
+          } else {
+            outcome.steps.push({ step: 'create_person', ok: false, fubId: newId, verified: false, error: `verify-back failed (${verify.status})` });
+          }
+        } else {
+          outcome.steps.push({ step: 'create_person', ok: false, status: createRes.status, error: JSON.stringify(createRes.body).slice(0, 300) });
+        }
+      }
     }
 
     // 2) Find stage
@@ -235,7 +260,7 @@ module.exports = async (req, res) => {
         trade.deal_type ? `Type: ${trade.deal_type}` : null,
         trade.mls_number ? `MLS: ${trade.mls_number}` : null,
         trade.property_address ? `Property: ${trade.property_address}` : null,
-        trade.agent_side ? `Lorry rep'd: ${trade.agent_side}` : null,
+        trade.agent_side ? `Agent rep'd: ${trade.agent_side}` : null,
         trade.agent_share_pretax ? `Agent share (pretax): $${trade.agent_share_pretax}` : null,
         isLease && trade.monthly_rent ? `Monthly rent: $${trade.monthly_rent}` : null,
       ].filter(Boolean).join('\n')
