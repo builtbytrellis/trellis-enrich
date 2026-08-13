@@ -793,9 +793,14 @@ async function checkExistingSession() {
       const r = await fetch('/api/demo-login');
       const d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      localStorage.setItem('trellis_token', d.token);
-      localStorage.setItem('trellis_session', JSON.stringify({ agentId: d.agentId, name: 'Demo Agent', email: 'demo@trellis.ai', role: 'agent', isDemo: true }));
+      // sessionStorage, NOT localStorage — the boot logic below wipes non-admin
+      // sessions from localStorage, which used to strand this flow on "Loading Demo..."
+      sessionStorage.setItem('trellis_token', d.token);
+      sessionStorage.setItem('trellis_session', JSON.stringify({ agentId: d.agentId, name: 'Demo Agent', email: 'demo@trellis.ai', role: 'agent', isDemo: true }));
       localStorage.setItem('trellis_demo_mode', 'true');
+      // demo account data is fictional — the PII mask would only hide the good fake names
+      localStorage.setItem('trellis_demo_mask', 'false');
+      demoMode = false;
       window.history.replaceState({}, '', '/');
     } catch(e) {
       document.getElementById('auth-screen').innerHTML = '<div style="padding:40px;color:red">Demo failed: ' + e.message + '</div>';
@@ -999,9 +1004,11 @@ async function loadAdminPanel() {
 // It does NOT switch accounts, seed sample data, or touch stored records —
 // it re-renders the current views with client identities hidden, keeps every
 // count/dollar/tag real, and blocks all FUB writes while active.
-function exitDemo() {   // used by the ?demo=true guest-login flow — unchanged
+function exitDemo() {   // used by the ?demo=true guest-login flow
   localStorage.removeItem('trellis_demo_mode');
   localStorage.removeItem('trellis_token');
+  sessionStorage.removeItem('trellis_token');
+  sessionStorage.removeItem('trellis_session');
   window.location.href = '/';
 }
 
