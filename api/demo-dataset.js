@@ -7,7 +7,7 @@
 // demo tells the true product story without exposing any real client.
 
 const DEMO_AGENT_ID = 'agent_demo';
-const DEMO_SEED_VERSION = 'v2-2026-08-13';
+const DEMO_SEED_VERSION = 'v3-2026-08-13';
 
 // tag(tag, confidence, reason) → suggested_tags entry
 const t = (tag, confidence, reason) => ({ tag, confidence, reason });
@@ -301,8 +301,16 @@ async function seedDemoData(redis) {
   for (const id of existing) await redis.del(id);
   await redis.del(`agent:${DEMO_AGENT_ID}:contacts`);
   const now = Date.now();
+  // Display order: History lists newest-saved first, so seed the flagship
+  // stories LAST (top of list) and the sparse needs-review contacts first.
+  const rank = (c) => {
+    if (['James & Priya Okonkwo', 'Grace Nakamura', 'Victor Antonopoulos', 'Sofia Ramirez', 'Kevin Park'].includes(c.full_name)) return 90;
+    if ((c.approved_tags || []).includes('Not Enriched') || !(c.approved_tags || []).length) return 10;
+    return 50;
+  };
+  const ordered = [...CONTACTS].sort((a, b) => rank(a) - rank(b));
   let i = 0;
-  for (const contact of CONTACTS) {
+  for (const contact of ordered) {
     const id = `contact:${DEMO_AGENT_ID}:demo:${String(i).padStart(3, '0')}`;
     // stagger savedAt over the past weeks, oldest first, so lpush leaves newest on top
     const savedAt = new Date(now - (CONTACTS.length - i) * 36e5 * 7).toISOString();
